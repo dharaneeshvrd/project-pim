@@ -174,32 +174,3 @@ def start_manager():
 
 print("Starting ASE lifecycle manager")
 start_manager()
-
-# xml_str = '''<?xml version="1.0" encoding="UTF-8"?>
-# <library>
-# <Metadata>
-# <Atom>
-# </Atom>
-# </Metadata>
-#  <book>
-#    <title>The Great Gatsby</title>
-#    <author>F. Scott Fitzgerald</author>
-#    <year>1925</year>
-#  </book>
-# </library>'''
-
-# xml_resp = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-# <LogonResponse xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
-#     <Metadata>
-#         <Atom/>
-#     </Metadata>
-#     <X-API-Session kb="ROR" kxe="false">Ivq2wxwdH42qfYLSurUMgkaZZuRrYW4Rr8dN4WWufIQKGkdnETYv3RryYC9IpVGt4n62K2-Vs5VjaJ8c_36u3hy0IBPexlESu3vm9G0aKOr67pG9L0k4-6Us3ehGkMk_VmiTrkx3LCNl_Nk7nssBDEfSoEWL-S2yfNB4IzciWpXWveeIW5jOILzcFNXyoO7_AME0T4bKSU59_AL8eYR08Y-Hj6H3xoodLvMTiuhua4o=</X-API-Session>
-# </LogonResponse>'''
-
-# root = ET.fromstring(xml_resp)
-# for child in root.iter():
-#    print("tag ", child.tag)
-#    if "X-API-Session" in child.tag:
-#        print(child.text)
-
-
