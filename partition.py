@@ -28,3 +28,5 @@ PAYLOAD = '''
     <PartitionType kxe="false" kb="COD">{partition_type}</PartitionType>
 </LogicalPartition:LogicalPartition>
 '''
+
+#def populate_payload(config):
