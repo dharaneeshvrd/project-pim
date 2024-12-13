@@ -32,3 +32,42 @@ def get_disk_name(config):
 
 def get_system_name(config):
     return config.get("SERVER", "name").strip('"')
+
+
+# partition related Getters
+def get_desired_memory(config):
+    return config.get("MEMORY_CONFIG", "desired_memory").strip('"')
+
+def get_max_memory(config):
+    return config.get("MEMORY_CONFIG", "max_memory").strip('"')
+
+def get_min_memory(config):
+    return config.get("MEMORY_CONFIG", "min_memory").strip('"')
+
+def get_desired_proc(config):
+    return config.get("PROCESSOR_CONFIG", "desired_vpu").strip('"')
+
+def get_max_proc(config):
+    return config.get("PROCESSOR_CONFIG", "max_vpu").strip('"')
+
+def get_min_proc(config):
+    return config.get("PROCESSOR_CONFIG", "min_vpu").strip('"')
+
+def has_dedicated_proc(config):
+    return config.get("PROCESSOR_CONFIG", "has_dedicated_proc")
+
+def get_sharing_mode(config):
+    return config.get("PROCESSOR_CONFIG", "sharing_mode").strip('"')
+
+def get_partition_type(config):
+    return config.get("PARTITION", "type").strip('"')
+
+def get_partition_name(config):
+    return config.get("PARTITION", "name").strip('"')
+
+# Network config Getters
+def get_vswitch_name(config):
+    return config.get("NETWORK_CONFIG", "virtual_switch_name").strip('"')
+
+def get_vnetwork_name(config):
+    return config.get("NETWORK_CONFIG", "virtual_network_name").strip('"')

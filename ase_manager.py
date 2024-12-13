@@ -47,10 +47,10 @@ def copy_iso_and_create_disk(config):
 
 def authenticate_hmc(config):
     # Populate Authentication payload
-    auth.populate_payload(util.get_host_username(config), util.get_host_password(config))
+    payload = auth.populate_payload(config)
     url = "https://" + util.get_host_address(config) + auth.URI
     headers = {"Content-Type": auth.CONTENT_TYPE, "Accept": auth.ACCEPT}
-    resp = requests.put(url, headers=headers, data=auth.PAYLOAD, verify=False)
+    resp = requests.put(url, headers=headers, data=payload, verify=False)
     root = ET.fromstring(resp.text)
     SESSION_KEY = ""
     for child in root.iter():
@@ -63,8 +63,7 @@ def get_system_uuid(config, cookies):
     uri = "/rest/api/uom/ManagedSystem/quick/All"
     url = "https://" + util.get_host_address(config) + uri
     headers = {"x-api-key": util.get_session_key(config)}
-    session = requests.Session()
-    response = session.get(url, headers=headers, cookies=cookies, verify=False)
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
 
     systems = []
     try: 
@@ -89,11 +88,11 @@ def get_system_uuid(config, cookies):
 def create_partition(config, cookies, system_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition"
     url = "https://" +  util.get_host_address(config) + uri
-    print("url: ", url)
+    payload = partition.populate_payload(config)
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": partition.CONTENT_TYPE}
-    response = requests.put(url, headers=headers, data=partition.PAYLOAD, cookies=cookies, verify=False)
+    response = requests.put(url, headers=headers, data=payload, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print("Failed to create partition")
+        print("Failed to create partition ", response.text)
         exit()
 
     #partition response will be in XML
@@ -104,25 +103,116 @@ def create_partition(config, cookies, system_uuid):
     for child in root.iter():
         if "PartitionUUID" in child.tag:
             partition_uuid = child.text
+
     return partition_uuid
 
-def attach_network(config, cookies, partition_uuid):
+def get_network_uuid(config, cookies, system_uuid):
+    uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/VirtualNetwork/quick/All"
+    url = "https://" +  util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml, type=VirtualNetwork"}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        print("Failed to get vlan id")
+        exit()
+    uuid = ""
+    network_name = util.get_vnetwork_name(config)
+    for nw in response.json():
+        if nw["NetworkName"] == network_name:
+            uuid = nw["UUID"]
+            break
+
+    if "" == uuid:
+        print("Failed to get UUID for the virtual network %s", network_name)
+        exit()
+    else:
+        print("Network UUID for the virtual network %s: %s", network_name, uuid)
+    return uuid
+
+def get_vlan_details(config, cookies, system_uuid):
+    nw_uuid = get_network_uuid(config, cookies, system_uuid)
+    uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/VirtualNetwork/{nw_uuid}"
+    url = "https://" +  util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml, type=VirtualNetwork"}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        print("Failed to get vlan id")
+        exit()
+
+    # parse xml response to get vlan_id and vswitch_id
+    root = ET.fromstring(response.text)
+    for child in root.iter():
+        if "NetworkVLANID" in child.tag:
+            vlan_id = child.text
+        elif "VswitchID" in child.tag:
+            vswitch_id = child.text
+
+    return vlan_id, vswitch_id
+
+def attach_network(config, cookies, system_uuid, partition_uuid):
+    # Get VLAN ID and VSWITCH ID
+    vlan_id, vswitch_id = get_vlan_details(config, cookies, system_uuid)
+    #vswitch_id = get_vswitch_id(config, cookies, system_uuid)
+    payload = virtual_network.populate_payload(vlan_id, vswitch_id, util.get_vswitch_name(config))
+
     uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}/ClientNetworkAdapter"
     url =  "https://" +  util.get_host_address(config) + uri
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": virtual_network.CONTENT_TYPE}
-    response = requests.put(url, headers=headers, cookies=cookies, data=virtual_network.PAYLOAD, verify=False)
+    response = requests.put(url, headers=headers, cookies=cookies, data=payload, verify=False)
     if response.status_code != 200:
-        print("Failed to attach virtual network to the partition")
+        print("Failed to attach virtual network to the partition ", response.text)
         exit()
     return
 
-def attach_storage(config, cookies, system_uuid, vios_uuid):
+def get_vios_uuid(config, cookies, system_uuid):
+    uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/VirtualIOServer/quick/All"
+    url = "https://" +  util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=VirtualIOServer"}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        print("Failed to get VIOS id")
+        exit()
+
+    uuid = ""
+    vios_partition_id = ""
+    sys_name = util.get_system_name(config)
+    for vios in response.json():
+        if vios["SystemName"] == sys_name:
+            uuid = vios["UUID"]
+            vios_partition_id = vios["PartitionID"]
+            break
+
+    if "" == uuid:
+        print("Failed to get UUID for the system %s", sys_name)
+        exit()
+    else:
+        print("VIOS UUID for the system %s: %s", sys_name, uuid)
+    return uuid, vios_partition_id
+
+def attach_storage(config, cookies, partition_id, system_uuid, vios_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/VirtualIOServer/{vios_uuid}"
     url =  "https://" +  util.get_host_address(config) + uri
+    payload = storage.populate_payload(partition_id)
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": storage.CONTENT_TYPE}
-    response = requests.put(url, headers=headers, data=virtual_network.PAYLOAD, verify=False)
+    response = requests.post(url, headers=headers, cookies=cookies, data=payload, verify=False)
+    print("response ", response.text)
+    print("response status ", response.status_code)
+
     if response.status_code != 200:
-        print("Failed to attach virtual network to the partition")
+        print("Failed to attach virtual storage to the partition ", response.text)
+        exit()
+    return
+
+def attach_vopt(config, cookies, partition_id, sys_uuid, vios_uuid):
+    uri = f"/rest/api/uom/ManagedSystem/{sys_uuid}/VirtualIOServer/{vios_uuid}"
+    url =  "https://" +  util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": storage.CONTENT_TYPE}
+    payload = storage.populate_payload(partition_id)
+    response = requests.post(url, headers=headers, cookies=cookies, data=payload, verify=False)
+    print("response ", response.text)
+    print("response status ", response.status_code)
+
+    if response.status_code != 200:
+        print("Failed to attach virtual storage to the partition ", response.text)
         exit()
     return
 
@@ -131,6 +221,7 @@ def activate_partititon(config, cookies, partition_uuid):
     url =  "https://" +  util.get_host_address(config) + uri
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": activation.CONTENT_TYPE}
     response = requests.put(url, headers=headers, cookies=cookies, data=activation.PAYLOAD, verify=False)
+    print("response ", response.text)
     if response.status_code != 200:
         print("Failed to activate partition %s", partition_uuid)
         exit()
@@ -142,10 +233,8 @@ def start_manager():
     print("----------- Initialize done ----------------------")
 
     print("2. Copy ISO file to VIOS server")
-    copy_iso_and_create_disk(config)
+    #copy_iso_and_create_disk(config)
     print("----------- Copy ISO done -----------")
-
-    exit()
 
     print("3. Authenticate with HMC host")
     session_token, cookies = authenticate_hmc(config)
@@ -159,19 +248,21 @@ def start_manager():
     print("----------- Get System UUID done -----------")
 
     print("5. Create Partion on the target host")
-    #partition_uuid = create_partition(config, cookies, sys_uuid)
-    partition_uuid = "77F1CA69-7751-46A4-A766-C941A7DD6C06"
+    partition_uuid = create_partition(config, cookies, sys_uuid)
     print("partition creation success. partition UUID: %s", partition_uuid)
     print("----------- Create partition done -----------")
 
     print("6. Attach Network to the partition")
-    #attach_network(config, cookies, partition_uuid)
+    attach_network(config, cookies, sys_uuid, partition_uuid)
     print("----------- Attach network done -----------")
 
     print("7. Attach VIOS storage to the partition")
-    #attach_storage(config, cookies, vios_uuid)
+    vios_uuid, vios_partition_id = get_vios_uuid(config, cookies, sys_uuid)
+    attach_storage(config, cookies, vios_partition_id, sys_uuid, vios_uuid)
+    print("----------- Attach VIOS storage done -----------")
 
     print("8. Attach vOpt to the partition")
+    attach_vopt(config, cookies, vios_partition_id, sys_uuid, vios_uuid)
 
     print("9. Activate the partition")
     activate_partititon(config, cookies, partition_uuid)

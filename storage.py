@@ -1,6 +1,8 @@
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=VirtualIOServer"
-PAYLOAD = '''
-<VirtualIOServer:VirtualIOServer xmlns:VirtualIOServer="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+
+def populate_payload(partition_id):
+    return f'''
+    <VirtualIOServer:VirtualIOServer xmlns:VirtualIOServer="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
     <Metadata>
         <Atom>
         </Atom>
@@ -20,7 +22,7 @@ PAYLOAD = '''
     <KeylockPosition kb="CUD" kxe="false">normal</KeylockPosition>
     <LogicalSerialNumber kb="ROR" kxe="false">138C5AA1</LogicalSerialNumber>
     <OperatingSystemVersion kxe="false" kb="ROR">VIOS 3.1.4.10 </OperatingSystemVersion>
-    <PartitionID kxe="false" kb="COD">1</PartitionID>
+    <PartitionID kxe="false" kb="COD">{partition_id}</PartitionID>
     <PartitionIOConfiguration kxe="false" kb="CUD" schemaVersion="V1_0">
         <Metadata>
             <Atom/>
@@ -47,7 +49,7 @@ PAYLOAD = '''
                     <FeatureCodes kb="ROO" kxe="false">5899</FeatureCodes>
                     <FeatureCodes kb="ROO" kxe="false">5260</FeatureCodes>
                     <IOUnitPhysicalLocation kb="ROR" kxe="false">U78D3.001.WZS069F</IOUnitPhysicalLocation>
-                    <PartitionID ksv="V1_3_0" kb="ROO" kxe="false">1</PartitionID>
+                    <PartitionID ksv="V1_3_0" kb="ROO" kxe="false">{partition_id}</PartitionID>
                     <PartitionName ksv="V1_3_0" kb="ROO" kxe="false">VIOS17-C340F2U03-ZZ</PartitionName>
                     <PartitionType ksv="V1_3_0" kb="ROO" kxe="false">Virtual IO Server</PartitionType>
                     <PCAdapterID kxe="false" kb="ROO">5719</PCAdapterID>
@@ -109,7 +111,7 @@ PAYLOAD = '''
                     <Description kxe="false" kb="CUD">PCIe3 x8 SAS RAID Internal Adapter 6Gb</Description>
                     <FeatureCodes kb="ROO" kxe="false">57D7</FeatureCodes>
                     <IOUnitPhysicalLocation kb="ROR" kxe="false">U78D3.001.WZS069F</IOUnitPhysicalLocation>
-                    <PartitionID ksv="V1_3_0" kb="ROO" kxe="false">1</PartitionID>
+                    <PartitionID ksv="V1_3_0" kb="ROO" kxe="false">{partition_id}</PartitionID>
                     <PartitionName ksv="V1_3_0" kb="ROO" kxe="false">VIOS17-C340F2U03-ZZ</PartitionName>
                     <PartitionType ksv="V1_3_0" kb="ROO" kxe="false">Virtual IO Server</PartitionType>
                     <PCAdapterID kxe="false" kb="ROO">842</PCAdapterID>
@@ -170,7 +172,7 @@ PAYLOAD = '''
                     <BusGroupingRequired kb="CUD" kxe="false">false</BusGroupingRequired>
                     <Description kxe="false" kb="CUD">Universal Serial Bus UHC Spec</Description>
                     <IOUnitPhysicalLocation kb="ROR" kxe="false">U78D3.001.WZS069F</IOUnitPhysicalLocation>
-                    <PartitionID ksv="V1_3_0" kb="ROO" kxe="false">1</PartitionID>
+                    <PartitionID ksv="V1_3_0" kb="ROO" kxe="false">{partition_id}</PartitionID>
                     <PartitionName ksv="V1_3_0" kb="ROO" kxe="false">VIOS17-C340F2U03-ZZ</PartitionName>
                     <PartitionType ksv="V1_3_0" kb="ROO" kxe="false">Virtual IO Server</PartitionType>
                     <PCAdapterID kxe="false" kb="ROO">33345</PCAdapterID>
@@ -237,7 +239,7 @@ PAYLOAD = '''
                     <FeatureCodes kb="ROO" kxe="false">5899</FeatureCodes>
                     <FeatureCodes kb="ROO" kxe="false">5260</FeatureCodes>
                     <IOUnitPhysicalLocation kb="ROR" kxe="false">U78D3.001.WZS069F</IOUnitPhysicalLocation>
-                    <PartitionID ksv="V1_3_0" kb="ROO" kxe="false">1</PartitionID>
+                    <PartitionID ksv="V1_3_0" kb="ROO" kxe="false">{partition_id}</PartitionID>
                     <PartitionName ksv="V1_3_0" kb="ROO" kxe="false">VIOS17-C340F2U03-ZZ</PartitionName>
                     <PartitionType ksv="V1_3_0" kb="ROO" kxe="false">Virtual IO Server</PartitionType>
                     <PCAdapterID kxe="false" kb="ROO">5719</PCAdapterID>
@@ -622,7 +624,7 @@ PAYLOAD = '''
             </Metadata>
             <DynamicReconfigurationConnectorName kxe="false" kb="CUD">U9009.22G.138C5AA-V1-C2</DynamicReconfigurationConnectorName>
             <LocationCode kxe="false" kb="ROR">U9009.22G.138C5AA-V1-C2</LocationCode>
-            <LocalPartitionID kb="CUR" kxe="false">1</LocalPartitionID>
+            <LocalPartitionID kb="CUR" kxe="false">{partition_id}</LocalPartitionID>
             <RequiredAdapter kb="CUD" kxe="false">false</RequiredAdapter>
             <VariedOn kb="CUD" kxe="true">true</VariedOn>
             <VirtualSlotNumber kb="COD" kxe="false">2</VirtualSlotNumber>
@@ -646,7 +648,7 @@ PAYLOAD = '''
             </Metadata>
             <DynamicReconfigurationConnectorName kxe="false" kb="CUD">U9009.22G.138C5AA-V1-C3</DynamicReconfigurationConnectorName>
             <LocationCode kxe="false" kb="ROR">U9009.22G.138C5AA-V1-C3</LocationCode>
-            <LocalPartitionID kb="CUR" kxe="false">1</LocalPartitionID>
+            <LocalPartitionID kb="CUR" kxe="false">{partition_id}</LocalPartitionID>
             <RequiredAdapter kb="CUD" kxe="false">false</RequiredAdapter>
             <VariedOn kb="CUD" kxe="true">true</VariedOn>
             <VirtualSlotNumber kb="COD" kxe="false">3</VirtualSlotNumber>

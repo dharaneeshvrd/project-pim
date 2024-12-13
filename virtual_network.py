@@ -10,3 +10,16 @@ PAYLOAD = '''
     <VirtualSwitchName ksv="V1_12_0" kb="ROR" kxe="false">ETHERNET0</VirtualSwitchName>
 </ClientNetworkAdapter:ClientNetworkAdapter>
 '''
+
+def populate_payload(vlanid, vswitchid, vswitchname):
+    return f'''
+<ClientNetworkAdapter:ClientNetworkAdapter xmlns:ClientNetworkAdapter="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+        </Atom>
+    </Metadata>
+    <PortVLANID kb="CUR" kxe="false">{vlanid}</PortVLANID>
+    <VirtualSwitchID kxe="false" kb="ROR">{vswitchid}</VirtualSwitchID>
+    <VirtualSwitchName ksv="V1_12_0" kb="ROR" kxe="false">{vswitchname}</VirtualSwitchName>
+</ClientNetworkAdapter:ClientNetworkAdapter>
+'''
