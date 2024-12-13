@@ -32,7 +32,7 @@ def copy_iso_and_create_disk(config):
     iso = util.get_iso(config)
     remote_path=util.get_iso_target_path(config)
 
-    client.connect(host_ip, 22, username, password)
+    client.connect(host_ip, scp_port, username, password)
     scp = SCPClient(client.get_transport())
     scp.put(iso, remote_path=remote_path)
     print("ISO file copy success!!")
@@ -40,10 +40,11 @@ def copy_iso_and_create_disk(config):
     # create virtual optical disk
     disk_name = util.get_disk_name(config)
     try:
-        client.exec_command("mkvopt -name %s -file %s", disk_name, iso)
+        command = f"mkvopt -name {disk_name} -file {iso}"
+        client.exec_command(command)
     except paramiko.ssh_exception:
         print("Failed to create disk from ISO image")
-
+    print("Create disk using ISO is successful")
 
 def authenticate_hmc(config):
     # Populate Authentication payload
@@ -233,7 +234,7 @@ def start_manager():
     print("----------- Initialize done ----------------------")
 
     print("2. Copy ISO file to VIOS server")
-    #copy_iso_and_create_disk(config)
+    copy_iso_and_create_disk(config)
     print("----------- Copy ISO done -----------")
 
     print("3. Authenticate with HMC host")
