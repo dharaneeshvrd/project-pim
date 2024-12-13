@@ -8,7 +8,6 @@ def get_host_username(config):
 def get_host_password(config):
     return config.get("HMC_HOST", "password").strip('"')
 
-
 def get_vios_address(config):
     return config.get("VIOS_SERVER", "host_address").strip('"')
 
@@ -71,3 +70,10 @@ def get_vswitch_name(config):
 
 def get_vnetwork_name(config):
     return config.get("NETWORK_CONFIG", "virtual_network_name").strip('"')
+
+# storage related Getters
+def get_physical_volume_name(config):
+    return config.get("STORAGE", "physical_volume_name").strip('"')
+
+def get_vopt_name(config):
+    return config.get("STORAGE", "vopt_name").strip('"')

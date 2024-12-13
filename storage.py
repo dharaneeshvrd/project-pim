@@ -1,6 +1,8 @@
+import string_util as util
+
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=VirtualIOServer"
 
-def populate_payload(partition_id):
+def populate_payload(hmc_host, partition_uuid, system_uuid, physical_volume_name):
     return f'''
     <VirtualIOServer:VirtualIOServer xmlns:VirtualIOServer="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
     <Metadata>
@@ -22,7 +24,7 @@ def populate_payload(partition_id):
     <KeylockPosition kb="CUD" kxe="false">normal</KeylockPosition>
     <LogicalSerialNumber kb="ROR" kxe="false">138C5AA1</LogicalSerialNumber>
     <OperatingSystemVersion kxe="false" kb="ROR">VIOS 3.1.4.10 </OperatingSystemVersion>
-    <PartitionID kxe="false" kb="COD">{partition_id}</PartitionID>
+    <PartitionID kxe="false" kb="COD">1</PartitionID>
     <PartitionIOConfiguration kxe="false" kb="CUD" schemaVersion="V1_0">
         <Metadata>
             <Atom/>
@@ -49,7 +51,7 @@ def populate_payload(partition_id):
                     <FeatureCodes kb="ROO" kxe="false">5899</FeatureCodes>
                     <FeatureCodes kb="ROO" kxe="false">5260</FeatureCodes>
                     <IOUnitPhysicalLocation kb="ROR" kxe="false">U78D3.001.WZS069F</IOUnitPhysicalLocation>
-                    <PartitionID ksv="V1_3_0" kb="ROO" kxe="false">{partition_id}</PartitionID>
+                    <PartitionID ksv="V1_3_0" kb="ROO" kxe="false">1</PartitionID>
                     <PartitionName ksv="V1_3_0" kb="ROO" kxe="false">VIOS17-C340F2U03-ZZ</PartitionName>
                     <PartitionType ksv="V1_3_0" kb="ROO" kxe="false">Virtual IO Server</PartitionType>
                     <PCAdapterID kxe="false" kb="ROO">5719</PCAdapterID>
@@ -111,7 +113,7 @@ def populate_payload(partition_id):
                     <Description kxe="false" kb="CUD">PCIe3 x8 SAS RAID Internal Adapter 6Gb</Description>
                     <FeatureCodes kb="ROO" kxe="false">57D7</FeatureCodes>
                     <IOUnitPhysicalLocation kb="ROR" kxe="false">U78D3.001.WZS069F</IOUnitPhysicalLocation>
-                    <PartitionID ksv="V1_3_0" kb="ROO" kxe="false">{partition_id}</PartitionID>
+                    <PartitionID ksv="V1_3_0" kb="ROO" kxe="false">1</PartitionID>
                     <PartitionName ksv="V1_3_0" kb="ROO" kxe="false">VIOS17-C340F2U03-ZZ</PartitionName>
                     <PartitionType ksv="V1_3_0" kb="ROO" kxe="false">Virtual IO Server</PartitionType>
                     <PCAdapterID kxe="false" kb="ROO">842</PCAdapterID>
@@ -172,7 +174,7 @@ def populate_payload(partition_id):
                     <BusGroupingRequired kb="CUD" kxe="false">false</BusGroupingRequired>
                     <Description kxe="false" kb="CUD">Universal Serial Bus UHC Spec</Description>
                     <IOUnitPhysicalLocation kb="ROR" kxe="false">U78D3.001.WZS069F</IOUnitPhysicalLocation>
-                    <PartitionID ksv="V1_3_0" kb="ROO" kxe="false">{partition_id}</PartitionID>
+                    <PartitionID ksv="V1_3_0" kb="ROO" kxe="false">1</PartitionID>
                     <PartitionName ksv="V1_3_0" kb="ROO" kxe="false">VIOS17-C340F2U03-ZZ</PartitionName>
                     <PartitionType ksv="V1_3_0" kb="ROO" kxe="false">Virtual IO Server</PartitionType>
                     <PCAdapterID kxe="false" kb="ROO">33345</PCAdapterID>
@@ -239,7 +241,7 @@ def populate_payload(partition_id):
                     <FeatureCodes kb="ROO" kxe="false">5899</FeatureCodes>
                     <FeatureCodes kb="ROO" kxe="false">5260</FeatureCodes>
                     <IOUnitPhysicalLocation kb="ROR" kxe="false">U78D3.001.WZS069F</IOUnitPhysicalLocation>
-                    <PartitionID ksv="V1_3_0" kb="ROO" kxe="false">{partition_id}</PartitionID>
+                    <PartitionID ksv="V1_3_0" kb="ROO" kxe="false">1</PartitionID>
                     <PartitionName ksv="V1_3_0" kb="ROO" kxe="false">VIOS17-C340F2U03-ZZ</PartitionName>
                     <PartitionType ksv="V1_3_0" kb="ROO" kxe="false">Virtual IO Server</PartitionType>
                     <PCAdapterID kxe="false" kb="ROO">5719</PCAdapterID>
@@ -624,7 +626,7 @@ def populate_payload(partition_id):
             </Metadata>
             <DynamicReconfigurationConnectorName kxe="false" kb="CUD">U9009.22G.138C5AA-V1-C2</DynamicReconfigurationConnectorName>
             <LocationCode kxe="false" kb="ROR">U9009.22G.138C5AA-V1-C2</LocationCode>
-            <LocalPartitionID kb="CUR" kxe="false">{partition_id}</LocalPartitionID>
+            <LocalPartitionID kb="CUR" kxe="false">1</LocalPartitionID>
             <RequiredAdapter kb="CUD" kxe="false">false</RequiredAdapter>
             <VariedOn kb="CUD" kxe="true">true</VariedOn>
             <VirtualSlotNumber kb="COD" kxe="false">2</VirtualSlotNumber>
@@ -648,7 +650,7 @@ def populate_payload(partition_id):
             </Metadata>
             <DynamicReconfigurationConnectorName kxe="false" kb="CUD">U9009.22G.138C5AA-V1-C3</DynamicReconfigurationConnectorName>
             <LocationCode kxe="false" kb="ROR">U9009.22G.138C5AA-V1-C3</LocationCode>
-            <LocalPartitionID kb="CUR" kxe="false">{partition_id}</LocalPartitionID>
+            <LocalPartitionID kb="CUR" kxe="false">1</LocalPartitionID>
             <RequiredAdapter kb="CUD" kxe="false">false</RequiredAdapter>
             <VariedOn kb="CUD" kxe="true">true</VariedOn>
             <VirtualSlotNumber kb="COD" kxe="false">3</VirtualSlotNumber>
@@ -682,7 +684,7 @@ def populate_payload(partition_id):
             <Metadata>
                 <Atom/>
             </Metadata>
-            <AssociatedLogicalPartition kb="CUR" kxe="false" href="https://9.47.88.249:443/rest/api/uom/ManagedSystem/d82ac4d6-054a-312c-8719-45d6c4a789a7/LogicalPartition/5CA785F7-397A-4E2E-8EB3-4C9E3B8D5CD9" rel="related"/>
+            <AssociatedLogicalPartition kb="CUR" kxe="false" href="https://{hmc_host}/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition/{partition_uuid}" rel="related"/>
             <TargetDevice kb="CUR" kxe="false">
                 <VirtualOpticalTargetDevice schemaVersion="V1_0">
                     <Metadata>
@@ -698,7 +700,7 @@ def populate_payload(partition_id):
             <Metadata>
                 <Atom/>
             </Metadata>
-            <AssociatedLogicalPartition kb="CUR" kxe="false" href="https://9.47.88.249:443/rest/api/uom/ManagedSystem/d82ac4d6-054a-312c-8719-45d6c4a789a7/LogicalPartition/5CA785F7-397A-4E2E-8EB3-4C9E3B8D5CD9" rel="related"/>
+            <AssociatedLogicalPartition kb="CUR" kxe="false" href="https://{hmc_host}/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition/{partition_uuid}" rel="related"/>
             <Storage kxe="false" kb="CUR">
                 <PhysicalVolume schemaVersion="V1_0">
                     <Metadata>
@@ -708,12 +710,10 @@ def populate_payload(partition_id):
                     <LocationCode kxe="false" kb="ROR">U78D3.001.WZS069F-P1-C49-L40771AFE00-L0</LocationCode>
                     <ReservePolicy kb="CUD" kxe="false">NoReserve</ReservePolicy>
                     <ReservePolicyAlgorithm kb="CUD" kxe="false">Failover</ReservePolicyAlgorithm>
-                    <UniqueDeviceID kb="ROR" kxe="false">01MUlCTSAgICAgSVBSLTAgICA3NzFBRkUwMDAwMDAwMDQw</UniqueDeviceID>
                     <AvailableForUsage kb="CUD" kxe="false">true</AvailableForUsage>
                     <VolumeCapacity kxe="false" kb="CUR">544792</VolumeCapacity>
-                    <VolumeName kb="CUR" kxe="false">hdisk1</VolumeName>
+                    <VolumeName kb="CUR" kxe="false">{physical_volume_name}</VolumeName>
                     <VolumeState kb="ROR" kxe="false">active</VolumeState>
-                    <VolumeUniqueID kxe="false" kb="ROR">391BIBMIPR-0   771AFE000000004010IPR-0   771AFE0003IBMsas</VolumeUniqueID>
                     <IsFibreChannelBacked kb="ROR" kxe="false">false</IsFibreChannelBacked>
                     <IsISCSIBacked ksv="V1_8_0" kb="ROR" kxe="false">false</IsISCSIBacked>
                     <StorageLabel ksv="V1_3_0" kxe="false" kb="ROR">VU5LTk9XTg==</StorageLabel>

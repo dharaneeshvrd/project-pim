@@ -51,21 +51,27 @@ def authenticate_hmc(config):
     payload = auth.populate_payload(config)
     url = "https://" + util.get_host_address(config) + auth.URI
     headers = {"Content-Type": auth.CONTENT_TYPE, "Accept": auth.ACCEPT}
-    resp = requests.put(url, headers=headers, data=payload, verify=False)
-    root = ET.fromstring(resp.text)
+    response = requests.put(url, headers=headers, data=payload, verify=False)
+    if response.status_code != 200:
+        print("Failed to authenticate hmc ", response.text)
+        exit()
+    root = ET.fromstring(response.text)
     SESSION_KEY = ""
     for child in root.iter():
         if "X-API-Session" in child.tag:
             SESSION_KEY = child.text
 
-    return SESSION_KEY, resp.cookies
+    return SESSION_KEY, response.cookies
 
 def get_system_uuid(config, cookies):
     uri = "/rest/api/uom/ManagedSystem/quick/All"
     url = "https://" + util.get_host_address(config) + uri
     headers = {"x-api-key": util.get_session_key(config)}
+    print("headers ", headers)
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
-
+    if response.status_code != 200:
+        print("Failed to get system UUID ", response.text)
+        exit()
     systems = []
     try: 
         systems = response.json()
@@ -174,25 +180,25 @@ def get_vios_uuid(config, cookies, system_uuid):
         exit()
 
     uuid = ""
-    vios_partition_id = ""
     sys_name = util.get_system_name(config)
     for vios in response.json():
         if vios["SystemName"] == sys_name:
             uuid = vios["UUID"]
-            vios_partition_id = vios["PartitionID"]
             break
 
     if "" == uuid:
-        print("Failed to get UUID for the system %s", sys_name)
+        print("Failed to get VIOS uuid")
         exit()
     else:
         print("VIOS UUID for the system %s: %s", sys_name, uuid)
-    return uuid, vios_partition_id
+    return uuid
 
-def attach_storage(config, cookies, partition_id, system_uuid, vios_uuid):
+def attach_storage(config, cookies, partition_uuid, system_uuid, vios_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/VirtualIOServer/{vios_uuid}"
-    url =  "https://" +  util.get_host_address(config) + uri
-    payload = storage.populate_payload(partition_id)
+    hmc_host = util.get_host_address(config)
+    url =  "https://" +  hmc_host + uri
+    physical_vol_name = util.get_physical_volume_name(config)
+    payload = storage.populate_payload(hmc_host, partition_uuid, system_uuid, physical_vol_name)
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": storage.CONTENT_TYPE}
     response = requests.post(url, headers=headers, cookies=cookies, data=payload, verify=False)
     print("response ", response.text)
@@ -203,14 +209,14 @@ def attach_storage(config, cookies, partition_id, system_uuid, vios_uuid):
         exit()
     return
 
-def attach_vopt(config, cookies, partition_id, sys_uuid, vios_uuid):
+def attach_vopt(config, cookies, partition_uuid, sys_uuid, vios_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{sys_uuid}/VirtualIOServer/{vios_uuid}"
-    url =  "https://" +  util.get_host_address(config) + uri
+    hmc_host = util.get_host_address(config)
+    url =  "https://" +  hmc_host + uri
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": storage.CONTENT_TYPE}
-    payload = storage.populate_payload(partition_id)
+    vopt_name = util.get_vopt_name(config)
+    payload = storage.populate_payload(hmc_host, partition_uuid, sys_uuid, vopt_name)
     response = requests.post(url, headers=headers, cookies=cookies, data=payload, verify=False)
-    print("response ", response.text)
-    print("response status ", response.status_code)
 
     if response.status_code != 200:
         print("Failed to attach virtual storage to the partition ", response.text)
@@ -257,13 +263,14 @@ def start_manager():
     attach_network(config, cookies, sys_uuid, partition_uuid)
     print("----------- Attach network done -----------")
 
-    print("7. Attach VIOS storage to the partition")
-    vios_uuid, vios_partition_id = get_vios_uuid(config, cookies, sys_uuid)
-    attach_storage(config, cookies, vios_partition_id, sys_uuid, vios_uuid)
-    print("----------- Attach VIOS storage done -----------")
+    print("7. Attach virtual storage to the partition")
+    vios_uuid = get_vios_uuid(config, cookies, sys_uuid)
+    attach_storage(config, cookies, partition_uuid, sys_uuid, vios_uuid)
+    print("----------- Attach virtual storage done -----------")
 
     print("8. Attach vOpt to the partition")
-    attach_vopt(config, cookies, vios_partition_id, sys_uuid, vios_uuid)
+    attach_vopt(config, cookies, partition_uuid, sys_uuid, vios_uuid)
+    print("----------- Attach vOpt storage done -----------")
 
     print("9. Activate the partition")
     activate_partititon(config, cookies, partition_uuid)

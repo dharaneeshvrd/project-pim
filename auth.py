@@ -12,5 +12,5 @@ def populate_payload(config):
     </Metadata>
     <UserID kb="CUR" kxe="false">{util.get_host_username(config)}</UserID>
     <Password kb="CUR" kxe="false">{util.get_host_password(config)}</Password>
-</LogonRequest>'''
-
+</LogonRequest>
+'''

@@ -2,8 +2,9 @@
 
 ## Pre-requisites
 1. Hardware host to install ASE linux sidecar
-2. Install python requests module for REST communication
-3. Install paramiko for performing scp operation
+2. Pip install python requests module for REST communication
+3. Pip install paramiko and scp modules for performing scp operation
+4. Pip install bs4 (beautifulsoup) and lxml modules for XML parsing
 
 ## Run ASE
 
