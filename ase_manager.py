@@ -1,5 +1,6 @@
 import os
-import xml.etree.ElementTree as ET 
+import xml.etree.ElementTree as ET
+from bs4 import BeautifulSoup
 
 import configparser
 import requests
@@ -10,6 +11,7 @@ import activation
 import partition
 import virtual_network
 import storage
+import vopt_storage as vopt
 import string_util as util
 
 from scp import SCPClient
@@ -193,29 +195,39 @@ def get_vios_uuid(config, cookies, system_uuid):
         print("VIOS UUID for the system %s: %s", sys_name, uuid)
     return uuid
 
-def attach_storage(config, cookies, partition_uuid, system_uuid, vios_uuid):
+def get_vios_details(config, cookies, system_uuid, vios_uuid):
+    uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/VirtualIOServer/{vios_uuid}"
+    url = "https://" +  util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=VirtualIOServer"}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        print("Failed to get VIOS id")
+        exit()
+    soup = BeautifulSoup(response.text, 'xml')
+    vios = str(soup.find("VirtualIOServer"))
+    return vios
+
+def attach_storage(vios_payload, config, cookies, partition_uuid, system_uuid, vios_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/VirtualIOServer/{vios_uuid}"
     hmc_host = util.get_host_address(config)
     url =  "https://" +  hmc_host + uri
     physical_vol_name = util.get_physical_volume_name(config)
-    payload = storage.populate_payload(hmc_host, partition_uuid, system_uuid, physical_vol_name)
+    payload = storage.populate_payload(vios_payload, hmc_host, partition_uuid, system_uuid, physical_vol_name)
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": storage.CONTENT_TYPE}
     response = requests.post(url, headers=headers, cookies=cookies, data=payload, verify=False)
-    print("response ", response.text)
-    print("response status ", response.status_code)
 
     if response.status_code != 200:
         print("Failed to attach virtual storage to the partition ", response.text)
         exit()
     return
 
-def attach_vopt(config, cookies, partition_uuid, sys_uuid, vios_uuid):
+def attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{sys_uuid}/VirtualIOServer/{vios_uuid}"
     hmc_host = util.get_host_address(config)
     url =  "https://" +  hmc_host + uri
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": storage.CONTENT_TYPE}
     vopt_name = util.get_vopt_name(config)
-    payload = storage.populate_payload(hmc_host, partition_uuid, sys_uuid, vopt_name)
+    payload = vopt.populate_payload(vios_payload, hmc_host, partition_uuid, sys_uuid, vopt_name)
     response = requests.post(url, headers=headers, cookies=cookies, data=payload, verify=False)
 
     if response.status_code != 200:
@@ -223,11 +235,28 @@ def attach_vopt(config, cookies, partition_uuid, sys_uuid, vios_uuid):
         exit()
     return
 
+def get_lpar_profile_id(config, cookies, partition_uuid):
+    uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}/LogicalPartitionProfile"
+    url =  "https://" +  util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartitionProfile"}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        print("Failed to get lpar profile id ", response.text)
+        exit()
+    soup = BeautifulSoup(response.text, 'xml')
+    entry_node = soup.find('entry')
+    lpar_profile_id = entry_node.find('id')
+    return lpar_profile_id.text
+
 def activate_partititon(config, cookies, partition_uuid):
     uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}/do/PowerOn"
     url =  "https://" +  util.get_host_address(config) + uri
+    lpar_profile_id = get_lpar_profile_id(config, cookies, partition_uuid)
+    print("lpar_profile_id ", lpar_profile_id)
+    payload = activation.populated_payload(lpar_profile_id)
+
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": activation.CONTENT_TYPE}
-    response = requests.put(url, headers=headers, cookies=cookies, data=activation.PAYLOAD, verify=False)
+    response = requests.put(url, headers=headers, cookies=cookies, data=payload, verify=False)
     print("response ", response.text)
     if response.status_code != 200:
         print("Failed to activate partition %s", partition_uuid)
@@ -256,6 +285,7 @@ def start_manager():
 
     print("5. Create Partion on the target host")
     partition_uuid = create_partition(config, cookies, sys_uuid)
+
     print("partition creation success. partition UUID: %s", partition_uuid)
     print("----------- Create partition done -----------")
 
@@ -265,11 +295,12 @@ def start_manager():
 
     print("7. Attach virtual storage to the partition")
     vios_uuid = get_vios_uuid(config, cookies, sys_uuid)
-    attach_storage(config, cookies, partition_uuid, sys_uuid, vios_uuid)
+    vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+    attach_storage(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
     print("----------- Attach virtual storage done -----------")
 
     print("8. Attach vOpt to the partition")
-    attach_vopt(config, cookies, partition_uuid, sys_uuid, vios_uuid)
+    attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
     print("----------- Attach vOpt storage done -----------")
 
     print("9. Activate the partition")
