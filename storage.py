@@ -16,18 +16,7 @@ def populate_payload(vios_payload, hmc_host, partition_uuid, system_uuid, physic
                     <Metadata>
                         <Atom/>
                     </Metadata>
-                    <Description kxe="false" kb="CUD">SAS RAID 0 Disk Array</Description>
-                    <LocationCode kxe="false" kb="ROR">U78D3.001.WZS069F-P1-C49-L40771AFE00-L0</LocationCode>
-                    <ReservePolicy kb="CUD" kxe="false">NoReserve</ReservePolicy>
-                    <ReservePolicyAlgorithm kb="CUD" kxe="false">Failover</ReservePolicyAlgorithm>
-                    <AvailableForUsage kb="CUD" kxe="false">true</AvailableForUsage>
-                    <VolumeCapacity kxe="false" kb="CUR">544792</VolumeCapacity>
                     <VolumeName kb="CUR" kxe="false">{physical_volume_name}</VolumeName>
-                    <VolumeState kb="ROR" kxe="false">active</VolumeState>
-                    <IsFibreChannelBacked kb="ROR" kxe="false">false</IsFibreChannelBacked>
-                    <IsISCSIBacked ksv="V1_8_0" kb="ROR" kxe="false">false</IsISCSIBacked>
-                    <StorageLabel ksv="V1_3_0" kxe="false" kb="ROR">VU5LTk9XTg==</StorageLabel>
-                    <DescriptorPage83 ksv="V1_5_0" kb="ROR" kxe="false">SUJNICAgICBJUFItMCAgIDc3MUFGRTAwMDAwMDAwNDA=</DescriptorPage83>
                 </PhysicalVolume>
             </Storage>
         </VirtualSCSIMapping>

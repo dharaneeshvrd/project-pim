@@ -267,28 +267,26 @@ def activate_partititon(config, cookies, partition_uuid):
     uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}/do/PowerOn"
     url =  "https://" +  util.get_host_address(config) + uri
     lpar_profile_id = get_lpar_profile_id(config, cookies, partition_uuid)
-    print("lpar_profile_id ", lpar_profile_id)
     payload = activation.populated_payload(lpar_profile_id)
 
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": activation.CONTENT_TYPE}
     response = requests.put(url, headers=headers, cookies=cookies, data=payload, verify=False)
-    print("response ", response.text)
     if response.status_code != 200:
         print("Failed to activate partition %s", partition_uuid)
         exit()
     # check job status for COMPLETED_OK
     soup = BeautifulSoup(response.text, 'xml')
-    job_id = soup.find("JobID")
+    job_id = soup.find("JobID").text
     if soup.find("Status").text == "COMPLETED_OK":
         print("Partition activated successfully.")
         return
     else:
         # poll for job status to be COMPLETRED_OK 3 times.
         status = False
-        for i in range(3):
+        for i in range(10):
             status = poll_job_status(config, cookies, job_id)
             if not status:
-                time.sleep(5)
+                time.sleep(10)
                 continue
         if not status:
             print("Failed to activate partition %s", partition_uuid)
@@ -333,7 +331,8 @@ def start_manager():
     print("----------- Attach virtual storage done -----------")
 
     print("8. Attach vOpt to the partition")
-    attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
+    updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+    attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
     print("----------- Attach vOpt storage done -----------")
 
     print("9. Activate the partition")

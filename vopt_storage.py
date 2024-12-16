@@ -16,7 +16,7 @@ def populate_payload(vios_payload, hmc_host, partition_uuid, system_uuid, vopt_n
                     <Atom/>
                 </Metadata>
                 <MediaName kxe="false" kb="CUR">{vopt_name}</MediaName>
-                <MountType kxe="false" kb="CUD">rw</MountType>
+                <MountType kxe="false" kb="CUD">r</MountType>
                 <Size kb="CUR" kxe="false">0.1221</Size>
             </VirtualOpticalMedia>
         </Storage>
