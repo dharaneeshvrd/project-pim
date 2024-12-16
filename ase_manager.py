@@ -1,4 +1,4 @@
-import os
+import time
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 
@@ -248,6 +248,21 @@ def get_lpar_profile_id(config, cookies, partition_uuid):
     lpar_profile_id = entry_node.find('id')
     return lpar_profile_id.text
 
+def poll_job_status(config, cookies, job_id):
+    uri = f"/rest/api/uom/jobs/{job_id}"
+    url =  "https://" +  util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.web+xml; type=JobRequest"}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        print("Failed to get lpar profile id ", response.text)
+        exit()
+    soup = BeautifulSoup(response.text, 'xml')
+    if soup.find("Status").text == "COMPLETED_OK":
+        return True
+    else:
+        return False
+
+
 def activate_partititon(config, cookies, partition_uuid):
     uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}/do/PowerOn"
     url =  "https://" +  util.get_host_address(config) + uri
@@ -261,7 +276,25 @@ def activate_partititon(config, cookies, partition_uuid):
     if response.status_code != 200:
         print("Failed to activate partition %s", partition_uuid)
         exit()
-    return
+    # check job status for COMPLETED_OK
+    soup = BeautifulSoup(response.text, 'xml')
+    job_id = soup.find("JobID")
+    if soup.find("Status").text == "COMPLETED_OK":
+        print("Partition activated successfully.")
+        return
+    else:
+        # poll for job status to be COMPLETRED_OK 3 times.
+        status = False
+        for i in range(3):
+            status = poll_job_status(config, cookies, job_id)
+            if not status:
+                time.sleep(5)
+                continue
+        if not status:
+            print("Failed to activate partition %s", partition_uuid)
+            exit()
+        print("Partition activated successfully.")
+        return
 
 def start_manager():
     print("1. Initilaize and parse configuration")
@@ -307,7 +340,6 @@ def start_manager():
     activate_partititon(config, cookies, partition_uuid)
     print("----------- Activate partition done -----------")
 
-    
     #print("9. Reboot the system")
     #print("10. Shutdown partition")
 
