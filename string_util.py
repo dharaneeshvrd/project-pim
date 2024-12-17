@@ -77,3 +77,15 @@ def get_physical_volume_name(config):
 
 def get_vopt_name(config):
     return config.get("STORAGE", "vopt_name").strip('"')
+
+def get_volume_group(config):
+    return config.get("STORAGE", "volume_group").strip('"')
+
+def get_virtual_disk_name(config):
+    return config.get("STORAGE", "vdisk_name").strip('"')
+
+def use_virtual_disk(config):
+    return config.get("STORAGE", "use_virtual_disk").strip('"')
+
+def get_virtual_disk_size(config):
+    return config.get("STORAGE", "vdisk_size").strip('"')

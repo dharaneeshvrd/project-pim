@@ -11,8 +11,9 @@ import activation
 import partition
 import virtual_network
 import storage
-import vopt_storage as vopt
 import string_util as util
+import vopt_storage as vopt
+import virtual_storage as vstorage
 
 from scp import SCPClient
 
@@ -324,11 +325,19 @@ def start_manager():
     attach_network(config, cookies, sys_uuid, partition_uuid)
     print("----------- Attach network done -----------")
 
-    print("7. Attach virtual storage to the partition")
+    print("7. Attach storage to the partition")
     vios_uuid = get_vios_uuid(config, cookies, sys_uuid)
     vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-    attach_storage(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
-    print("----------- Attach virtual storage done -----------")
+    use_vdisk = util.use_virtual_disk(config)
+    if use_vdisk:
+        # Create volume group, virtual disk and attach storage
+        vg_id = vstorage.create_volumegroup(config, cookies, vios_uuid,  )
+        print("volume group id ", vg_id)
+        vstorage.create_virtualdisk(config, cookies, vios_uuid, vg_id)
+        vstorage.attach_virtualdisk(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
+    else:
+        attach_storage(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
+    print("----------- Attach storage done -----------")
 
     print("8. Attach vOpt to the partition")
     updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
