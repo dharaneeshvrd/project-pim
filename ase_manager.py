@@ -29,25 +29,41 @@ def copy_iso_and_create_disk(config):
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-    host_ip = util.get_host_address(config)
-    username = util.get_host_username(config)
-    password = util.get_host_password(config)
-    iso = util.get_iso(config)
+    host_ip = util.get_vios_address(config)
+    username = util.get_vios_username(config)
+    password = util.get_vios_password(config)
+    bootstrap_iso = util.get_bootstrap_iso(config)
+    cloud_init_iso = util.get_cloud_init_iso(config)
     remote_path=util.get_iso_target_path(config)
 
     client.connect(host_ip, scp_port, username, password)
     scp = SCPClient(client.get_transport())
-    scp.put(iso, remote_path=remote_path)
-    print("ISO file copy success!!")
+    scp.put(bootstrap_iso, remote_path=remote_path)
+    print("Bootstrap ISO file copy success!!")
+    scp.put(cloud_init_iso, remote_path=remote_path)
+    print("Cloud init ISO file copy success!!")
 
     # create virtual optical disk
-    disk_name = util.get_disk_name(config)
+    bootstrap_disk_name = util.get_disk_name(config) + "-bootstrap"
+    cloud_init_disk_name = util.get_disk_name(config) + "-cloud-init"
+
     try:
-        command = f"mkvopt -name {disk_name} -file {iso}"
-        client.exec_command(command)
+        command1 = f"mkvopt -name {bootstrap_disk_name} -file {remote_path}/{bootstrap_iso}"
+        command2 = f"mkvopt -name {cloud_init_disk_name} -file {remote_path}/{cloud_init_iso}"
+        stdin, stdout, stderr = client.exec_command(command1)
+        if stdout.channel.recv_exit_status() != 0:
+            print(stderr.readlines())
+            exit()
+
+        stdin, stdout, stderr = client.exec_command(command2)
+        if stdout.channel.recv_exit_status() != 0:
+            print(stderr.readlines())
+            exit()
     except paramiko.ssh_exception:
-        print("Failed to create disk from ISO image")
-    print("Create disk using ISO is successful")
+        print("Failed to load vopt to VIOS from ISO image")
+
+    print("Load vopt to VIOS successful")
+    client.close()
 
 def authenticate_hmc(config):
     # Populate Authentication payload
@@ -222,12 +238,11 @@ def attach_storage(vios_payload, config, cookies, partition_uuid, system_uuid, v
         exit()
     return
 
-def attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid):
+def attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_name):
     uri = f"/rest/api/uom/ManagedSystem/{sys_uuid}/VirtualIOServer/{vios_uuid}"
     hmc_host = util.get_host_address(config)
     url =  "https://" +  hmc_host + uri
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": storage.CONTENT_TYPE}
-    vopt_name = util.get_vopt_name(config)
     payload = vopt.populate_payload(vios_payload, hmc_host, partition_uuid, sys_uuid, vopt_name)
     response = requests.post(url, headers=headers, cookies=cookies, data=payload, verify=False)
 
@@ -331,7 +346,7 @@ def start_manager():
     use_vdisk = util.use_virtual_disk(config)
     if use_vdisk:
         # Create volume group, virtual disk and attach storage
-        vg_id = vstorage.create_volumegroup(config, cookies, vios_uuid,  )
+        vg_id = vstorage.create_volumegroup(config, cookies, vios_uuid)
         print("volume group id ", vg_id)
         vstorage.create_virtualdisk(config, cookies, vios_uuid, vg_id)
         vstorage.attach_virtualdisk(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
@@ -341,7 +356,13 @@ def start_manager():
 
     print("8. Attach vOpt to the partition")
     updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-    attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
+    # Attach boostrap vopt
+    vopt_bootstrap = util.get_vopt_bootstrap_name(config)
+    attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_bootstrap)
+    # Attach cloud-init vopt
+    updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+    vopt_cloud_init = util.get_vopt_cloud_init_name(config)
+    attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_cloud_init)
     print("----------- Attach vOpt storage done -----------")
 
     print("9. Activate the partition")

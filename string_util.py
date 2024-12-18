@@ -20,8 +20,11 @@ def get_vios_password(config):
 def get_session_key(config):
     return config.get("SESSION", "x-api-key").strip('"')
 
-def get_iso(config):
-    return config.get("CUSTOM_ISO", "iso").strip('"')
+def get_bootstrap_iso(config):
+    return config.get("CUSTOM_ISO", "bootstrap_iso").strip('"')
+
+def get_cloud_init_iso(config):
+    return config.get("CUSTOM_ISO", "cloud_init_iso").strip('"')
 
 def get_iso_target_path(config):
     return config.get("CUSTOM_ISO", "target_path").strip('"')
@@ -71,12 +74,18 @@ def get_vswitch_name(config):
 def get_vnetwork_name(config):
     return config.get("NETWORK_CONFIG", "virtual_network_name").strip('"')
 
+def get_ip_address(config):
+    return config.get("NETWORK_CONFIG", "ip_address").strip('"')
+
 # storage related Getters
 def get_physical_volume_name(config):
     return config.get("STORAGE", "physical_volume_name").strip('"')
 
-def get_vopt_name(config):
-    return config.get("STORAGE", "vopt_name").strip('"')
+def get_vopt_bootstrap_name(config):
+    return config.get("STORAGE", "vopt_bootstrap_name").strip('"')
+
+def get_vopt_cloud_init_name(config):
+    return config.get("STORAGE", "vopt_cloud_init_name").strip('"')
 
 def get_volume_group(config):
     return config.get("STORAGE", "volume_group").strip('"')
