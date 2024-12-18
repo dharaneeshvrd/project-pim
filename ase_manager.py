@@ -23,7 +23,7 @@ def initialize():
     config.read(config_file)
     return config
 
-def copy_iso_and_create_disk(config):
+def copy_iso_and_create_vopt_disk(config):
     scp_port = 22
     client = paramiko.SSHClient()
     client.load_system_host_keys()
@@ -48,8 +48,8 @@ def copy_iso_and_create_disk(config):
     cloud_init_disk_name = util.get_disk_name(config) + "-cloud-init"
 
     try:
-        command1 = f"mkvopt -name {bootstrap_disk_name} -file {remote_path}/{bootstrap_iso}"
-        command2 = f"mkvopt -name {cloud_init_disk_name} -file {remote_path}/{cloud_init_iso}"
+        command1 = f"mkvopt -name {bootstrap_disk_name} -file {remote_path}/{bootstrap_iso} -ro"
+        command2 = f"mkvopt -name {cloud_init_disk_name} -file {remote_path}/{cloud_init_iso} -ro"
         stdin, stdout, stderr = client.exec_command(command1)
         if stdout.channel.recv_exit_status() != 0:
             print(stderr.readlines())
@@ -60,9 +60,9 @@ def copy_iso_and_create_disk(config):
             print(stderr.readlines())
             exit()
     except paramiko.ssh_exception:
-        print("Failed to load vopt to VIOS from ISO image")
+        print("Failed to create virtual optical disks in media repository")
 
-    print("Load vopt to VIOS successful")
+    print("Created virtual optical disks in media repository")
     client.close()
 
 def authenticate_hmc(config):
@@ -316,7 +316,7 @@ def start_manager():
     print("----------- Initialize done ----------------------")
 
     print("2. Copy ISO file to VIOS server")
-    copy_iso_and_create_disk(config)
+    copy_iso_and_create_vopt_disk(config)
     print("----------- Copy ISO done -----------")
 
     print("3. Authenticate with HMC host")
