@@ -1,4 +1,5 @@
 import string_util as util
+from bs4 import BeautifulSoup
 
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"
 
@@ -33,3 +34,9 @@ def populate_payload(config):
     <PartitionType kxe="false" kb="COD">{util.get_partition_type(config)}</PartitionType>
 </LogicalPartition:LogicalPartition>
 '''
+
+def get_bootorder_payload(partition_payload, bootorder):
+    lpar_bs =  BeautifulSoup(partition_payload, 'xml')
+    pending_boot = lpar_bs.find("PendingBootString")
+    pending_boot.append(bootorder)
+    return str(lpar_bs)

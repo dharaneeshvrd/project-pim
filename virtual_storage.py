@@ -110,7 +110,7 @@ def create_virtualdisk(config, cookies, vios_uuid, vg_id):
     payload = get_vdisk_payload(config, vg_details)
     response = requests.post(url, headers=headers, cookies=cookies, data=payload, verify=False)
     if response.status_code != 200:
-        print("Failed to create volume group", response.text)
+        print("Failed to create virtual disk", response.text)
         exit()
 
     print("Successfully created virtual disk")

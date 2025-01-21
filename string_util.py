@@ -77,9 +77,15 @@ def get_vnetwork_name(config):
 def get_ip_address(config):
     return config.get("NETWORK_CONFIG", "ip_address").strip('"')
 
+def get_ssh_keyfile(config):
+    return config.get("NETWORK_CONFIG", "ssh_key").strip('"')
+
 # storage related Getters
 def get_physical_volume_name(config):
     return config.get("STORAGE", "physical_volume_name").strip('"')
+
+def get_vopt_name(config):
+    return config.get("STORAGE", "vopt_name").strip('"')
 
 def get_vopt_bootstrap_name(config):
     return config.get("STORAGE", "vopt_bootstrap_name").strip('"')
@@ -94,7 +100,13 @@ def get_virtual_disk_name(config):
     return config.get("STORAGE", "vdisk_name").strip('"')
 
 def use_virtual_disk(config):
-    return config.get("STORAGE", "use_virtual_disk").strip('"')
+    return config.getboolean("STORAGE", "use_virtual_disk")
+
+def use_existing_vd(config):
+    return config.getboolean("STORAGE", "use_existing_vd")
+
+def use_existing_vg(config):
+    return config.getboolean("STORAGE", "use_existing_vg")
 
 def get_virtual_disk_size(config):
     return config.get("STORAGE", "vdisk_size").strip('"')

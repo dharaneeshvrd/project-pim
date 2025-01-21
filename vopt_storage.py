@@ -3,13 +3,20 @@ from bs4 import BeautifulSoup
 
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=VirtualIOServer"
 
-def populate_payload(vios_payload, hmc_host, partition_uuid, system_uuid, vopt_name):
+def populate_payload(vios_payload, hmc_host, partition_uuid, system_uuid, vopt_name, slot):
     vopt_vol = f'''
     <VirtualSCSIMapping schemaVersion="V1_0">
         <Metadata>
             <Atom/>
         </Metadata>
         <AssociatedLogicalPartition kb="CUR" kxe="false" href="https://{hmc_host}/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition/{partition_uuid}" rel="related"/>
+        <ClientAdapter kb="CUR" kxe="false" schemaVersion="V1_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <AdapterType kxe="false" kb="ROR">Client</AdapterType>
+            <VirtualSlotNumber kxe="false" kb="COD">{slot}</VirtualSlotNumber>
+        </ClientAdapter>
         <Storage kxe="false" kb="CUR">
             <VirtualOpticalMedia schemaVersion="V1_0">
                 <Metadata>
