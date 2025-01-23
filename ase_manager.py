@@ -435,6 +435,20 @@ def shutdown_paritition(config, cookies, partition_uuid):
     print("Partition shutdown successfully.")
     return
 
+def get_volume_group(config, cookies, vios_uuid, vg_name):
+    uri = f"/rest/api/uom/VirtualIOServer/{vios_uuid}/VolumeGroup"
+    url =  "https://" + util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; type=VolumeGroup"}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        print("Failed to get volume groups: ", response.text)
+        exit()
+    soup = BeautifulSoup(response.text, 'xml')
+    group = soup.find("GroupName", string=vg_name)
+    vol_group = group.parent
+    vg_id = vol_group.find("AtomID").text
+    return vg_id
+
 def get_bootorder_string(partition_str):
     soup = BeautifulSoup(partition_str, 'xml')
     boot_str_list = soup.find("BootDeviceList").text
@@ -493,7 +507,7 @@ def start_manager():
                 # Create volume group
                 vg_id = vstorage.create_volumegroup(config, cookies, vios_uuid)
             else:
-                vg_id = "52dac546-6441-37ea-b0bd-431ca1940124"
+                vg_id = get_volume_group(config, cookies, vios_uuid, util.get_volume_group(config))
             print("volume group id ", vg_id)
             vstorage.create_virtualdisk(config, cookies, vios_uuid, vg_id)
             time.sleep(30)

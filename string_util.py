@@ -94,7 +94,7 @@ def get_vopt_cloud_init_name(config):
     return config.get("STORAGE", "vopt_cloud_init_name").strip('"')
 
 def get_volume_group(config):
-    return config.get("STORAGE", "volume_group").strip('"')
+    return config.get("STORAGE", "vg_name").strip('"')
 
 def get_virtual_disk_name(config):
     return config.get("STORAGE", "vdisk_name").strip('"')
