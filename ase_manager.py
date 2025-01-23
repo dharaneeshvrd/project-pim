@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 
 import configparser
+import json
 import paramiko.ssh_exception
 import requests
 import paramiko
@@ -81,7 +82,7 @@ def monitor_iso_installation(config):
     ip = util.get_ip_address(config)
     username = "fedora"
     keyfile = util.get_ssh_keyfile(config)
-    command = "sudo journalctl -u getcontainer.service -g \"Installation complete\""
+    command = "sudo journalctl -u getcontainer.service -f | awk '{print} /Installation complete/ {print \"Match found: \" $0; exit 0}'"
 
     for i in range(10):
         scp_port = 22
@@ -91,24 +92,26 @@ def monitor_iso_installation(config):
         except (paramiko.BadHostKeyException, paramiko.AuthenticationException,
         paramiko.SSHException, paramiko.ssh_exception.NoValidConnectionsError) as e:
             if i == 9:
-                print("failed to grep Installation complete message after 10 retries")
+                print("failed to establish SSH connection to partition after 10 retries")
                 exit()
-            print("failed to SSH to partition, retrying..")
+            print("SSH to partition failed, retrying..")
             time.sleep(30)
+    print("SSH connection to partition is successful")
 
-    for i in range(10):
-        chan = client.get_transport().open_session()
-        chan.exec_command(command)
-        if chan.recv_exit_status() == 0:
-            break
-        else:
-            print("command %s execution failed: " % command)
-            if i == 9:
-                print("failed to grep Installation complete message after 10 retries.")
-                exit(1)
-            time.sleep(20)
-
-    print("Installation of bootstrap iso complete")
+    stdin, stdout, stderr = client.exec_command(command, get_pty=True)
+    if stdout.channel.recv_exit_status() == 0:
+        logs = stdout.readlines()
+        for log in logs:
+            print(log)
+        print("Received ISO Installation complete message")
+        client.close()
+    else:
+        logs = stderr.readlines()
+        for log in logs:
+            print(log)
+        print("\033[31mFailed to get ISO installation complete message. Please look at the errors if appear on the console and take appropriate resolution!!\033[0m")
+        client.close()
+        exit(1)
     return
 
 def authenticate_hmc(config):
@@ -355,6 +358,8 @@ def check_bot_service(config):
     ip_address = util.get_ip_address(config)
     url = "http://" + ip_address + ":" + app.APP_PORT + "/completion"
     payload = app.get_prompt_payload()
+    prompt = json.loads(payload)["prompt"]
+    print("Prompt: \n%s" % prompt)
     response = requests.post(url,  data=payload, verify=False)
     if response.status_code != 200:
         print("Failed to get response for a prompt from bot service ", response.text)
@@ -491,6 +496,7 @@ def start_manager():
                 vg_id = "52dac546-6441-37ea-b0bd-431ca1940124"
             print("volume group id ", vg_id)
             vstorage.create_virtualdisk(config, cookies, vios_uuid, vg_id)
+            time.sleep(30)
             vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
             vstorage.attach_virtualdisk(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
             diskname = util.get_virtual_disk_name(config)
