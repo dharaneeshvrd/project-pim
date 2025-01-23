@@ -7,9 +7,11 @@ import paramiko.ssh_exception
 import requests
 import paramiko
 import re
+import urllib3
 
 import auth
 import activation
+import ai_app as app
 import partition
 import virtual_network
 import storage
@@ -96,16 +98,15 @@ def monitor_iso_installation(config):
 
     for i in range(10):
         chan = client.get_transport().open_session()
-        print("opned channel")
         chan.exec_command(command)
         if chan.recv_exit_status() == 0:
             break
         else:
             print("command %s execution failed: " % command)
-            if i == 4:
-                print("failed to grep Installation complete message after 5 retries.")
+            if i == 9:
+                print("failed to grep Installation complete message after 10 retries.")
                 exit(1)
-            time.sleep(30)
+            time.sleep(20)
 
     print("Installation of bootstrap iso complete")
     return
@@ -342,13 +343,24 @@ def update_partition(config, cookies, system_uuid, partition_uuid, partition_pay
 
 def check_app(config):
     ip_address = util.get_ip_address(config)
-    url = "http://" + ip_address + ":8080/"
+    url = "http://" + ip_address + ":" + app.APP_PORT
     response = requests.get(url, verify=False)
     if response.status_code != 200:
         print("AI application didn't respond ", response.text)
         return False
     print("AI application responded healthy..")
     return True
+
+def check_bot_service(config):
+    ip_address = util.get_ip_address(config)
+    url = "http://" + ip_address + ":" + app.APP_PORT + "/completion"
+    payload = app.get_prompt_payload()
+    response = requests.post(url,  data=payload, verify=False)
+    if response.status_code != 200:
+        print("Failed to get response for a prompt from bot service ", response.text)
+        exit()
+    resp_json = response.json()
+    return resp_json["content"]
 
 def poll_job_status(config, cookies, job_id):
     uri = f"/rest/api/uom/jobs/{job_id}"
@@ -423,7 +435,6 @@ def get_bootorder_string(partition_str):
     boot_str_list = soup.find("BootDeviceList").text
     res = boot_str_list.split(" ")
     boot_str = res[0]
-    print("boot string ", boot_str)
 
     if "/vdevice/v-scsi@" in boot_str:
         dev_id = re.search('/vdevice/v-scsi@(.*)/', boot_str)
@@ -503,47 +514,55 @@ def start_manager():
     attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_cloud_init, slot_num)
     print("----------- Attach vOpt done -----------")
 
-    print("9. Activate the partition")
+    print("9. Get bootorder string")
     activate_partititon(config, cookies, partition_uuid)
-    print("----------- Activate partition done -----------")
     time.sleep(30)
 
     # Get bootstring pattern
     partition_payload = get_partition_details(config, cookies, sys_uuid, partition_uuid)
     dev_boot_id = get_bootorder_string(partition_payload)
-    print("device boot id ", dev_boot_id)
+    print("----------- Get bootorder string done -----------")
 
     # Shutdown partition and update boot order to boot from disk
+    print("10. Update bootorder to boot Bootstrap ISO")
     shutdown_paritition(config, cookies, partition_uuid)
     update_partition(config, cookies, sys_uuid, partition_uuid, partition_payload, dev_boot_id + "disk@" + BOOTSTRAP_LUN)
     activate_partititon(config, cookies, partition_uuid)
+    print("----------- Updated bootorder to boot Bootstrap ISO -----------")
 
     time.sleep(120)
     # monitor ISO installation
-    print("----------- Monitor ISO installation -----------")
+    print("11. Monitor ISO installation")
     monitor_iso_installation(config)
+    print("----------- Monitor ISO installation done -----------")
 
     # Shutdown partition and update boot order to boot from disk
-    print("----------- Shutdown partition and update boot order to boot from disk ----------- ")
+    print("12. Update bootorder to boot from Disk")
     shutdown_paritition(config, cookies, partition_uuid)
     update_partition(config, cookies, sys_uuid, partition_uuid, partition_payload, dev_boot_id + "disk@" + DISK_LUN)
+    print("----------- Update bootorder to boot from Disk -----------")
 
-    print("9. Activate the partition")
+    print("13. Activate the partition")
     activate_partititon(config, cookies, partition_uuid)
     print("----------- Activate partition done -----------")
 
     # Poll for the 8080 AI application port
     time.sleep(200)
-    print("Check for AI app to be running")
+    print("14. Check for AI app to be running")
     for i in range(10):
         up = check_app(config)
-        if up:
-            print("AI application is up and running.. ASE workflow completed.")
+        if not up:
+           print("AI application is still not up and running, retyring..")
+           time.sleep(30)
+        else:
+            print("AI application is up and running. Now checking response for prompt from bot")
+            resp = check_bot_service(config)
+            print("Response from bot service: \n%s" % resp)
+            print("----------- ASE workflow complete -----------")
             exit()
-        time.sleep(30)
-
     print("AI application failed to load from bootc")
 
 
 print("Starting ASE lifecycle manager")
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 start_manager()
