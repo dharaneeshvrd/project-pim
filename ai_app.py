@@ -23,7 +23,7 @@ PROMPT_PAYLOAD = '''
     "image_data":[],
     "cache_prompt":true,
     "slot_id":-1,
-    "prompt":"This is a conversation between User and Llama, a friendly chatbot. Llama is helpful, kind, honest, good at writing, and never fails to answer any requests immediately and with precision.\n\nUser: Write me an SQL query to join two tables\nLlama:"
+    "prompt":"This is a conversation between User and Llama, a friendly chatbot. Llama is helpful, kind, honest, good at writing, and never fails to answer any requests immediately and with precision.\\n\\nUser: Write me an SQL query to join two tables\\nLlama:
 }
 '''
 
