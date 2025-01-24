@@ -510,7 +510,7 @@ def start_manager():
                 vg_id = get_volume_group(config, cookies, vios_uuid, util.get_volume_group(config))
             print("volume group id ", vg_id)
             vstorage.create_virtualdisk(config, cookies, vios_uuid, vg_id)
-            time.sleep(30)
+            time.sleep(60)
             vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
             vstorage.attach_virtualdisk(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
             diskname = util.get_virtual_disk_name(config)
@@ -567,7 +567,7 @@ def start_manager():
     print("----------- Activate partition done -----------")
 
     # Poll for the 8080 AI application port
-    time.sleep(200)
+    time.sleep(60)
     print("14. Check for AI app to be running")
     for i in range(10):
         up = check_app(config)
