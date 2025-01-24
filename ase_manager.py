@@ -131,6 +131,16 @@ def authenticate_hmc(config):
 
     return SESSION_KEY, response.cookies
 
+def delete_session(config, session_token, cookies):
+    url = "https://" + util.get_host_address(config) + auth.URI
+    headers = {"x-api-key": util.get_session_key(config)}
+    response = requests.delete(url, cookies=cookies, headers=headers, verify=False)
+    if response.status_code != 204:
+        print("Failed to delete session on hmc ", response.text)
+        exit()
+    print("Loged off HMC session successfully")
+    return
+
 def get_system_uuid(config, cookies):
     uri = "/rest/api/uom/ManagedSystem/quick/All"
     url = "https://" + util.get_host_address(config) + uri
@@ -579,8 +589,10 @@ def start_manager():
             resp = check_bot_service(config)
             print("Response from bot service: \n%s" % resp)
             print("----------- ASE workflow complete -----------")
+            delete_session(config, session_token, cookies)
             exit()
     print("AI application failed to load from bootc")
+    delete_session(config, session_token, cookies)
 
 
 print("Starting ASE lifecycle manager")
