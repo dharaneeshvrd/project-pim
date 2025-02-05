@@ -22,9 +22,6 @@ import virtual_storage as vstorage
 
 from scp import SCPClient
 
-DISK_LUN = "8100000000000000"
-BOOTSTRAP_LUN = "8200000000000000"
-
 def initialize():
     config_file = "config.ini"
     config = configparser.ConfigParser()
@@ -33,7 +30,6 @@ def initialize():
 
 def get_ssh_client():
     client = paramiko.SSHClient()
-    #client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     return client
 
@@ -78,11 +74,17 @@ def copy_iso_and_create_disk(config):
     print("Load vopt to VIOS successful")
     client.close()
 
+def print_console_logs(stream):
+    logs = stream.recv()
+    for log in logs:
+        print(log)
+    return
+
 def monitor_iso_installation(config):
     ip = util.get_ip_address(config)
     username = "fedora"
     keyfile = util.get_ssh_keyfile(config)
-    command = "sudo journalctl -u getcontainer.service -f | awk '{print} /Installation complete/ {print \"Match found: \" $0; exit 0}'"
+    command = "sudo journalctl -u getcontainer.service -f 2>&1 | awk '{print} /Installation complete/ {print \"Match found: \" $0; exit 0}'"
 
     for i in range(10):
         scp_port = 22
@@ -99,16 +101,11 @@ def monitor_iso_installation(config):
     print("SSH connection to partition is successful")
 
     stdin, stdout, stderr = client.exec_command(command, get_pty=True)
+    print_console_logs(stdout)
     if stdout.channel.recv_exit_status() == 0:
-        logs = stdout.readlines()
-        for log in logs:
-            print(log)
         print("Received ISO Installation complete message")
         client.close()
     else:
-        logs = stderr.readlines()
-        for log in logs:
-            print(log)
         print("\033[31mFailed to get ISO installation complete message. Please look at the errors if appear on the console and take appropriate resolution!!\033[0m")
         client.close()
         exit(1)
@@ -472,6 +469,24 @@ def get_bootorder_string(partition_str):
         print("failed to get device boot id from bootorder")
     return dev_id.group(0)
 
+# Get logical adresses for physical/virtual disk and bootstrap media, eg: virtual disk - 0x8100000000000000 and bootstrap media - 0x8200000000000000
+def get_logical_addresses(vios_details, disk_name, bootstrap_name):
+    soup = BeautifulSoup(vios_details, "xml")
+    disk = soup.find("DiskName", string=disk_name)
+    scsi = disk.parent.parent.parent
+    disk_lun = scsi.find("LogicalUnitAddress").text
+
+    bootstrap_lun = ""
+    vopts = soup.find_all("MediaName", string=bootstrap_name)
+    for vopt in vopts:
+        node = vopt.parent.parent
+        if node.name == "Storage":
+            scsi = vopt.parent.parent.parent
+            bootstrap_lun = scsi.find("LogicalUnitAddress").text
+
+    print(f"disk LUN {disk_lun}, bootstrap LUN {bootstrap_lun}")
+    return disk_lun, bootstrap_lun
+
 def start_manager():
     print("1. Initilaize and parse configuration")
     config = initialize()
@@ -556,7 +571,9 @@ def start_manager():
     # Shutdown partition and update boot order to boot from disk
     print("10. Update bootorder to boot Bootstrap ISO")
     shutdown_paritition(config, cookies, partition_uuid)
-    update_partition(config, cookies, sys_uuid, partition_uuid, partition_payload, dev_boot_id + "disk@" + BOOTSTRAP_LUN)
+    updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+    disk_lun, bootstrap_lun = get_logical_addresses(updated_vios_payload, diskname, vopt_bootstrap)
+    update_partition(config, cookies, sys_uuid, partition_uuid, partition_payload, dev_boot_id + "disk@" + bootstrap_lun)
     activate_partititon(config, cookies, partition_uuid)
     print("----------- Updated bootorder to boot Bootstrap ISO -----------")
 
@@ -569,7 +586,7 @@ def start_manager():
     # Shutdown partition and update boot order to boot from disk
     print("12. Update bootorder to boot from Disk")
     shutdown_paritition(config, cookies, partition_uuid)
-    update_partition(config, cookies, sys_uuid, partition_uuid, partition_payload, dev_boot_id + "disk@" + DISK_LUN)
+    update_partition(config, cookies, sys_uuid, partition_uuid, partition_payload, dev_boot_id + "disk@" + disk_lun)
     print("----------- Update bootorder to boot from Disk -----------")
 
     print("13. Activate the partition")
