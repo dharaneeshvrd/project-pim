@@ -74,12 +74,6 @@ def copy_iso_and_create_disk(config):
     print("Load vopt to VIOS successful")
     client.close()
 
-def print_console_logs(stream):
-    logs = stream.recv()
-    for log in logs:
-        print(log)
-    return
-
 def monitor_iso_installation(config):
     ip = util.get_ip_address(config)
     username = "fedora"
@@ -101,14 +95,18 @@ def monitor_iso_installation(config):
     print("SSH connection to partition is successful")
 
     stdin, stdout, stderr = client.exec_command(command, get_pty=True)
-    print_console_logs(stdout)
-    if stdout.channel.recv_exit_status() == 0:
-        print("Received ISO Installation complete message")
-        client.close()
-    else:
-        print("\033[31mFailed to get ISO installation complete message. Please look at the errors if appear on the console and take appropriate resolution!!\033[0m")
-        client.close()
-        exit(1)
+    while True:
+        out = stdout.readline()
+        print(out)
+        if stdout.channel.exit_status_ready():
+            if stdout.channel.recv_exit_status() == 0:
+                print("Received ISO Installation complete message")
+                client.close()
+                break
+            else:
+                print("\033[31mFailed to get ISO installation complete message. Please look at the errors if appear on the console and take appropriate resolution!!\033[0m")
+                client.close()
+                exit(1)
     return
 
 def authenticate_hmc(config):
@@ -594,7 +592,7 @@ def start_manager():
     print("----------- Activate partition done -----------")
 
     # Poll for the 8080 AI application port
-    time.sleep(60)
+    time.sleep(100)
     print("14. Check for AI app to be running")
     for i in range(10):
         up = check_app(config)
