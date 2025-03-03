@@ -1,6 +1,9 @@
-import string_util as util
+import requests
 from bs4 import BeautifulSoup
 import random, string
+
+import utils.string_util as util
+import utils.common as common
 
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"
 
@@ -42,6 +45,46 @@ def get_bootorder_payload(partition_payload, bootorder):
     pending_boot.append(bootorder)
     return str(lpar_bs)
 
+<<<<<<< HEAD:partition.py
 def generate_partition_name():
     random_hexa_str = ''.join(random.choices("abcdef" + string.digits, k=8))
     return "lpar-bootc-{}".format(random_hexa_str)
+=======
+def create_partition(config, cookies, system_uuid):
+    uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition"
+    url = "https://" +  util.get_host_address(config) + uri
+    payload = populate_payload(config)
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": CONTENT_TYPE}
+    response = requests.put(url, headers=headers, data=payload, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        print("Failed to create partition ", response.text)
+        exit()
+
+    soup = BeautifulSoup(response.text, 'xml')
+    partition_uuid = soup.find("PartitionUUID")
+    return partition_uuid.text
+
+def get_partition_details(config, cookies, system_uuid, partition_uuid):
+    uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition/{partition_uuid}"
+    url =  "https://" +  util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        print("Failed to get partition details", response.text)
+        common.cleanup_and_exit(1)
+    soup = BeautifulSoup(response.text, 'xml')
+    lpar = str(soup.find('LogicalPartition'))
+    return lpar
+
+def update_partition(config, cookies, system_uuid, partition_uuid, partition_payload, lun):
+    uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition/{partition_uuid}"
+    url =  "https://" +  util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
+    payload = get_bootorder_payload(partition_payload, lun)
+    response = requests.post(url, headers=headers, cookies=cookies, data=payload, verify=False)
+    if response.status_code != 200:
+        print("Failed to attach virtual storage to the partition ", response.text)
+        common.cleanup_and_exit(1)
+    print("Updated the bootorder for the partition: ", partition_uuid)
+    return
+>>>>>>> a7b7a77 (Delete partition flow with code refactoring):partition/partition.py

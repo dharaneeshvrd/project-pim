@@ -26,6 +26,9 @@ def get_bootstrap_iso(config):
 def get_cloud_init_iso(config):
     return config.get("CUSTOM_ISO", "cloud_init_iso").strip('"')
 
+def get_iso_source_path(config):
+    return config.get("CUSTOM_ISO", "source_path").strip('"')
+
 def get_iso_target_path(config):
     return config.get("CUSTOM_ISO", "target_path").strip('"')
 
