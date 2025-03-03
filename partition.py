@@ -43,5 +43,5 @@ def get_bootorder_payload(partition_payload, bootorder):
     return str(lpar_bs)
 
 def generate_partition_name():
-    random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-    return "lpar-bootc-{}".format(random_str)
+    random_hexa_str = ''.join(random.choices("abcdef" + string.digits, k=8))
+    return "lpar-bootc-{}".format(random_hexa_str)
