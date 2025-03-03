@@ -1,5 +1,6 @@
 import string_util as util
 from bs4 import BeautifulSoup
+import random, string
 
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"
 
@@ -15,7 +16,7 @@ def populate_payload(config):
         <MaximumMemory kb="CUD" kxe="false">{util.get_max_memory(config)}</MaximumMemory>
         <MinimumMemory kb="CUD" kxe="false">{util.get_min_memory(config)}</MinimumMemory>
     </PartitionMemoryConfiguration>
-    <PartitionName kxe="false" kb="CUR">{util.get_partition_name(config)}</PartitionName>
+    <PartitionName kxe="false" kb="CUR">{generate_partition_name()}</PartitionName>
     <PartitionProcessorConfiguration kb="CUD" kxe="false" schemaVersion="V1_8_0">
         <Metadata>
             <Atom/>
@@ -40,3 +41,7 @@ def get_bootorder_payload(partition_payload, bootorder):
     pending_boot = lpar_bs.find("PendingBootString")
     pending_boot.append(bootorder)
     return str(lpar_bs)
+
+def generate_partition_name():
+    random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    return "lpar-bootc-{}".format(random_str)
