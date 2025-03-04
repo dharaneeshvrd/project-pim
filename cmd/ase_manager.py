@@ -450,7 +450,7 @@ def start_manager():
     vios_uuid = get_vios_uuid(config, cookies, sys_uuid)
 
     parser = argparse.ArgumentParser(description="ASE lifecycle manager")
-    parser.add_argument("action", choices=["launch", "delete"] , help="Launches bootc partition and boots AI workload")
+    parser.add_argument("action", choices=["launch", "delete"] , help="Launch and delete flow of bootc partition.")
     args = parser.parse_args()
     print("args: ", args.action)
     
