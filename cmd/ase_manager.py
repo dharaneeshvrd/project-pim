@@ -314,7 +314,7 @@ def delete_partition(config, cookies, sys_uuid, vios_uuid):
     activation.shutdown_paritition(config, cookies, partition_uuid)
 
     vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-    #Remove SCSI mapping from VIOS
+    # remove SCSI mapping from VIOS
     remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios)
 
     remove_partition(config, cookies, partition_uuid)
@@ -452,17 +452,11 @@ def start_manager():
     parser = argparse.ArgumentParser(description="ASE lifecycle manager")
     parser.add_argument("action", choices=["launch", "delete"] , help="Launch and delete flow of bootc partition.")
     args = parser.parse_args()
-    print("args: ", args.action)
     
     if args.action == "launch":
-        launch_ase(config, "", "")
+        launch_ase(config, cookies, sys_uuid)
     elif args.action == "delete":
-        delete_partition(config, "", "", "")
-    # match args:
-    #     case "--launch":
-    #         launch_ase(config, cookies, sys_uuid)
-    #     case "--delete":
-    #         delete_partition(config, cookies, sys_uuid, vios_uuid)
+        delete_partition(config, cookies, sys_uuid, vios_uuid)
 
 print("Starting ASE lifecycle manager")
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
