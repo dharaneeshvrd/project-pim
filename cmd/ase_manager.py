@@ -450,14 +450,19 @@ def start_manager():
     vios_uuid = get_vios_uuid(config, cookies, sys_uuid)
 
     parser = argparse.ArgumentParser(description="ASE lifecycle manager")
-    parser.add_argument("launch", type=str, help="Launches bootc partition and boots AI workload")
-    parser.add_argument("delete", type=str, help="Deletes logical partition")
+    parser.add_argument("action", choices=["launch", "delete"] , help="Launches bootc partition and boots AI workload")
     args = parser.parse_args()
-    match args:
-        case "--launch":
-            launch_ase(config, cookies, sys_uuid)
-        case "--delete":
-            delete_partition(config, cookies, sys_uuid, vios_uuid)
+    print("args: ", args.action)
+    
+    if args.action == "launch":
+        launch_ase(config, "", "")
+    elif args.action == "delete":
+        delete_partition(config, "", "", "")
+    # match args:
+    #     case "--launch":
+    #         launch_ase(config, cookies, sys_uuid)
+    #     case "--delete":
+    #         delete_partition(config, cookies, sys_uuid, vios_uuid)
 
 print("Starting ASE lifecycle manager")
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
