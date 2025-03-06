@@ -2,11 +2,31 @@ import requests
 from bs4 import BeautifulSoup
 
 import utils.string_util as util
+import utils.common as common
 
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=VirtualIOServer"
 
 def populate_payload(vios_payload, hmc_host, partition_uuid, system_uuid, vopt_name, slot):
-    vopt_vol = f'''
+    vopt_vol_no_slot = f'''
+    <VirtualSCSIMapping schemaVersion="V1_0">
+        <Metadata>
+            <Atom/>
+        </Metadata>
+        <AssociatedLogicalPartition kb="CUR" kxe="false" href="https://{hmc_host}/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition/{partition_uuid}" rel="related"/>
+        <Storage kxe="false" kb="CUR">
+            <VirtualOpticalMedia schemaVersion="V1_0">
+                <Metadata>
+                    <Atom/>
+                </Metadata>
+                <MediaName kxe="false" kb="CUR">{vopt_name}</MediaName>
+                <MountType kxe="false" kb="CUD">r</MountType>
+                <Size kb="CUR" kxe="false">0.1221</Size>
+            </VirtualOpticalMedia>
+        </Storage>
+    </VirtualSCSIMapping>
+    '''
+
+    vopt_vol_slot = f'''
     <VirtualSCSIMapping schemaVersion="V1_0">
         <Metadata>
             <Atom/>
@@ -31,6 +51,12 @@ def populate_payload(vios_payload, hmc_host, partition_uuid, system_uuid, vopt_n
         </Storage>
     </VirtualSCSIMapping>
 '''
+    
+    if slot == -1:
+        vopt_vol = vopt_vol_no_slot
+    else:
+        vopt_vol = vopt_vol_slot
+
     vopt_bs = BeautifulSoup(vopt_vol, 'xml')
     vios_bs = BeautifulSoup(vios_payload, 'xml')
     scsi_mappings = vios_bs.find('VirtualSCSIMappings')
@@ -49,5 +75,5 @@ def attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uu
 
     if response.status_code != 200:
         print("Failed to attach virtual storage to the partition ", response.text)
-        exit()
+        common.cleanup_and_exit(config, cookies, 1)
     return

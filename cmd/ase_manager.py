@@ -191,7 +191,7 @@ def get_vios_details(config, cookies, system_uuid, vios_uuid):
 def get_virtual_slot_number(vios_payload, disk_name):
     soup = BeautifulSoup(vios_payload, 'xml')
     scsi_mappings = soup.find("VirtualSCSIMappings")
-    disk = scsi_mappings.find(lambda tag: tag.name == "VolumeName" and disk_name in tag.text)
+    disk = scsi_mappings.find(lambda tag: tag.name == "MediaName" and disk_name in tag.text)
     storage_scsi = disk.parent.parent.parent
     slot_num = storage_scsi.find("VirtualSlotNumber")
     return slot_num.text
@@ -324,26 +324,41 @@ def delete_partition(config, cookies, sys_uuid, vios_uuid):
 def launch_ase(config, cookies, sys_uuid):
     print("4. Copy ISO file to VIOS server")
     copy_iso_and_create_disk(config, cookies)
-    print("----------- Copy ISO done -----------")
+    print("---------------------- Copy ISO done ----------------------")
 
-    print("5. Create Partion on the target host")
+    print("5. Create Partition on the target host")
     partition_uuid = partition.create_partition(config, cookies, sys_uuid)
 
     print("partition creation success. partition UUID: %s", partition_uuid)
-    print("----------- Create partition done -----------")
+    print("---------------------- Create partition done ----------------------")
 
     print("6. Attach Network to the partition")
     virtual_network.attach_network(config, cookies, sys_uuid, partition_uuid)
-    print("----------- Attach network done -----------")
+    print("---------------------- Attach network done ----------------------")
 
     print("7. Attach storage to the partition")
     vios_uuid = get_vios_uuid(config, cookies, sys_uuid)
     vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+
+    # Attach boostrap vopt
+    vopt_bootstrap = util.get_vopt_bootstrap_name(config)
+    vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_bootstrap, -1)
+    print("a. bootstrap virtual optical device attached")
+
+    updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+    # Get VirtualSlotNumber for the disk(physical/virtual)
+    slot_num = get_virtual_slot_number(updated_vios_payload, vopt_bootstrap)
+
+    vopt_cloud_init = util.get_vopt_cloud_init_name(config)
+    vopt.attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_cloud_init, slot_num)
+    print("b. cloudinit virtual optical device attached")
+
+    updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
     use_vdisk = util.use_virtual_disk(config)
     if use_vdisk:
         use_existing_vd = util.use_existing_vd(config)
         if use_existing_vd:
-            vstorage.attach_virtualdisk(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
+            vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
         else:
             # Create volume group, virtual disk and attach storage
             use_existing_vg = util.use_existing_vg(config)
@@ -355,96 +370,58 @@ def launch_ase(config, cookies, sys_uuid):
             print("volume group id ", vg_id)
             vstorage.create_virtualdisk(config, cookies, vios_uuid, vg_id)
             time.sleep(60)
-            vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-            vstorage.attach_virtualdisk(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
+            updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+            vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
             diskname = util.get_virtual_disk_name(config)
     else:
-        storage.attach_storage(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
+        storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
         diskname = util.get_physical_volume_name(config)
-    print("----------- Attach storage done -----------")
+        print("c. physical storage attached")
+    print("---------------------- Attach storage done ----------------------")
 
-    print("8. Attach vOpt to the partition")
-    updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-    # Get VirtualSlotNumber for the disk(physical/virtual)
-    slot_num = get_virtual_slot_number(updated_vios_payload, diskname)
-
-    # Attach boostrap vopt
-    vopt_bootstrap = util.get_vopt_bootstrap_name(config)
-    vopt.attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_bootstrap, slot_num)
-
-    # Attach cloud-init vopt
-    updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-    vopt_cloud_init = util.get_vopt_cloud_init_name(config)
-    vopt.attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_cloud_init, slot_num)
-    print("----------- Attach vOpt done -----------")
-
-    print("9. Get bootorder string")
+    print("9. Activate partition")
     activation.activate_partititon(config, cookies, partition_uuid)
-    time.sleep(30)
-
-    # Get bootstring pattern
-    partition_payload = partition.get_partition_details(config, cookies, sys_uuid, partition_uuid)
-    dev_boot_id = get_bootorder_string(partition_payload)
-    print("----------- Get bootorder string done -----------")
-
-    # Shutdown partition and update boot order to boot from disk
-    print("10. Update bootorder to boot Bootstrap ISO")
-    activation.shutdown_paritition(config, cookies, partition_uuid)
-    updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-    disk_lun, bootstrap_lun = get_logical_addresses(updated_vios_payload, diskname, vopt_bootstrap)
-    partition.update_partition(config, cookies, sys_uuid, partition_uuid, partition_payload, dev_boot_id + "disk@" + bootstrap_lun)
-    activation.activate_partititon(config, cookies, partition_uuid)
-    print("----------- Updated bootorder to boot Bootstrap ISO -----------")
 
     time.sleep(120)
     # monitor ISO installation
-    print("11. Monitor ISO installation")
+    print("10. Monitor ISO installation")
     monitor_iso_installation(config, cookies)
-    print("----------- Monitor ISO installation done -----------")
+    print("---------------------- Monitor ISO installation done ----------------------")
 
-    # Shutdown partition and update boot order to boot from disk
-    print("12. Update bootorder to boot from Disk")
-    activation.shutdown_paritition(config, cookies, partition_uuid)
-    partition.update_partition(config, cookies, sys_uuid, partition_uuid, partition_payload, dev_boot_id + "disk@" + disk_lun)
-    print("----------- Update bootorder to boot from Disk -----------")
-
-    print("13. Activate the partition")
-    activation.activate_partititon(config, cookies, partition_uuid)
-    print("----------- Activate partition done -----------")
-
+    print("11. Wait for lpar to boot from the disk")
     # Poll for the 8080 AI application port
-    time.sleep(100)
+    time.sleep(200)
     print("14. Check for AI app to be running")
     for i in range(10):
         up = app.check_app(config)
         if not up:
            print("AI application is still not up and running, retyring..")
            time.sleep(30)
+           continue
         else:
             print("AI application is up and running. Now checking response for prompt from bot")
             resp = app.check_bot_service(config)
             print("Response from bot service: \n%s" % resp)
-            print("----------- ASE workflow complete -----------")
-            auth.delete_session(config, cookies)
-            exit(0)
+            print("---------------------- ASE workflow complete ----------------------")
+            common.cleanup_and_exit(config, cookies, 0)
     print("AI application failed to load from bootc")
-    auth.delete_session(config, cookies)
+    common.cleanup_and_exit(config, cookies, 1)
 
 def start_manager():
     print("1. Initilaize and parse configuration")
     config = initialize()
-    print("----------- Initialize done ----------------------")
+    print("---------------------- Initialize done ----------------------")
 
     print("2. Authenticate with HMC host")
     session_token, cookies = auth.authenticate_hmc(config)
-    print("----------- Authenticate to HMC done -----------")
+    print("---------------------- Authenticate to HMC done ----------------------")
 
     config.add_section("SESSION")
     config.set("SESSION", "x-api-key", session_token)
 
     print("3. Get System UUID for target host")
     sys_uuid = get_system_uuid(config, cookies)
-    print("----------- Get System UUID done -----------")
+    print("---------------------- Get System UUID done ----------------------")
 
     print("4. Get VIOS UUID for target host")
     vios_uuid = get_vios_uuid(config, cookies, sys_uuid)

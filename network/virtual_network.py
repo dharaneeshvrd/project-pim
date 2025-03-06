@@ -23,6 +23,7 @@ def populate_payload(vlanid, vswitchid, vswitchname):
         <Atom>
         </Atom>
     </Metadata>
+    <VirtualSlotNumber kxe="false" kb="COD">3</VirtualSlotNumber>
     <PortVLANID kb="CUR" kxe="false">{vlanid}</PortVLANID>
     <VirtualSwitchID kxe="false" kb="ROR">{vswitchid}</VirtualSwitchID>
     <VirtualSwitchName ksv="V1_12_0" kb="ROR" kxe="false">{vswitchname}</VirtualSwitchName>
