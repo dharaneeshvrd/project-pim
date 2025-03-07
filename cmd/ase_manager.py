@@ -49,9 +49,9 @@ def copy_iso_and_create_disk(config, cookies):
 
     client.connect(host_ip, scp_port, username, password)
     scp = SCPClient(client.get_transport())
-    scp.put(cloud_init_iso, source_path=src_path ,remote_path=remote_path)
+    scp.put(src_path+cloud_init_iso ,remote_path=remote_path)
     print("Cloud init ISO file copy success!!")
-    scp.put(bootstrap_iso, remote_path=remote_path)
+    scp.put(src_path+bootstrap_iso, remote_path=remote_path)
     print("Bootstrap ISO file copy success!!")
 
     # create virtual optical disk
