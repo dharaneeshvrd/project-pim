@@ -158,12 +158,12 @@ def activate_partititon(config, cookies, partition_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": CONTENT_TYPE}
     response = requests.put(url, headers=headers, cookies=cookies, data=payload, verify=False)
     if response.status_code != 200:
-        print("Failed to activate partition %s", partition_uuid)
+        print(f"Failed to activate partition {partition_uuid}")
         exit()
     # check job status for COMPLETED_OK
     status = check_job_status(config, cookies, response.text)
     if not status:
-        print("Failed to activate partition %s", partition_uuid)
+        print(f"Failed to activate partition {partition_uuid}")
         exit()
     print("Partition activated successfully.")
     return
@@ -175,12 +175,12 @@ def shutdown_paritition(config, cookies, partition_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": CONTENT_TYPE}
     response = requests.put(url, headers=headers, cookies=cookies, data=payload, verify=False)
     if response.status_code != 200:
-        print("Failed to shutdown partition %s", partition_uuid)
+        print(f"Failed to shutdown partition {partition_uuid}")
         exit()
     # check job status for COMPLETED_OK
     status = check_job_status(config, cookies, response)
     if not status:
-        print("Failed to shutdown partition%s", partition_uuid)
+        print(f"Failed to shutdown partition {partition_uuid}")
         exit()
     print("Partition shutdown successfully.")
     return

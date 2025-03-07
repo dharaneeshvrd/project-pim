@@ -46,10 +46,10 @@ def get_network_uuid(config, cookies, system_uuid):
             break
 
     if "" == uuid:
-        print("Failed to get UUID for the virtual network %s", network_name)
+        print(f"Failed to get UUID for the virtual network {network_name}")
         exit()
     else:
-        print("Network UUID for the virtual network %s: %s", network_name, uuid)
+        print(f"Network UUID for the virtual network {network_name}: {uuid}")
     return uuid
 
 def get_vlan_details(config, cookies, system_uuid):

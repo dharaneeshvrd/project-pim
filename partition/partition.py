@@ -45,11 +45,9 @@ def get_bootorder_payload(partition_payload, bootorder):
     pending_boot.append(bootorder)
     return str(lpar_bs)
 
-<<<<<<< HEAD:partition.py
 def generate_partition_name():
     random_hexa_str = ''.join(random.choices("abcdef" + string.digits, k=8))
     return "lpar-bootc-{}".format(random_hexa_str)
-=======
 def create_partition(config, cookies, system_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition"
     url = "https://" +  util.get_host_address(config) + uri
@@ -87,4 +85,3 @@ def update_partition(config, cookies, system_uuid, partition_uuid, partition_pay
         common.cleanup_and_exit(1)
     print("Updated the bootorder for the partition: ", partition_uuid)
     return
->>>>>>> a7b7a77 (Delete partition flow with code refactoring):partition/partition.py
