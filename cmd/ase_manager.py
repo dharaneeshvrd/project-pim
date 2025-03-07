@@ -374,7 +374,7 @@ def launch_ase(config, cookies, sys_uuid):
             vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
             diskname = util.get_virtual_disk_name(config)
     else:
-        storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
+        storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, slot_num)
         diskname = util.get_physical_volume_name(config)
         print("c. physical storage attached")
     print("---------------------- Attach storage done ----------------------")
