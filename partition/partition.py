@@ -48,6 +48,7 @@ def get_bootorder_payload(partition_payload, bootorder):
 def generate_partition_name():
     random_hexa_str = ''.join(random.choices("abcdef" + string.digits, k=8))
     return "lpar-bootc-{}".format(random_hexa_str)
+
 def create_partition(config, cookies, system_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition"
     url = "https://" +  util.get_host_address(config) + uri
