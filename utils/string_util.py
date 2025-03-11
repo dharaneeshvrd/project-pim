@@ -80,8 +80,8 @@ def get_vnetwork_name(config):
 def get_ip_address(config):
     return config.get("NETWORK_CONFIG", "ip_address").strip('"')
 
-def get_ssh_keyfile(config):
-    return config.get("NETWORK_CONFIG", "ssh_key").strip('"')
+def get_ssh_password(config):
+    return config.get("NETWORK_CONFIG", "ssh_password").strip('"')
 
 # storage related Getters
 def get_physical_volume_name(config):

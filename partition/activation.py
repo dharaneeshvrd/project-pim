@@ -178,7 +178,7 @@ def shutdown_paritition(config, cookies, partition_uuid):
         print(f"Failed to shutdown partition {partition_uuid}")
         exit()
     # check job status for COMPLETED_OK
-    status = check_job_status(config, cookies, response)
+    status = check_job_status(config, cookies, response.text)
     if not status:
         print(f"Failed to shutdown partition {partition_uuid}")
         exit()

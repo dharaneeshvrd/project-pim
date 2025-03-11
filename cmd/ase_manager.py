@@ -64,19 +64,15 @@ def copy_iso_and_create_disk(config, cookies):
     print("command1 ", command1)
     print("command2 ", command2)
     stdin, stdout, stderr = client.exec_command(command1, get_pty=True)
-    print(stderr.readlines())
-    print(stdout.readlines())
-
     if stdout.channel.recv_exit_status() != 0:
         print("command1 execution failed", command1)
+        print(stderr.readlines())
         common.cleanup_and_exit(config, cookies, 1)
 
     stdin, stdout, stderr = client.exec_command(command2, get_pty=True)
-    print(stderr.readlines())
-    print(stdout.readlines())
-
     if stdout.channel.recv_exit_status() != 0:
         print("command2 execution failed", command2)
+        print(stderr.readlines())
         common.cleanup_and_exit(config, cookies, 1)
 
     print("Load vopt to VIOS successful")
@@ -84,15 +80,15 @@ def copy_iso_and_create_disk(config, cookies):
 
 def monitor_iso_installation(config, cookies):
     ip = util.get_ip_address(config)
-    username = "fedora"
-    keyfile = util.get_ssh_keyfile(config)
+    username = "pim"
+    password = util.get_ssh_password(config)
     command = "sudo journalctl -u getcontainer.service -f 2>&1 | awk '{print} /Installation complete/ {print \"Match found: \" $0; exit 0}'"
 
     for i in range(10):
         scp_port = 22
         client = get_ssh_client()
         try:
-            client.connect(ip, scp_port, username, key_filename=keyfile)
+            client.connect(ip, scp_port, username, password)
         except (paramiko.BadHostKeyException, paramiko.AuthenticationException,
         paramiko.SSHException, paramiko.ssh_exception.NoValidConnectionsError) as e:
             if i == 9:
@@ -181,13 +177,6 @@ def get_vios_details(config, cookies, system_uuid, vios_uuid):
     vios = str(soup.find("VirtualIOServer"))
     return vios
 
-# def get_virtual_slot_number(vios_payload, disk_name):
-#     soup = BeautifulSoup(vios_payload, 'xml')
-#     disk = soup.find(lambda tag: tag.name == "DiskName" and disk_name in tag.text)
-#     storage_scsi = disk.parent.parent.parent
-#     slot_num = storage_scsi.find("VirtualSlotNumber")
-#     return slot_num.text
-
 def get_virtual_slot_number(vios_payload, disk_name):
     soup = BeautifulSoup(vios_payload, 'xml')
     scsi_mappings = soup.find("VirtualSCSIMappings")
@@ -210,39 +199,6 @@ def get_volume_group(config, cookies, vios_uuid, vg_name):
     vg_id = vol_group.find("AtomID").text
     return vg_id
 
-def get_bootorder_string(partition_str):
-    soup = BeautifulSoup(partition_str, 'xml')
-    boot_str_list = soup.find("BootDeviceList").text
-    res = boot_str_list.split(" ")
-    boot_str = res[0]
-
-    if "/vdevice/v-scsi@" in boot_str:
-        dev_id = re.search('/vdevice/v-scsi@(.*)/', boot_str)
-        print("device boot id ", dev_id.group(0))
-    else:
-        print("failed to get device boot id from bootorder")
-    return dev_id.group(0)
-
-
-# Get logical adresses for physical/virtual disk and bootstrap media, eg: virtual disk - 0x8100000000000000 and bootstrap media - 0x8200000000000000
-def get_logical_addresses(vios_details, disk_name, bootstrap_name):
-    soup = BeautifulSoup(vios_details, "xml")
-    scsi_mappings = soup.find("VirtualSCSIMappings")
-    disk = scsi_mappings.find(lambda tag: tag.name == "VolumeName" and disk_name in tag.text)
-    scsi = disk.parent.parent.parent
-    disk_lun = scsi.find("LogicalUnitAddress").text
-
-    bootstrap_lun = ""
-    vopts = soup.find_all("MediaName", string=bootstrap_name)
-    for vopt in vopts:
-        node = vopt.parent.parent
-        if node.name == "Storage":
-            scsi = vopt.parent.parent.parent
-            bootstrap_lun = scsi.find("LogicalUnitAddress").text
-
-    print(f"disk LUN {disk_lun}, bootstrap LUN {bootstrap_lun}")
-    return disk_lun, bootstrap_lun
-
 def get_partition_id(config, cookies, system_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition/quick/All"
     url = "https://" +  util.get_host_address(config) + uri
@@ -253,7 +209,7 @@ def get_partition_id(config, cookies, system_uuid):
         common.cleanup_and_exit(config, cookies, 1)
 
     uuid = ""
-    partition_name = util.get_partition_name(config)
+    partition_name = util.get_partition_name(config) + "-pim"
     for partition in response.json():
         if partition["PartitionName"] == partition_name:
             uuid = partition["UUID"]
@@ -263,7 +219,7 @@ def get_partition_id(config, cookies, system_uuid):
         print("Failed to get partition uuid")
         common.cleanup_and_exit(config, cookies, 1)
     else:
-        print("VIOS UUID for the system %s: %s", partition_name, uuid)
+        print("partition UUID for the system %s: %s", partition_name, uuid)
     return uuid
 
 def remove_partition(config, cookies, partition_uuid):
@@ -306,8 +262,8 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios):
     return
 
 
-# delete partition
-def delete_partition(config, cookies, sys_uuid, vios_uuid):
+# destroy partition
+def destroy_partition(config, cookies, sys_uuid, vios_uuid):
     partition_uuid = get_partition_id(config, cookies, sys_uuid)
 
     # shutdown partition
@@ -316,6 +272,8 @@ def delete_partition(config, cookies, sys_uuid, vios_uuid):
     vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
     # remove SCSI mapping from VIOS
     remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios)
+
+    # TODO: delete virtual disk, volumegroup if created by the script during launch
 
     remove_partition(config, cookies, partition_uuid)
     print("Delete partition done")
@@ -408,6 +366,10 @@ def launch_ase(config, cookies, sys_uuid):
     common.cleanup_and_exit(config, cookies, 1)
 
 def start_manager():
+    parser = argparse.ArgumentParser(description="ASE lifecycle manager")
+    parser.add_argument("action", choices=["launch", "destroy"] , help="Launch and destroy flow of bootc partition.")
+    args = parser.parse_args()
+
     print("1. Initilaize and parse configuration")
     config = initialize()
     print("---------------------- Initialize done ----------------------")
@@ -425,15 +387,11 @@ def start_manager():
 
     print("4. Get VIOS UUID for target host")
     vios_uuid = get_vios_uuid(config, cookies, sys_uuid)
-
-    parser = argparse.ArgumentParser(description="ASE lifecycle manager")
-    parser.add_argument("action", choices=["launch", "delete"] , help="Launch and delete flow of bootc partition.")
-    args = parser.parse_args()
     
     if args.action == "launch":
         launch_ase(config, cookies, sys_uuid)
-    elif args.action == "delete":
-        delete_partition(config, cookies, sys_uuid, vios_uuid)
+    elif args.action == "destroy":
+        destroy_partition(config, cookies, sys_uuid, vios_uuid)
 
 print("Starting ASE lifecycle manager")
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
