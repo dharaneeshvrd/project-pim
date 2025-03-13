@@ -26,6 +26,9 @@ def get_bootstrap_iso(config):
 def get_cloud_init_iso(config):
     return config.get("CUSTOM_ISO", "cloud_init_iso").strip('"')
 
+def get_iso_source_path(config):
+    return config.get("CUSTOM_ISO", "source_path").strip('"')
+
 def get_iso_target_path(config):
     return config.get("CUSTOM_ISO", "target_path").strip('"')
 
@@ -77,8 +80,8 @@ def get_vnetwork_name(config):
 def get_ip_address(config):
     return config.get("NETWORK_CONFIG", "ip_address").strip('"')
 
-def get_ssh_keyfile(config):
-    return config.get("NETWORK_CONFIG", "ssh_key").strip('"')
+def get_ssh_password(config):
+    return config.get("NETWORK_CONFIG", "ssh_password").strip('"')
 
 # storage related Getters
 def get_physical_volume_name(config):

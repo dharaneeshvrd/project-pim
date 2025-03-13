@@ -1,4 +1,4 @@
-import string_util as util
+import utils.string_util as util
 import requests
 
 import storage
