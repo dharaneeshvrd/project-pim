@@ -270,7 +270,7 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios):
 
 
 # destroy partition
-def destroy_partition(config, cookies, sys_uuid, vios_uuid):
+def destroy(config, cookies, sys_uuid, vios_uuid):
     logger.info("ASE destroy flow")
     try:
         partition_uuid = get_partition_id(config, cookies, sys_uuid)
@@ -291,7 +291,7 @@ def destroy_partition(config, cookies, sys_uuid, vios_uuid):
     logger.info("Delete partition done")
     return
 
-def launch_ase(config, cookies, sys_uuid):
+def launch(config, cookies, sys_uuid):
     logger.info("ASE launch flow")
     try:
         logger.info("4. Copy ISO file to VIOS server")
@@ -406,9 +406,9 @@ def start_manager():
         vios_uuid = get_vios_uuid(config, cookies, sys_uuid)
 
         if args.action == "launch":
-            launch_ase(config, cookies, sys_uuid)
+            launch(config, cookies, sys_uuid)
         elif args.action == "destroy":
-            destroy_partition(config, cookies, sys_uuid, vios_uuid)
+            destroy(config, cookies, sys_uuid, vios_uuid)
     except (AiAppError, AuthError, NetworkError, PartitionError, StorageError, PimError) as e:
         logger.error(f"encountered an error {e}")
     finally:
