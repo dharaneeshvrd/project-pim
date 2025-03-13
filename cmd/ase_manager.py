@@ -3,23 +3,28 @@ import time
 from bs4 import BeautifulSoup
 
 import configparser
-import json
+import logging
 import paramiko.ssh_exception
 import requests
 import paramiko
-import re
 import urllib3
 
 import auth.auth as auth
-import partition.activation as activation
+from auth.auth_exception import AuthError
 import app.ai_app as app
+from app.ai_app_exception import AiAppError
+import partition.activation as activation
 import partition.partition as partition
+from partition.partition_exception import PartitionError
+from pim_exception import PimError
 import network.virtual_network as virtual_network
+from network.network_exception import NetworkError
 import utils.string_util as util
 import utils.common as common
 import storage.storage as storage
 import storage.vopt_storage as vopt
 import storage.virtual_storage as vstorage
+from storage.storage_exception import StorageError
 
 
 from scp import SCPClient
@@ -50,9 +55,9 @@ def copy_iso_and_create_disk(config, cookies):
     client.connect(host_ip, scp_port, username, password)
     scp = SCPClient(client.get_transport())
     scp.put(src_path+cloud_init_iso ,remote_path=remote_path)
-    print("Cloud init ISO file copy success!!")
+    logger.info("Cloud init ISO file copy success!!")
     scp.put(src_path+bootstrap_iso, remote_path=remote_path)
-    print("Bootstrap ISO file copy success!!")
+    logger.info("Bootstrap ISO file copy success!!")
 
     # create virtual optical disk
     bootstrap_disk_name = util.get_vopt_bootstrap_name(config)
@@ -61,21 +66,21 @@ def copy_iso_and_create_disk(config, cookies):
     command1 = f"ioscli mkvopt -name {bootstrap_disk_name} -file {remote_path}/{bootstrap_iso} -ro"
     command2 = f"ioscli mkvopt -name {cloud_init_disk_name} -file {remote_path}/{cloud_init_iso} -ro"
 
-    print("command1 ", command1)
-    print("command2 ", command2)
+    logger.info("command1 %s", command1)
+    logger.info("command2 %s", command2)
     stdin, stdout, stderr = client.exec_command(command1, get_pty=True)
     if stdout.channel.recv_exit_status() != 0:
-        print("command1 execution failed", command1)
-        print(stderr.readlines())
-        common.cleanup_and_exit(config, cookies, 1)
+        logger.error("command1 execution failed %s", command1)
+        logger.error(stderr.readlines())
+        raise paramiko.SSHException
 
     stdin, stdout, stderr = client.exec_command(command2, get_pty=True)
     if stdout.channel.recv_exit_status() != 0:
-        print("command2 execution failed", command2)
-        print(stderr.readlines())
-        common.cleanup_and_exit(config, cookies, 1)
+        logger.error("command2 execution failed %s", command2)
+        logger.error(stderr.readlines())
+        raise paramiko.SSHException
 
-    print("Load vopt to VIOS successful")
+    logger.info("Load vopt to VIOS successful")
     client.close()
 
 def monitor_iso_installation(config, cookies):
@@ -92,41 +97,41 @@ def monitor_iso_installation(config, cookies):
         except (paramiko.BadHostKeyException, paramiko.AuthenticationException,
         paramiko.SSHException, paramiko.ssh_exception.NoValidConnectionsError) as e:
             if i == 9:
-                print("failed to establish SSH connection to partition after 10 retries")
-                common.cleanup_and_exit(config, cookies, 1)
-            print("SSH to partition failed, retrying..")
+                logger.error("failed to establish SSH connection to partition after 10 retries")
+                raise paramiko.SSHException
+            logger.info("SSH to partition failed, retrying..")
             time.sleep(30)
-    print("SSH connection to partition is successful")
+    logger.info("SSH connection to partition is successful")
 
     stdin, stdout, stderr = client.exec_command(command, get_pty=True)
     while True:
         out = stdout.readline()
-        print(out)
+        logger.info(out)
         if stdout.channel.exit_status_ready():
             if stdout.channel.recv_exit_status() == 0:
-                print("Received ISO Installation complete message")
-                client.close()
+                logger.info("Received ISO Installation complete message")
                 break
             else:
-                print("\033[31mFailed to get ISO installation complete message. Please look at the errors if appear on the console and take appropriate resolution!!\033[0m")
-                client.close()
-                common.cleanup_and_exit(config, cookies, 1)
+                logger.error("Failed to get ISO installation complete message. Please look at the errors if appear on the console and take appropriate resolution!!")
+                raise PimError("Failed to get ISO installation complete message")
+    client.close()
     return
 
 def get_system_uuid(config, cookies):
     uri = "/rest/api/uom/ManagedSystem/quick/All"
     url = "https://" + util.get_host_address(config) + uri
     headers = {"x-api-key": util.get_session_key(config)}
-    print("headers ", headers)
+    logger.debug(f"headers {headers}")
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print("Failed to get system UUID ", response.text)
-        exit(config, cookies, 1)
+        logger.error("Failed to get system UUID ", response.text)
+        raise PimError("Failed to get system UUID")
     systems = []
     try: 
         systems = response.json()
     except requests.JSONDecodeError:
-        print("response is not valid json")
+        logger.error("response is not valid json")
+        raise
 
     uuid = ""
     sys_name = util.get_system_name(config)
@@ -136,10 +141,10 @@ def get_system_uuid(config, cookies):
             break
     
     if "" == uuid:
-        print("Failed to get UUID for the system %s", sys_name)
-        common.cleanup_and_exit(config, cookies, 1)
+        logger.info("Failed to get UUID for the system %s", sys_name)
+        raise PimError("Failed to get UUID for the system")
     else:
-        print("UUID for the system %s: %s", sys_name, uuid)
+        logger.info("UUID for the system %s: %s", sys_name, uuid)
     return uuid
 
 def get_vios_uuid(config, cookies, system_uuid):
@@ -148,8 +153,8 @@ def get_vios_uuid(config, cookies, system_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=VirtualIOServer"}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print("Failed to get VIOS id")
-        common.cleanup_and_exit(config, cookies, 1)
+        logger.error("Failed to get VIOS id")
+        raise PimError("Failed to get VIOS id")
 
     uuid = ""
     sys_name = util.get_system_name(config)
@@ -159,10 +164,10 @@ def get_vios_uuid(config, cookies, system_uuid):
             break
 
     if "" == uuid:
-        print("Failed to get VIOS uuid")
-        common.cleanup_and_exit(config, cookies, 1)
+        logger.error("Failed to get VIOS uuid from json")
+        raise PimError("Failed to get VIOS uuid from json")
     else:
-        print("VIOS UUID for the system %s: %s", sys_name, uuid)
+        logger.info("VIOS UUID for the system %s: %s", sys_name, uuid)
     return uuid
 
 def get_vios_details(config, cookies, system_uuid, vios_uuid):
@@ -171,8 +176,9 @@ def get_vios_details(config, cookies, system_uuid, vios_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=VirtualIOServer"}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print("Failed to get VIOS id")
-        common.cleanup_and_exit(config, cookies, 1)
+        logger.error("Failed to get VIOS id")
+        raise PimError("Failed to get VIOS id")
+
     soup = BeautifulSoup(response.text, 'xml')
     vios = str(soup.find("VirtualIOServer"))
     return vios
@@ -191,8 +197,9 @@ def get_volume_group(config, cookies, vios_uuid, vg_name):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; type=VolumeGroup"}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print("Failed to get volume groups: ", response.text)
-        common.cleanup_and_exit(config, cookies, 1)
+        logger.error("Failed to get volume group: %s", response.text)
+        raise PimError("Failed to get volume group")
+
     soup = BeautifulSoup(response.text, 'xml')
     group = soup.find("GroupName", string=vg_name)
     vol_group = group.parent
@@ -205,8 +212,8 @@ def get_partition_id(config, cookies, system_uuid):
     headers = {"x-api-key": util.get_session_key(config)}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print("Failed to get partition id")
-        common.cleanup_and_exit(config, cookies, 1)
+        logger.error("Failed to get partition id")
+        raise PimError("Failed to get partition id")
 
     uuid = ""
     partition_name = util.get_partition_name(config) + "-pim"
@@ -216,10 +223,10 @@ def get_partition_id(config, cookies, system_uuid):
             break
 
     if "" == uuid:
-        print("Failed to get partition uuid")
-        common.cleanup_and_exit(config, cookies, 1)
+        logger.error("Failed to get partition uuid")
+        raise PimError("Failed to get partition id")
     else:
-        print("partition UUID for the system %s: %s", partition_name, uuid)
+        logger.info("partition UUID for the system %s: %s", partition_name, uuid)
     return uuid
 
 def remove_partition(config, cookies, partition_uuid):
@@ -228,15 +235,15 @@ def remove_partition(config, cookies, partition_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
     response = requests.delete(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 204:
-        print("Failed to delete partition")
-        common.cleanup_and_exit(config, cookies, 1)
-    print("Partition deleted successfully")
+        logger.error("Failed to delete partition")
+        raise PimError("Failed to delete partition")
+    logger.info("Partition deleted successfully")
 
 def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios):
     bootstap_name = util.get_vopt_bootstrap_name(config)
     cloudinit_name = util.get_vopt_cloud_init_name(config)
 
-    print("removing scsi mappings..")
+    logger.info("removing scsi mappings..")
     soup = BeautifulSoup(vios, "xml")
     scsi_mappings = soup.find("VirtualSCSIMappings")
     bootstrap_disk = scsi_mappings.find(lambda tag: tag.name == "BackingDeviceName" and bootstap_name in tag.text)
@@ -246,7 +253,7 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios):
     cloudinit_disk = scsi_mappings.find(lambda tag: tag.name == "BackingDeviceName" and cloudinit_name in tag.text)
     scsi2 = cloudinit_disk.parent.parent
     scsi2.decompose()
-    print("removed scsi mappings from vios payload")
+    logger.info("removed scsi mappings from vios payload")
 
     uri = f"/rest/api/uom/ManagedSystem/{sys_uuid}/VirtualIOServer/{vios_uuid}"
     hmc_host = util.get_host_address(config)
@@ -255,144 +262,159 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios):
     response = requests.post(url, headers=headers, cookies=cookies, data=str(soup), verify=False)
 
     if response.status_code != 200:
-        print("Failed to update VIOS with removed storage mappings", response.text)
-        common.cleanup_and_exit(config, cookies, 1)
+        logger.error("Failed to update VIOS with removed storage mappings: %s", response.text)
+        raise PimError("Failed to update VIOS with removed storage mappings")
 
-    print("Successfully removed scsi mappings and vOpt media repositories and updated VIOS..")
+    logger.info("Successfully removed scsi mappings and vOpt media repositories and updated VIOS..")
     return
 
 
 # destroy partition
 def destroy_partition(config, cookies, sys_uuid, vios_uuid):
-    partition_uuid = get_partition_id(config, cookies, sys_uuid)
+    logger.info("ASE destroy flow")
+    try:
+        partition_uuid = get_partition_id(config, cookies, sys_uuid)
 
-    # shutdown partition
-    activation.shutdown_paritition(config, cookies, partition_uuid)
+        # shutdown partition
+        activation.shutdown_paritition(config, cookies, partition_uuid)
 
-    vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-    # remove SCSI mapping from VIOS
-    remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios)
+        vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+        # remove SCSI mapping from VIOS
+        remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios)
 
-    # TODO: delete virtual disk, volumegroup if created by the script during launch
+        # TODO: delete virtual disk, volumegroup if created by the script during launch
 
-    remove_partition(config, cookies, partition_uuid)
-    print("Delete partition done")
+        remove_partition(config, cookies, partition_uuid)
+    except (PartitionError, PimError) as e:
+        raise e
+
+    logger.info("Delete partition done")
     return
 
 def launch_ase(config, cookies, sys_uuid):
-    print("4. Copy ISO file to VIOS server")
-    copy_iso_and_create_disk(config, cookies)
-    print("---------------------- Copy ISO done ----------------------")
+    logger.info("ASE launch flow")
+    try:
+        logger.info("4. Copy ISO file to VIOS server")
+        copy_iso_and_create_disk(config, cookies)
+        logger.info("---------------------- Copy ISO done ----------------------")
 
-    print("5. Create Partition on the target host")
-    partition_uuid = partition.create_partition(config, cookies, sys_uuid)
+        logger.info("5. Create Partition on the target host")
+        partition_uuid = partition.create_partition(config, cookies, sys_uuid)
 
-    print("partition creation success. partition UUID: %s", partition_uuid)
-    print("---------------------- Create partition done ----------------------")
+        logger.info("partition creation success. partition UUID: %s", partition_uuid)
+        logger.info("---------------------- Create partition done ----------------------")
 
-    print("6. Attach Network to the partition")
-    virtual_network.attach_network(config, cookies, sys_uuid, partition_uuid)
-    print("---------------------- Attach network done ----------------------")
+        logger.info("6. Attach Network to the partition")
+        virtual_network.attach_network(config, cookies, sys_uuid, partition_uuid)
+        logger.info("---------------------- Attach network done ----------------------")
 
-    print("7. Attach storage to the partition")
-    vios_uuid = get_vios_uuid(config, cookies, sys_uuid)
-    vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+        logger.info("7. Attach storage to the partition")
+        vios_uuid = get_vios_uuid(config, cookies, sys_uuid)
+        vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
 
-    # Attach boostrap vopt
-    vopt_bootstrap = util.get_vopt_bootstrap_name(config)
-    vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_bootstrap, -1)
-    print("a. bootstrap virtual optical device attached")
+        # Attach boostrap vopt
+        vopt_bootstrap = util.get_vopt_bootstrap_name(config)
+        vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_bootstrap, -1)
+        logger.info("a. bootstrap virtual optical device attached")
 
-    updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-    # Get VirtualSlotNumber for the disk(physical/virtual)
-    slot_num = get_virtual_slot_number(updated_vios_payload, vopt_bootstrap)
+        updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+        # Get VirtualSlotNumber for the disk(physical/virtual)
+        slot_num = get_virtual_slot_number(updated_vios_payload, vopt_bootstrap)
 
-    vopt_cloud_init = util.get_vopt_cloud_init_name(config)
-    vopt.attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_cloud_init, slot_num)
-    print("b. cloudinit virtual optical device attached")
+        vopt_cloud_init = util.get_vopt_cloud_init_name(config)
+        vopt.attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_cloud_init, slot_num)
+        logger.info("b. cloudinit virtual optical device attached")
 
-    updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-    use_vdisk = util.use_virtual_disk(config)
-    if use_vdisk:
-        use_existing_vd = util.use_existing_vd(config)
-        if use_existing_vd:
-            vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
-        else:
-            # Create volume group, virtual disk and attach storage
-            use_existing_vg = util.use_existing_vg(config)
-            if not use_existing_vg:
-                # Create volume group
-                vg_id = vstorage.create_volumegroup(config, cookies, vios_uuid)
+        updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+        use_vdisk = util.use_virtual_disk(config)
+        if use_vdisk:
+            use_existing_vd = util.use_existing_vd(config)
+            if use_existing_vd:
+                vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
             else:
-                vg_id = get_volume_group(config, cookies, vios_uuid, util.get_volume_group(config))
-            print("volume group id ", vg_id)
-            vstorage.create_virtualdisk(config, cookies, vios_uuid, vg_id)
-            time.sleep(60)
-            updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-            vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
-            diskname = util.get_virtual_disk_name(config)
-    else:
-        storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, slot_num)
-        diskname = util.get_physical_volume_name(config)
-        print("c. physical storage attached")
-    print("---------------------- Attach storage done ----------------------")
-
-    print("9. Activate partition")
-    activation.activate_partititon(config, cookies, partition_uuid)
-
-    time.sleep(120)
-    # monitor ISO installation
-    print("10. Monitor ISO installation")
-    monitor_iso_installation(config, cookies)
-    print("---------------------- Monitor ISO installation done ----------------------")
-
-    print("11. Wait for lpar to boot from the disk")
-    # Poll for the 8080 AI application port
-    time.sleep(200)
-    print("14. Check for AI app to be running")
-    for i in range(10):
-        up = app.check_app(config)
-        if not up:
-           print("AI application is still not up and running, retyring..")
-           time.sleep(30)
-           continue
+                # Create volume group, virtual disk and attach storage
+                use_existing_vg = util.use_existing_vg(config)
+                if not use_existing_vg:
+                    # Create volume group
+                    vg_id = vstorage.create_volumegroup(config, cookies, vios_uuid)
+                else:
+                    vg_id = get_volume_group(config, cookies, vios_uuid, util.get_volume_group(config))
+                    logger.info("volume group id ", vg_id)
+                    vstorage.create_virtualdisk(config, cookies, vios_uuid, vg_id)
+                    time.sleep(60)
+                    updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+                    vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
+                    diskname = util.get_virtual_disk_name(config)
         else:
-            print("AI application is up and running. Now checking response for prompt from bot")
-            resp = app.check_bot_service(config)
-            print("Response from bot service: \n%s" % resp)
-            print("---------------------- ASE workflow complete ----------------------")
-            common.cleanup_and_exit(config, cookies, 0)
-    print("AI application failed to load from bootc")
-    common.cleanup_and_exit(config, cookies, 1)
+            storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, slot_num)
+            diskname = util.get_physical_volume_name(config)
+            logger.info("c. physical storage attached")
+        logger.info("---------------------- Attach storage done ----------------------")
+
+        logger.info("9. Activate partition")
+        activation.activate_partititon(config, cookies, partition_uuid)
+
+        time.sleep(120)
+        # monitor ISO installation
+        logger.info("10. Monitor ISO installation")
+        monitor_iso_installation(config, cookies)
+        logger.info("---------------------- Monitor ISO installation done ----------------------")
+
+        logger.info("11. Wait for lpar to boot from the disk")
+        # Poll for the 8080 AI application port
+        time.sleep(200)
+        logger.info("14. Check for AI app to be running")
+        for i in range(10):
+            up = app.check_app(config)
+            if not up:
+                logger.info("AI application is still not up and running, retyring..")
+                time.sleep(30)
+                continue
+            else:
+                logger.info("AI application is up and running. Now checking response for prompt from bot")
+                resp = app.check_bot_service(config)
+                logger.info("Response from bot service: \n%s" % resp)
+                logger.info("---------------------- ASE workflow complete ----------------------")
+                return
+        logger.error("AI application failed to load from bootc")
+        raise AiAppError("AI application failed to load from bootc")
+    except (AiAppError, AuthError, NetworkError, PartitionError, StorageError, PimError, paramiko.SSHException) as e:
+        raise e
 
 def start_manager():
-    parser = argparse.ArgumentParser(description="ASE lifecycle manager")
-    parser.add_argument("action", choices=["launch", "destroy"] , help="Launch and destroy flow of bootc partition.")
-    args = parser.parse_args()
+    try:
+        parser = argparse.ArgumentParser(description="ASE lifecycle manager")
+        parser.add_argument("action", choices=["launch", "destroy"] , help="Launch and destroy flow of bootc partition.")
+        args = parser.parse_args()
 
-    print("1. Initilaize and parse configuration")
-    config = initialize()
-    print("---------------------- Initialize done ----------------------")
+        logger.info("1. Initilaize and parse configuration")
+        config = initialize()
+        logger.info("---------------------- Initialize done ----------------------")
 
-    print("2. Authenticate with HMC host")
-    session_token, cookies = auth.authenticate_hmc(config)
-    print("---------------------- Authenticate to HMC done ----------------------")
+        logger.info("2. Authenticate with HMC host")
+        session_token, cookies = auth.authenticate_hmc(config)
+        logger.info("---------------------- Authenticate to HMC done ----------------------")
 
-    config.add_section("SESSION")
-    config.set("SESSION", "x-api-key", session_token)
+        config.add_section("SESSION")
+        config.set("SESSION", "x-api-key", session_token)
 
-    print("3. Get System UUID for target host")
-    sys_uuid = get_system_uuid(config, cookies)
-    print("---------------------- Get System UUID done ----------------------")
+        logger.info("3. Get System UUID for target host")
+        sys_uuid = get_system_uuid(config, cookies)
+        logger.info("---------------------- Get System UUID done ----------------------")
 
-    print("4. Get VIOS UUID for target host")
-    vios_uuid = get_vios_uuid(config, cookies, sys_uuid)
-    
-    if args.action == "launch":
-        launch_ase(config, cookies, sys_uuid)
-    elif args.action == "destroy":
-        destroy_partition(config, cookies, sys_uuid, vios_uuid)
+        logger.info("4. Get VIOS UUID for target host")
+        vios_uuid = get_vios_uuid(config, cookies, sys_uuid)
 
-print("Starting ASE lifecycle manager")
+        if args.action == "launch":
+            launch_ase(config, cookies, sys_uuid)
+        elif args.action == "destroy":
+            destroy_partition(config, cookies, sys_uuid, vios_uuid)
+    except (AiAppError, AuthError, NetworkError, PartitionError, StorageError, PimError) as e:
+        logger.error(f"encountered an error {e}")
+    finally:
+        common.cleanup_and_exit(config, cookies, 0)
+
+logger = common.get_logger("pim-manager")
+logger.info("Starting ASE lifecycle manager")
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 start_manager()

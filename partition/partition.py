@@ -1,9 +1,11 @@
+import logging
 import requests
 from bs4 import BeautifulSoup
-import random, string
 
 import utils.string_util as util
 import utils.common as common
+
+logger = common.get_logger("partition")
 
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"
 
@@ -53,7 +55,7 @@ def create_partition(config, cookies, system_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": CONTENT_TYPE}
     response = requests.put(url, headers=headers, data=payload, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print("Failed to create partition ", response.text)
+        logger.error(f"Failed to create partition {response.text}")
         exit()
 
     soup = BeautifulSoup(response.text, 'xml')
@@ -66,7 +68,7 @@ def get_partition_details(config, cookies, system_uuid, partition_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print("Failed to get partition details", response.text)
+        logger.error(f"Failed to get partition details {response.text}")
         common.cleanup_and_exit(1)
     soup = BeautifulSoup(response.text, 'xml')
     lpar = str(soup.find('LogicalPartition'))
@@ -79,7 +81,7 @@ def update_partition(config, cookies, system_uuid, partition_uuid, partition_pay
     payload = get_bootorder_payload(partition_payload, lun)
     response = requests.post(url, headers=headers, cookies=cookies, data=payload, verify=False)
     if response.status_code != 200:
-        print("Failed to attach virtual storage to the partition ", response.text)
+        logger.error(f"Failed to attach virtual storage to the partition {response.text}")
         common.cleanup_and_exit(1)
-    print("Updated the bootorder for the partition: ", partition_uuid)
+    logger.info(f"Updated the bootorder for the partition: {partition_uuid}")
     return

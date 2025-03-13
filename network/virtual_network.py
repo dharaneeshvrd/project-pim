@@ -1,7 +1,12 @@
+import logging
 import requests
 from bs4 import BeautifulSoup
 
 import utils.string_util as util
+import utils.common as common
+from .network_exception import NetworkError
+
+logger = common.get_logger("virtual-network")
 
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=ClientNetworkAdapter"
 PAYLOAD = '''
@@ -36,8 +41,8 @@ def get_network_uuid(config, cookies, system_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml, type=VirtualNetwork"}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print("Failed to get vlan id")
-        exit()
+        logger.error("Failed to get vlan id")
+        raise NetworkError("Failed to get vlan id")
     uuid = ""
     network_name = util.get_vnetwork_name(config)
     for nw in response.json():
@@ -46,10 +51,10 @@ def get_network_uuid(config, cookies, system_uuid):
             break
 
     if "" == uuid:
-        print(f"Failed to get UUID for the virtual network {network_name}")
-        exit()
+        logger.error(f"Failed to get UUID for the virtual network {network_name}")
+        raise NetworkError(f"Failed to get UUID for the virtual network {network_name}")
     else:
-        print(f"Network UUID for the virtual network {network_name}: {uuid}")
+        logger.info(f"Network UUID for the virtual network {network_name}: {uuid}")
     return uuid
 
 def get_vlan_details(config, cookies, system_uuid):
@@ -59,8 +64,8 @@ def get_vlan_details(config, cookies, system_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml, type=VirtualNetwork"}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print("Failed to get vlan id")
-        exit()
+        logger.error("Failed to get vlan details")
+        raise NetworkError(f"Failed to get vlan details {response.text}")
     
     soup = BeautifulSoup(response.text, 'xml')
     vlan_id = soup.find("NetworkVLANID")
@@ -78,6 +83,6 @@ def attach_network(config, cookies, system_uuid, partition_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": CONTENT_TYPE}
     response = requests.put(url, headers=headers, cookies=cookies, data=payload, verify=False)
     if response.status_code != 200:
-        print("Failed to attach virtual network to the partition ", response.text)
-        exit()
+        logger.error(f"Failed to attach virtual network to the partition {response.text}")
+        raise NetworkError(f"Failed to attach virtual network to the partition {response.text}")
     return

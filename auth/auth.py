@@ -1,11 +1,17 @@
+import logging
 import requests
 from bs4 import BeautifulSoup
 
 import utils.string_util as util
+import utils.common as common
+from .auth_exception import AuthError
 
 CONTENT_TYPE = "application/vnd.ibm.powervm.web+xml; type=LogonRequest"
 ACCEPT = "application/vnd.ibm.powervm.web+xml; type=LogonResponse"
 URI = "/rest/api/web/Logon"
+
+logger = common.get_logger("auth")
+
 
 def populate_payload(config):
     return f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -25,8 +31,8 @@ def authenticate_hmc(config):
     headers = {"Content-Type": CONTENT_TYPE, "Accept": ACCEPT}
     response = requests.put(url, headers=headers, data=payload, verify=False)
     if response.status_code != 200:
-        print("Failed to authenticate hmc ", response.text)
-        exit()
+        logger.error(f"Failed to authenticate hmc {response.text}")
+        raise AuthError("Failed to authenticate hmc {response.text}")
 
     soup = BeautifulSoup(response.text, 'xml')
     session_key = soup.find("X-API-Session")
@@ -37,7 +43,7 @@ def delete_session(config, cookies):
     headers = {"x-api-key": util.get_session_key(config)}
     response = requests.delete(url, cookies=cookies, headers=headers, verify=False)
     if response.status_code != 204:
-        print("Failed to delete session on hmc ", response.text)
-        exit(1)
-    print("Loged off HMC session successfully")
+        logger.error(f"Failed to delete session on hmc {response.text}")
+        raise AuthError(f"Failed to delete session on hmc {response.text}")
+    logger.info("Loged off HMC session successfully")
     return

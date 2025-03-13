@@ -1,8 +1,13 @@
+import logging
 import requests
 import time
 from bs4 import BeautifulSoup
 
 import utils.string_util as util
+import utils.common as common
+from .partition_exception import PartitionError
+
+logger = common.get_logger("partition")
 
 CONTENT_TYPE = "application/vnd.ibm.powervm.web+xml; Type=JobRequest"
 
@@ -110,8 +115,8 @@ def get_lpar_profile_id(config, cookies, partition_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartitionProfile"}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print("Failed to get lpar profile id ", response.text)
-        exit()
+        logger.error(f"Failed to get lpar profile id {response.text}")
+        raise PartitionError(f"Failed to get lpar profile id {response.text}")
     soup = BeautifulSoup(response.text, 'xml')
     entry_node = soup.find('entry')
     lpar_profile_id = entry_node.find('id')
@@ -123,8 +128,8 @@ def poll_job_status(config, cookies, job_id):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.web+xml; type=JobRequest"}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print("Failed to get job completion ", response.text)
-        exit()
+        logger.error(f"Failed to get job completion {response.text}")
+        raise PartitionError(f"Failed to get job completion {response.text}")
     soup = BeautifulSoup(response.text, 'xml')
     if soup.find("Status").text == "COMPLETED_OK":
         return True
@@ -136,7 +141,7 @@ def check_job_status(config, cookies, response):
     soup = BeautifulSoup(response, 'xml')
     job_id = soup.find("JobID").text
     if soup.find("Status").text == "COMPLETED_OK":
-        print("Partition activated successfully.")
+        logger.info("Partition activated successfully.")
         return
     else:
         # poll for job status to be COMPLETRED_OK 3 times.
@@ -158,14 +163,14 @@ def activate_partititon(config, cookies, partition_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": CONTENT_TYPE}
     response = requests.put(url, headers=headers, cookies=cookies, data=payload, verify=False)
     if response.status_code != 200:
-        print(f"Failed to activate partition {partition_uuid}")
-        exit()
+        logger.error(f"Failed to activate partition {partition_uuid}")
+        raise PartitionError(f"Failed to activate partition {partition_uuid}")
     # check job status for COMPLETED_OK
     status = check_job_status(config, cookies, response.text)
     if not status:
-        print(f"Failed to activate partition {partition_uuid}")
-        exit()
-    print("Partition activated successfully.")
+        logger.error(f"Failed to activate partition {partition_uuid}")
+        raise PartitionError(f"Failed to activate partition {partition_uuid}")
+    logger.info("Partition activated successfully.")
     return
 
 def shutdown_paritition(config, cookies, partition_uuid):
@@ -175,12 +180,12 @@ def shutdown_paritition(config, cookies, partition_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": CONTENT_TYPE}
     response = requests.put(url, headers=headers, cookies=cookies, data=payload, verify=False)
     if response.status_code != 200:
-        print(f"Failed to shutdown partition {partition_uuid}")
-        exit()
+        logger.error(f"Failed to shutdown partition {partition_uuid}")
+        raise PartitionError(f"Failed to shutdown partition {partition_uuid}")
     # check job status for COMPLETED_OK
     status = check_job_status(config, cookies, response.text)
     if not status:
-        print(f"Failed to shutdown partition {partition_uuid}")
-        exit()
-    print("Partition shutdown successfully.")
+        logger.error(f"Failed to shutdown partition {partition_uuid}")
+        raise PartitionError(f"Failed to shutdown partition {partition_uuid}")
+    logger.info("Partition shutdown successfully.")
     return

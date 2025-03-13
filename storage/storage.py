@@ -1,8 +1,12 @@
+import logging
 import requests
 from bs4 import BeautifulSoup
 
 import utils.string_util as util
 import utils.common as common
+from .storage_exception import StorageError
+
+logger = common.get_logger("storage")
 
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=VirtualIOServer"
 
@@ -47,6 +51,6 @@ def attach_storage(vios_payload, config, cookies, partition_uuid, system_uuid, v
     response = requests.post(url, headers=headers, cookies=cookies, data=payload, verify=False)
 
     if response.status_code != 200:
-        print("Failed to attach virtual storage to the partition ", response.text)
-        common.cleanup_and_exit(config, cookies, 1)
+        logger.error(f"Failed to attach virtual storage to the partition {response.text}")
+        raise StorageError(f"Failed to attach virtual storage to the partition {response.text}")
     return

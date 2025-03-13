@@ -1,10 +1,12 @@
 import json
+import logging
 import requests
-
-from bs4 import BeautifulSoup
 
 import utils.string_util as util
 import utils.common as common
+from .ai_app_exception import AiAppError
+
+logger = common.get_logger("AI-app")
 
 APP_PORT = "8080"
 PROMPT_PAYLOAD = '''
@@ -43,9 +45,9 @@ def check_app(config):
     url = "http://" + ip_address + ":" + APP_PORT
     response = requests.get(url, verify=False)
     if response.status_code != 200:
-        print("AI application didn't respond ", response.text)
+        logger.error(f"AI application didn't respond {response.text}")
         return False
-    print("AI application responded healthy..")
+    logger.info("AI application responded healthy..")
     return True
 
 def check_bot_service(config):
@@ -53,10 +55,10 @@ def check_bot_service(config):
     url = "http://" + ip_address + ":" + APP_PORT + "/completion"
     payload = get_prompt_payload()
     prompt = json.loads(payload)["prompt"]
-    print("Prompt: \n%s" % prompt)
+    logger.info(f"Prompt: \n{prompt}")
     response = requests.post(url,  data=payload, verify=False)
     if response.status_code != 200:
-        print("Failed to get response for a prompt from bot service ", response.text)
-        common.cleanup_and_exit(1)
+        logger.error(f"Failed to get response for a prompt from bot service {response.text}")
+        raise AiAppError(f"Failed to get response for a prompt from bot service {response.text}")
     resp_json = response.json()
     return resp_json["content"]
