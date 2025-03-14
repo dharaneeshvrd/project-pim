@@ -3,7 +3,6 @@ import time
 from bs4 import BeautifulSoup
 
 import configparser
-import logging
 import paramiko.ssh_exception
 import requests
 import paramiko
@@ -271,7 +270,7 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios):
 
 # destroy partition
 def destroy(config, cookies, sys_uuid, vios_uuid):
-    logger.info("ASE destroy flow")
+    logger.info("PIM destroy flow")
     try:
         partition_uuid = get_partition_id(config, cookies, sys_uuid)
 
@@ -292,7 +291,7 @@ def destroy(config, cookies, sys_uuid, vios_uuid):
     return
 
 def launch(config, cookies, sys_uuid):
-    logger.info("ASE launch flow")
+    logger.info("PIM launch flow")
     try:
         logger.info("4. Copy ISO file to VIOS server")
         copy_iso_and_create_disk(config, cookies)
@@ -374,7 +373,7 @@ def launch(config, cookies, sys_uuid):
                 logger.info("AI application is up and running. Now checking response for prompt from bot")
                 resp = app.check_bot_service(config)
                 logger.info("Response from bot service: \n%s" % resp)
-                logger.info("---------------------- ASE workflow complete ----------------------")
+                logger.info("---------------------- PIM workflow complete ----------------------")
                 return
         logger.error("AI application failed to load from bootc")
         raise AiAppError("AI application failed to load from bootc")
@@ -383,7 +382,7 @@ def launch(config, cookies, sys_uuid):
 
 def start_manager():
     try:
-        parser = argparse.ArgumentParser(description="ASE lifecycle manager")
+        parser = argparse.ArgumentParser(description="PIM lifecycle manager")
         parser.add_argument("action", choices=["launch", "destroy"] , help="Launch and destroy flow of bootc partition.")
         args = parser.parse_args()
 
@@ -415,6 +414,6 @@ def start_manager():
         common.cleanup_and_exit(config, cookies, 0)
 
 logger = common.get_logger("pim-manager")
-logger.info("Starting ASE lifecycle manager")
+logger.info("Starting PIM lifecycle manager")
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 start_manager()
