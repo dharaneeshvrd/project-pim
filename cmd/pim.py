@@ -345,13 +345,13 @@ def launch(config, cookies, sys_uuid):
             raise PimError("Failed to find active vios server")
         logger.info("List of active vios %s", list(active_vios_servers.keys()))
 
-        vios_media_uuid = get_vios_with_mediarepo_tag(config, cookies, sys_uuid, active_vios_servers)
+        vios_media_uuid = get_vios_with_mediarepo_tag(active_vios_servers)
         if vios_media_uuid == "":
             logger.error("Failed to find vios server for the partition")
             raise StorageError("Failed to find vios server for the partition")
         logger.info("Selecting %s vios to load images.", vios_media_uuid)
 
-        storage_vios_uuid, physical_volme_name = get_vios_with_physical_storage(config, cookies, sys_uuid, active_vios_servers)
+        storage_vios_uuid, physical_volme_name = get_vios_with_physical_storage(config, active_vios_servers)
         if storage_vios_uuid == "" or physical_volme_name == "":
             logger.error("Failed to find physical volume for the partition")
             raise StorageError("Failed to find physical volume for the partition")
