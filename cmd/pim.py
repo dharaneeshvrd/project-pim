@@ -338,8 +338,8 @@ def destroy(config, cookies, sys_uuid, vios_uuid):
 def launch(config, cookies, sys_uuid):
     logger.info("PIM launch flow")
     try:
-        get_vios_uuid_list = get_vios_uuid_list(config, cookies, sys_uuid)
-        active_vios_servers = get_active_vios(config, cookies, sys_uuid, get_vios_uuid_list)
+        get_vios_uuids = get_vios_uuid_list(config, cookies, sys_uuid)
+        active_vios_servers = get_active_vios(config, cookies, sys_uuid, get_vios_uuids)
         if len(active_vios_servers) == 0:
             logger.error("failed to find active vios server")
             raise PimError("Failed to find active vios server")
