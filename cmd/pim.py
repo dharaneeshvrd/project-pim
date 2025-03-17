@@ -7,6 +7,7 @@ import paramiko.ssh_exception
 import requests
 import paramiko
 import urllib3
+import sys
 
 import auth.auth as auth
 from auth.auth_exception import AuthError
@@ -146,7 +147,7 @@ def get_system_uuid(config, cookies):
         logger.info("UUID for the system %s: %s", sys_name, uuid)
     return uuid
 
-def get_vios_uuid(config, cookies, system_uuid):
+def get_vios_uuid_list(config, cookies, system_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/VirtualIOServer/quick/All"
     url = "https://" +  util.get_host_address(config) + uri
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=VirtualIOServer"}
@@ -155,19 +156,18 @@ def get_vios_uuid(config, cookies, system_uuid):
         logger.error("Failed to get VIOS id")
         raise PimError("Failed to get VIOS id")
 
-    uuid = ""
+    uuids = []
     sys_name = util.get_system_name(config)
     for vios in response.json():
         if vios["SystemName"] == sys_name:
-            uuid = vios["UUID"]
-            break
+            uuids.append(vios["UUID"])
 
-    if "" == uuid:
+    if len(uuids) == 0:
         logger.error("Failed to get VIOS uuid from json")
         raise PimError("Failed to get VIOS uuid from json")
     else:
-        logger.info("VIOS UUID for the system %s: %s", sys_name, uuid)
-    return uuid
+        logger.info("VIOS UUID(s) for the system %s: %s", sys_name, uuids)
+    return uuids
 
 def get_vios_details(config, cookies, system_uuid, vios_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/VirtualIOServer/{vios_uuid}"
@@ -181,6 +181,46 @@ def get_vios_details(config, cookies, system_uuid, vios_uuid):
     soup = BeautifulSoup(response.text, 'xml')
     vios = str(soup.find("VirtualIOServer"))
     return vios
+
+def get_active_vios(config, cookies, sys_uuid, vios_uuids):
+    active_vios_servers = {}
+
+    for vios_uuid in vios_uuids:
+        vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+        soup = BeautifulSoup(vios_payload, 'xml')
+        state = soup.find(lambda tag: tag.name == "ResourceMonitoringControlState" and "active" in tag.text)
+        if state != None:
+            active_vios_servers[vios_uuid] = vios_payload
+    return active_vios_servers
+
+def get_vios_with_mediarepo_tag(active_vios_servers):
+    for vios_uuid, vios_payload in active_vios_servers.items():
+        soup = BeautifulSoup(vios_payload, 'xml')
+        result = soup.find("MediaRepositories")
+        if result != None:
+            return vios_uuid
+    return ""
+
+def get_vios_with_physical_storage(config, active_vios_servers):
+    required_capacity = int(util.get_virtual_disk_size(config)) * 1024
+    uuid = ""
+    min_volume_capacity = sys.maxsize
+    disk_name = ""
+    for vios_uuid, vios_payload in active_vios_servers.items():
+        soup = BeautifulSoup(vios_payload, 'xml')
+        pvs_scoup = BeautifulSoup(str(soup.find("PhysicalVolumes")), "xml")   
+        pv_list = pvs_scoup.findAll("PhysicalVolume") 
+        
+        for pv in pv_list:
+            avilable_for_usage = pv.find("AvailableForUsage")
+            volume_capacity = int(pv.find("VolumeCapacity").text)
+            if avilable_for_usage.text == "true" and volume_capacity >= required_capacity:
+                if volume_capacity < min_volume_capacity:
+                    min_volume_capacity = volume_capacity
+                    disk_name = pv.find("VolumeName").text
+                    uuid = vios_uuid
+            
+    return uuid, disk_name
 
 def get_virtual_slot_number(vios_payload, disk_name):
     soup = BeautifulSoup(vios_payload, 'xml')
@@ -298,6 +338,25 @@ def destroy(config, cookies, sys_uuid, vios_uuid):
 def launch(config, cookies, sys_uuid):
     logger.info("PIM launch flow")
     try:
+        get_vios_uuid_list = get_vios_uuid_list(config, cookies, sys_uuid)
+        active_vios_servers = get_active_vios(config, cookies, sys_uuid, get_vios_uuid_list)
+        if len(active_vios_servers) == 0:
+            logger.error("failed to find active vios server")
+            raise PimError("Failed to find active vios server")
+        logger.info("List of active vios ", active_vios_servers.keys)
+
+        vios_media_uuid = get_vios_with_mediarepo_tag(config, cookies, sys_uuid, active_vios_servers)
+        if vios_media_uuid == "":
+            logger.error("Failed to find vios server for the partition")
+            raise StorageError("Failed to find vios server for the partition")
+        logger.info("Selecting %s vios to load images.", vios_media_uuid)
+
+        storage_vios_uuid, physical_volme_name = get_vios_with_physical_storage(config, cookies, sys_uuid, active_vios_servers)
+        if storage_vios_uuid == "" or physical_volme_name == "":
+            logger.error("Failed to find physical volume for the partition")
+            raise StorageError("Failed to find physical volume for the partition")
+        logger.info("Selecting %s vios and %s physcial volume for storage .", storage_vios_uuid, physical_volme_name)
+
         logger.info("4. Copy ISO file to VIOS server")
         copy_iso_and_create_disk(config, cookies)
         logger.info("---------------------- Copy ISO done ----------------------")
@@ -313,45 +372,44 @@ def launch(config, cookies, sys_uuid):
         logger.info("---------------------- Attach network done ----------------------")
 
         logger.info("7. Attach storage to the partition")
-        vios_uuid = get_vios_uuid(config, cookies, sys_uuid)
-        vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+        vios_payload = get_vios_details(config, cookies, sys_uuid, vios_media_uuid)
 
         # Attach boostrap vopt
         vopt_bootstrap = util.get_vopt_bootstrap_name(config)
-        vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_bootstrap, -1)
+        vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_media_uuid, vopt_bootstrap, -1)
         logger.info("a. bootstrap virtual optical device attached")
 
-        updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+        updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_media_uuid)
         # Get VirtualSlotNumber for the disk(physical/virtual)
         slot_num = get_virtual_slot_number(updated_vios_payload, vopt_bootstrap)
 
         vopt_cloud_init = util.get_vopt_cloud_init_name(config)
-        vopt.attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_cloud_init, slot_num)
+        vopt.attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_media_uuid, vopt_cloud_init, slot_num)
         logger.info("b. cloudinit virtual optical device attached")
 
-        updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+        updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_media_uuid)
         use_vdisk = util.use_virtual_disk(config)
         if use_vdisk:
             use_existing_vd = util.use_existing_vd(config)
             if use_existing_vd:
-                vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
+                vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_media_uuid)
             else:
                 # Create volume group, virtual disk and attach storage
                 use_existing_vg = util.use_existing_vg(config)
                 if not use_existing_vg:
                     # Create volume group
-                    vg_id = vstorage.create_volumegroup(config, cookies, vios_uuid)
+                    vg_id = vstorage.create_volumegroup(config, cookies, vios_media_uuid)
                 else:
-                    vg_id = get_volume_group(config, cookies, vios_uuid, util.get_volume_group(config))
+                    vg_id = get_volume_group(config, cookies, vios_media_uuid, util.get_volume_group(config))
                     logger.info("volume group id ", vg_id)
-                    vstorage.create_virtualdisk(config, cookies, vios_uuid, vg_id)
+                    vstorage.create_virtualdisk(config, cookies, vios_media_uuid, vg_id)
                     time.sleep(60)
-                    updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-                    vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid)
+                    updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_media_uuid)
+                    vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_media_uuid)
                     diskname = util.get_virtual_disk_name(config)
         else:
-            storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, slot_num)
-            diskname = util.get_physical_volume_name(config)
+            updated_vios_payload = get_vios_details(config, cookies, sys_uuid, storage_vios_uuid)
+            storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, storage_vios_uuid, slot_num, physical_volme_name)
             logger.info("c. physical storage attached")
         logger.info("---------------------- Attach storage done ----------------------")
 
@@ -407,12 +465,12 @@ def start_manager():
         logger.info("---------------------- Get System UUID done ----------------------")
 
         logger.info("4. Get VIOS UUID for target host")
-        vios_uuid = get_vios_uuid(config, cookies, sys_uuid)
+        vios_uuid_list = get_vios_uuid_list(config, cookies, sys_uuid)
 
         if args.action == "launch":
             launch(config, cookies, sys_uuid)
         elif args.action == "destroy":
-            destroy(config, cookies, sys_uuid, vios_uuid)
+            destroy(config, cookies, sys_uuid, vios_uuid_list)
     except (AiAppError, AuthError, NetworkError, PartitionError, StorageError, PimError, Exception) as e:
         logger.error(f"encountered an error {e}")
     finally:
