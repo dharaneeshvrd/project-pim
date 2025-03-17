@@ -1,7 +1,7 @@
-# ASE Linux Sidecar for wrapping bootable AI workloads
+# PIM Linux Sidecar for wrapping bootable AI workloads
 
 ## Pre-requisites
-1. Hardware host to create logical partition and deploy ASE linux sidecar
+1. Hardware host to create logical partition and deploy PIM linux sidecar
 2. Custom ISO(ppc64le) with cloud-init
 
 ## Dependencies
@@ -20,10 +20,12 @@ pip3 install -r requirements.txt
 ### NOTE: If there are rust related errors during installation of dependencies, install cargo additionally
           ** If there are cryptography related errors,  install python-dev libxml2-dev libxslt-dev packages **
 
-## Modify HMC, VIOS, partition related configurations in `config.init`
+## Modify HMC, VIOS, partition related configurations in `config.ini`
 
-## Run ASE lifecycle manager
+## Run PIM lifecycle manager
 
   ```
-  python3 ase_manager.py
+  export PYTHONPATH=.
+  python3 cmd/pim.py [launch/destroy]
   ```
+  

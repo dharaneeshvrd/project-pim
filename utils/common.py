@@ -9,6 +9,6 @@ def get_logger(name):
     return logger
 
 def cleanup_and_exit(config, cookies, status):
-    print("deleting user session")
+    print("deleting user HMC session")
     auth.delete_session(config, cookies)
     exit(status)
