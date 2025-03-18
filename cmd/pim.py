@@ -208,8 +208,8 @@ def get_vios_with_physical_storage(config, active_vios_servers):
     disk_name = ""
     for vios_uuid, vios_payload in active_vios_servers.items():
         soup = BeautifulSoup(vios_payload, 'xml')
-        pvs_scoup = BeautifulSoup(str(soup.find("PhysicalVolumes")), "xml")   
-        pv_list = pvs_scoup.findAll("PhysicalVolume") 
+        pvs_soup = BeautifulSoup(str(soup.find("PhysicalVolumes")), "xml")   
+        pv_list = pvs_soup.findAll("PhysicalVolume") 
         
         for pv in pv_list:
             avilable_for_usage = pv.find("AvailableForUsage")
