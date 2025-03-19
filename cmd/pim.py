@@ -166,7 +166,7 @@ def get_vios_uuid_list(config, cookies, system_uuid):
         logger.error("Failed to get VIOS uuid from json")
         raise PimError("Failed to get VIOS uuid from json")
     else:
-        logger.info("VIOS UUID(s) for the system %s: %s", sys_name, uuids)
+        logger.info(f"VIOS UUID(s) for system {sys_name}: {uuids}")
     return uuids
 
 def get_vios_details(config, cookies, system_uuid, vios_uuid):
@@ -183,6 +183,10 @@ def get_vios_details(config, cookies, system_uuid, vios_uuid):
     return vios
 
 def get_active_vios(config, cookies, sys_uuid, vios_uuids):
+    # active_vios_servers: 
+    #   KEY   -> vios_uuid 
+    #   VALUE -> VIOS server details
+    # This dictionary helps avoid multiple REST calls to fetch VIOS details.
     active_vios_servers = {}
 
     for vios_uuid in vios_uuids:
@@ -208,13 +212,14 @@ def get_vios_with_physical_storage(config, active_vios_servers):
     disk_name = ""
     for vios_uuid, vios_payload in active_vios_servers.items():
         soup = BeautifulSoup(vios_payload, 'xml')
-        pvs_soup = BeautifulSoup(str(soup.find("PhysicalVolumes")), "xml")   
+        pvs_soup = soup.find("PhysicalVolumes")  
         pv_list = pvs_soup.findAll("PhysicalVolume") 
         
         for pv in pv_list:
             avilable_for_usage = pv.find("AvailableForUsage")
             volume_capacity = int(pv.find("VolumeCapacity").text)
             if avilable_for_usage.text == "true" and volume_capacity >= required_capacity:
+                # Selecting the physical volume with disk capacity nearest to the required storage size
                 if volume_capacity < min_volume_capacity:
                     min_volume_capacity = volume_capacity
                     disk_name = pv.find("VolumeName").text
@@ -348,13 +353,13 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         if vios_media_uuid == "":
             logger.error("Failed to find vios server for the partition")
             raise StorageError("Failed to find vios server for the partition")
-        logger.info("Selecting %s vios to load images.", vios_media_uuid)
+        logger.info("Selecting %s vios to mount virtual optical devices", vios_media_uuid)
 
-        storage_vios_uuid, physical_volme_name = get_vios_with_physical_storage(config, active_vios_servers)
-        if storage_vios_uuid == "" or physical_volme_name == "":
+        vios_storage_uuid, physical_volme_name = get_vios_with_physical_storage(config, active_vios_servers)
+        if vios_storage_uuid == "" or physical_volme_name == "":
             logger.error("Failed to find physical volume for the partition")
             raise StorageError("Failed to find physical volume for the partition")
-        logger.info("Selecting %s vios and %s physcial volume for storage .", storage_vios_uuid, physical_volme_name)
+        logger.info("Selecting %s vios and %s physcial volume for storage", vios_storage_uuid, physical_volme_name)
 
         logger.info("4. Copy ISO file to VIOS server")
         copy_iso_and_create_disk(config, cookies)
@@ -386,29 +391,29 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         vopt.attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_media_uuid, vopt_cloud_init, slot_num)
         logger.info("b. cloudinit virtual optical device attached")
 
-        updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_media_uuid)
+        updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
         use_vdisk = util.use_virtual_disk(config)
         if use_vdisk:
             use_existing_vd = util.use_existing_vd(config)
             if use_existing_vd:
-                vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_media_uuid)
+                vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid)
             else:
                 # Create volume group, virtual disk and attach storage
                 use_existing_vg = util.use_existing_vg(config)
                 if not use_existing_vg:
                     # Create volume group
-                    vg_id = vstorage.create_volumegroup(config, cookies, vios_media_uuid)
+                    vg_id = vstorage.create_volumegroup(config, cookies, vios_storage_uuid)
                 else:
-                    vg_id = get_volume_group(config, cookies, vios_media_uuid, util.get_volume_group(config))
+                    vg_id = get_volume_group(config, cookies, vios_storage_uuid, util.get_volume_group(config))
                     logger.info("volume group id ", vg_id)
-                    vstorage.create_virtualdisk(config, cookies, vios_media_uuid, vg_id)
+                    vstorage.create_virtualdisk(config, cookies, vios_storage_uuid, vg_id)
                     time.sleep(60)
-                    updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_media_uuid)
-                    vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_media_uuid)
+                    updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
+                    vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid)
                     diskname = util.get_virtual_disk_name(config)
         else:
-            updated_vios_payload = get_vios_details(config, cookies, sys_uuid, storage_vios_uuid)
-            storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, storage_vios_uuid, slot_num, physical_volme_name)
+            updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
+            storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid, slot_num, physical_volme_name)
             logger.info("c. physical storage attached")
         logger.info("---------------------- Attach storage done ----------------------")
 
