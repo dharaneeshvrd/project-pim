@@ -185,6 +185,11 @@ def get_vios_details(config, cookies, system_uuid, vios_uuid):
 def get_virtual_slot_number(vios_payload, disk_name):
     soup = BeautifulSoup(vios_payload, 'xml')
     scsi_mappings = soup.find("VirtualSCSIMappings")
+
+    # Below double XMl parsing (convert xml -> str and str -> xml) is done as workaround for the XML parsing issue seen on IBMi partititon
+    # TODO: Identify root cause and remove the workaround later
+    scsi_mappings = BeautifulSoup(str(scsi_mappings), 'xml')
+
     disk = scsi_mappings.find(lambda tag: tag.name == "MediaName" and disk_name in tag.text)
     storage_scsi = disk.parent.parent.parent
     slot_num = storage_scsi.find("VirtualSlotNumber")
@@ -377,7 +382,7 @@ def launch(config, cookies, sys_uuid):
                 return
         logger.error("AI application failed to load from bootc")
         raise AiAppError("AI application failed to load from bootc")
-    except (AiAppError, AuthError, NetworkError, PartitionError, StorageError, PimError, paramiko.SSHException) as e:
+    except (AiAppError, AuthError, NetworkError, PartitionError, StorageError, PimError, paramiko.SSHException, Exception) as e:
         raise e
 
 def start_manager():
@@ -408,7 +413,7 @@ def start_manager():
             launch(config, cookies, sys_uuid)
         elif args.action == "destroy":
             destroy(config, cookies, sys_uuid, vios_uuid)
-    except (AiAppError, AuthError, NetworkError, PartitionError, StorageError, PimError) as e:
+    except (AiAppError, AuthError, NetworkError, PartitionError, StorageError, PimError, Exception) as e:
         logger.error(f"encountered an error {e}")
     finally:
         common.cleanup_and_exit(config, cookies, 0)
