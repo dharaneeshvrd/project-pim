@@ -335,10 +335,9 @@ def destroy(config, cookies, sys_uuid, vios_uuid):
     logger.info("Delete partition done")
     return
 
-def launch(config, cookies, sys_uuid):
+def launch(config, cookies, sys_uuid, vios_uuids):
     logger.info("PIM launch flow")
     try:
-        vios_uuids = get_vios_uuid_list(config, cookies, sys_uuid)
         active_vios_servers = get_active_vios(config, cookies, sys_uuid, vios_uuids)
         if len(active_vios_servers) == 0:
             logger.error("failed to find active vios server")
@@ -468,7 +467,7 @@ def start_manager():
         vios_uuid_list = get_vios_uuid_list(config, cookies, sys_uuid)
 
         if args.action == "launch":
-            launch(config, cookies, sys_uuid)
+            launch(config, cookies, sys_uuid, vios_uuid_list)
         elif args.action == "destroy":
             destroy(config, cookies, sys_uuid, vios_uuid_list)
     except (AiAppError, AuthError, NetworkError, PartitionError, StorageError, PimError, Exception) as e:
