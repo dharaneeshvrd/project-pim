@@ -192,16 +192,14 @@ def get_active_vios(config, cookies, sys_uuid, vios_uuids):
     for vios_uuid in vios_uuids:
         vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
         soup = BeautifulSoup(vios_payload, 'xml')
-        state = soup.find(lambda tag: tag.name == "ResourceMonitoringControlState" and "active" in tag.text)
-        if state != None:
+        if soup.find(lambda tag: tag.name == "ResourceMonitoringControlState" and tag.text == "active"):
             active_vios_servers[vios_uuid] = vios_payload
     return active_vios_servers
 
 def get_vios_with_mediarepo_tag(active_vios_servers):
     for vios_uuid, vios_payload in active_vios_servers.items():
         soup = BeautifulSoup(vios_payload, 'xml')
-        result = soup.find("MediaRepositories")
-        if result != None:
+        if soup.find("MediaRepositories"):
             return vios_uuid
     return ""
 
@@ -235,7 +233,7 @@ def get_virtual_slot_number(vios_payload, disk_name):
     # TODO: Identify root cause and remove the workaround later
     scsi_mappings = BeautifulSoup(str(scsi_mappings), 'xml')
 
-    disk = scsi_mappings.find(lambda tag: tag.name == "MediaName" and disk_name in tag.text)
+    disk = scsi_mappings.find(lambda tag: tag.name == "MediaName" and tag.text == disk_name)
     storage_scsi = disk.parent.parent.parent
     slot_num = storage_scsi.find("VirtualSlotNumber")
     return slot_num.text
@@ -295,11 +293,11 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios):
     logger.info("removing scsi mappings..")
     soup = BeautifulSoup(vios, "xml")
     scsi_mappings = soup.find("VirtualSCSIMappings")
-    bootstrap_disk = scsi_mappings.find(lambda tag: tag.name == "BackingDeviceName" and bootstap_name in tag.text)
+    bootstrap_disk = scsi_mappings.find(lambda tag: tag.name == "BackingDeviceName" and tag.text == bootstap_name)
     scsi1 = bootstrap_disk.parent.parent
     scsi1.decompose()
 
-    cloudinit_disk = scsi_mappings.find(lambda tag: tag.name == "BackingDeviceName" and cloudinit_name in tag.text)
+    cloudinit_disk = scsi_mappings.find(lambda tag: tag.name == "BackingDeviceName" and tag.text == cloudinit_name)
     scsi2 = cloudinit_disk.parent.parent
     scsi2.decompose()
     logger.info("removed scsi mappings from vios payload")
