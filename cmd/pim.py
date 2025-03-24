@@ -2,7 +2,7 @@ import argparse
 import time
 from bs4 import BeautifulSoup
 
-import configparser
+from configobj import ConfigObj
 import paramiko.ssh_exception
 import requests
 import paramiko
@@ -31,8 +31,7 @@ from scp import SCPClient
 
 def initialize():
     config_file = "config.ini"
-    config = configparser.ConfigParser()
-    config.read(config_file)
+    config = ConfigObj(config_file)
     return config
 
 def get_ssh_client():
@@ -459,8 +458,7 @@ def start_manager():
         session_token, cookies = auth.authenticate_hmc(config)
         logger.info("---------------------- Authenticate to HMC done ----------------------")
 
-        config.add_section("SESSION")
-        config.set("SESSION", "x-api-key", session_token)
+        config["session"] = {"x-api-key": session_token}
 
         logger.info("3. Get System UUID for target host")
         sys_uuid = get_system_uuid(config, cookies)
