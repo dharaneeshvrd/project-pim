@@ -1,4 +1,6 @@
 import argparse
+import hashlib
+import os
 import time
 from bs4 import BeautifulSoup
 
@@ -38,6 +40,94 @@ def get_ssh_client():
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     return client
+
+def hash(file):
+    sha256 = hashlib.sha256()
+    with open(file, 'rb') as f:
+        for chunk in iter(lambda: f.read(128 * sha256.block_size), b''):
+            sha256.update(chunk)
+    return sha256.hexdigest()
+
+def create_iso_path(config, cookies, vios_uuid, filename, checksum, filesize):
+    uri = "/rest/api/web/File/"
+    url = "https://" + util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.web+xml;type=File", "Accept": "application/atom+xml"}
+    payload = f'''
+    <web:File xmlns:web="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" schemaVersion="V1_0">
+        <web:Filename>{filename}</web:Filename>
+        <web:InternetMediaType>application/octet-stream</web:InternetMediaType>
+        <web:SHA256>{checksum}</web:SHA256>
+        <web:ExpectedFileSizeInBytes>{filesize}</web:ExpectedFileSizeInBytes>
+        <web:FileEnumType>BROKERED_MEDIA_ISO</web:FileEnumType>
+        <web:TargetVirtualIOServerUUID>{vios_uuid}</web:TargetVirtualIOServerUUID>
+    </web:File>
+    '''
+    response = None
+    file_uuid = ""
+    try:
+        response = requests.put(url, headers=headers, cookies=cookies, verify=False)
+        if response.status_code != 200:
+            logger.error(f"Failed to create ISO path for file: {filename}")
+        # extract file uuid from response
+        soup = BeautifulSoup(response.text, "xml")
+        file_uuid = soup.find("FileUUID").text
+    except Exception as e:
+        logger.error(f"Failed to create ISO path: {e}")
+        raise e
+    logger.info("ISO path completed successfully")
+
+    return file_uuid
+
+def uploadfile(config, cookies, filehandle, file_uuid):
+    uri = "/rest/api/web/File/contents/" + file_uuid
+    url = "https://" + util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/octet-stream", "Accept": "application/vnd.ibm.powervm.web+xml"}
+
+    def readfile(f, chunksize):
+        logger.info("reading iso file")
+        while True:
+            d = f.read(chunksize)
+            if not d:
+                break
+            yield d
+
+    try:
+        response = requests.put(url, headers=headers, data=readfile(filehandle, chunksize=65536) ,cookies=cookies, verify=False)
+        if response.status_code != 204:
+            logger.error("failed to upload ISO file to VIOS media repository")
+    except Exception as e:
+        logger.error(f"failed to upload ISO file to VIOS media repository {e}")
+        raise e
+    return
+
+def upload_iso_to_media_repository(config, cookies, vios_uuid):
+    try:
+        # Create ISO filepath for bootstrap iso
+        vopt_bootstrap = util.get_vopt_bootstrap_name(config)
+        bootstrap_iso = util.get_bootstrap_iso(config)
+        bootstrap_iso_checksum = hash(bootstrap_iso)
+        bootstrap_iso_size = os.path.getsize(bootstrap_iso)
+        bootstrap_file_uuid = create_iso_path(config, cookies, vios_uuid, vopt_bootstrap, bootstrap_iso_checksum, bootstrap_iso_size)
+        # transfer bootstrap ISO file to VIOS media repository
+        with open(bootstrap_iso, 'rb') as f:
+            uploadfile(config, cookies, f, bootstrap_file_uuid)
+            logger.info(f"bootstrap iso {bootstrap_iso} file upload completed!!")
+
+        # Create ISO filepath for cloudinit iso
+        vopt_cloudinit = util.get_vopt_cloud_init_name(config)
+        cloudinit_iso = util.get_cloud_init_iso(config)
+        cloudinit_iso_checksum = hash(cloudinit_iso)
+        cloudinit_iso_size = os.path.getsize(cloudinit_iso)
+        cloudinit_file_uuid = create_iso_path(config, cookies, vios_uuid, vopt_cloudinit, cloudinit_iso_checksum, cloudinit_iso_size)
+        # transfer cloudinit ISO file to VIOS media repository
+        with open(cloudinit_iso, 'rb') as f:
+            uploadfile(config, cookies, f, cloudinit_file_uuid)
+            logger.info(f"cloudinit iso {cloudinit_iso} file upload completed!!")
+    except Exception as e:
+        logger.error(f"Failed to Upload ISO to VIOS {e}")
+        raise e
+    logger.info("Both boostrap and cloudinit ISO file transfer completed..")
+    return
 
 def copy_iso_and_create_disk(config, cookies):
     scp_port = 22
@@ -358,9 +448,9 @@ def launch(config, cookies, sys_uuid, vios_uuids):
             raise StorageError("Failed to find physical volume for the partition")
         logger.info("Selecting %s vios and %s physcial volume for storage", vios_storage_uuid, physical_volme_name)
 
-        logger.info("4. Copy ISO file to VIOS server")
-        copy_iso_and_create_disk(config, cookies)
-        logger.info("---------------------- Copy ISO done ----------------------")
+        logger.info("4. Transfer ISO files to VIOS media repository")
+        upload_iso_to_media_repository(config, cookies, vios_media_uuid)
+        logger.info("---------------------- Transfer ISOs done ----------------------")
 
         logger.info("5. Create Partition on the target host")
         partition_uuid = partition.create_partition(config, cookies, sys_uuid)
