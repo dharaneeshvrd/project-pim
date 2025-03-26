@@ -191,7 +191,8 @@ def get_active_vios(config, cookies, sys_uuid, vios_uuids):
     for vios_uuid in vios_uuids:
         vios_payload = get_vios_details(config, cookies, sys_uuid, vios_uuid)
         soup = BeautifulSoup(vios_payload, 'xml')
-        if soup.find(lambda tag: tag.name == "ResourceMonitoringControlState" and tag.text == "active"):
+        state = soup.find("ResourceMonitoringControlState")
+        if state.text == "active":
             active_vios_servers[vios_uuid] = vios_payload
     return active_vios_servers
 
