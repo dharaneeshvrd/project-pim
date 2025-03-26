@@ -95,6 +95,7 @@ def uploadfile(config, cookies, filehandle, file_uuid):
         response = requests.put(url, headers=headers, data=readfile(filehandle, chunksize=65536) ,cookies=cookies, verify=False)
         if response.status_code != 204:
             logger.error("failed to upload ISO file to VIOS media repository")
+            raise Exception(f"failed to upload ISO file to VIOS media repository {response.text}")
     except Exception as e:
         logger.error(f"failed to upload ISO file to VIOS media repository {e}")
         raise e
@@ -128,49 +129,6 @@ def upload_iso_to_media_repository(config, cookies, vios_uuid):
         raise e
     logger.info("Both boostrap and cloudinit ISO file transfer completed..")
     return
-
-def copy_iso_and_create_disk(config, cookies):
-    scp_port = 22
-    client = get_ssh_client()
-
-    host_ip = util.get_vios_address(config)
-    username = util.get_vios_username(config)
-    password = util.get_vios_password(config)
-    bootstrap_iso = util.get_bootstrap_iso(config)
-    cloud_init_iso = util.get_cloud_init_iso(config)
-    src_path = util.get_iso_source_path(config)
-    remote_path=util.get_iso_target_path(config)
-
-    client.connect(host_ip, scp_port, username, password)
-    scp = SCPClient(client.get_transport())
-    scp.put(src_path+cloud_init_iso ,remote_path=remote_path)
-    logger.info("Cloud init ISO file copy success!!")
-    scp.put(src_path+bootstrap_iso, remote_path=remote_path)
-    logger.info("Bootstrap ISO file copy success!!")
-
-    # create virtual optical disk
-    bootstrap_disk_name = util.get_vopt_bootstrap_name(config)
-    cloud_init_disk_name = util.get_vopt_cloud_init_name(config)
-
-    command1 = f"ioscli mkvopt -name {bootstrap_disk_name} -file {remote_path}/{bootstrap_iso} -ro"
-    command2 = f"ioscli mkvopt -name {cloud_init_disk_name} -file {remote_path}/{cloud_init_iso} -ro"
-
-    logger.info("command1 %s", command1)
-    logger.info("command2 %s", command2)
-    stdin, stdout, stderr = client.exec_command(command1, get_pty=True)
-    if stdout.channel.recv_exit_status() != 0:
-        logger.error("command1 execution failed %s", command1)
-        logger.error(stderr.readlines())
-        raise paramiko.SSHException
-
-    stdin, stdout, stderr = client.exec_command(command2, get_pty=True)
-    if stdout.channel.recv_exit_status() != 0:
-        logger.error("command2 execution failed %s", command2)
-        logger.error(stderr.readlines())
-        raise paramiko.SSHException
-
-    logger.info("Load vopt to VIOS successful")
-    client.close()
 
 def monitor_iso_installation(config, cookies):
     ip = util.get_ip_address(config)
