@@ -77,7 +77,7 @@ def get_ip_address(config):
     return config["partition"]["network"]["ip"]["address"]
 
 def get_ssh_password(config):
-    return "PIMForPowerSpyre"
+    return config["partition"]["ssh"]["password"]
 
 # storage related Getters
 def get_physical_volume_name(config):
@@ -91,7 +91,7 @@ def get_vopt_bootstrap_name(config):
     return config["partition"]["name"] + "_bootstrap"
 
 def get_vopt_cloud_init_name(config):
-    return config["partition"]["name"] + "_cloud-init"
+    return config["partition"]["name"] + "_cloud_init"
 
 def get_volume_group(config):
     return config.get("STORAGE", "vg_name").strip('"')

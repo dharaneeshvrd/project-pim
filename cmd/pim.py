@@ -65,16 +65,17 @@ def create_iso_path(config, cookies, vios_uuid, filename, checksum, filesize):
     response = None
     file_uuid = ""
     try:
-        response = requests.put(url, headers=headers, cookies=cookies, verify=False)
+        response = requests.put(url, headers=headers, data=payload, cookies=cookies, verify=False)
         if response.status_code != 200:
             logger.error(f"Failed to create ISO path for file: {filename}")
+            raise Exception(f"Failed to create ISO path for file: {filename}")
         # extract file uuid from response
         soup = BeautifulSoup(response.text, "xml")
         file_uuid = soup.find("FileUUID").text
     except Exception as e:
         logger.error(f"Failed to create ISO path: {e}")
         raise e
-    logger.info("ISO path completed successfully")
+    logger.info("ISO path created successfully")
 
     return file_uuid
 
@@ -105,7 +106,7 @@ def upload_iso_to_media_repository(config, cookies, vios_uuid):
     try:
         # Create ISO filepath for bootstrap iso
         vopt_bootstrap = util.get_vopt_bootstrap_name(config)
-        bootstrap_iso = util.get_bootstrap_iso(config)
+        bootstrap_iso = util.get_iso_source_path(config) + util.get_bootstrap_iso(config)
         bootstrap_iso_checksum = hash(bootstrap_iso)
         bootstrap_iso_size = os.path.getsize(bootstrap_iso)
         bootstrap_file_uuid = create_iso_path(config, cookies, vios_uuid, vopt_bootstrap, bootstrap_iso_checksum, bootstrap_iso_size)
@@ -116,7 +117,7 @@ def upload_iso_to_media_repository(config, cookies, vios_uuid):
 
         # Create ISO filepath for cloudinit iso
         vopt_cloudinit = util.get_vopt_cloud_init_name(config)
-        cloudinit_iso = util.get_cloud_init_iso(config)
+        cloudinit_iso = util.get_iso_source_path(config) + util.get_cloud_init_iso(config)
         cloudinit_iso_checksum = hash(cloudinit_iso)
         cloudinit_iso_size = os.path.getsize(cloudinit_iso)
         cloudinit_file_uuid = create_iso_path(config, cookies, vios_uuid, vopt_cloudinit, cloudinit_iso_checksum, cloudinit_iso_size)
