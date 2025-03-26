@@ -14,12 +14,6 @@ def get_host_password(config):
 def get_vios_address(config):
     return config["system"]["vios-server"]["host-address"]
 
-def get_vios_username(config):
-    return config["system"]["vios-server"]["username"]
-
-def get_vios_password(config):
-    return config["system"]["vios-server"]["password"]
-
 def get_session_key(config):
     return  config["session"]["x-api-key"]
 
