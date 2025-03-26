@@ -71,7 +71,7 @@ def get_ip_address(config):
     return config["partition"]["network"]["ip"]["address"]
 
 def get_ssh_password(config):
-    return config["partition"]["ssh"]["password"]
+    return "PIMForPowerSpyre"
 
 # storage related Getters
 def get_physical_volume_name(config):
