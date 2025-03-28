@@ -102,6 +102,21 @@ def uploadfile(config, cookies, filehandle, file_uuid):
         raise e
     return
 
+def remove_iso_file(config, cookies, file, file_uuid):
+    uri = f"/rest/api/web/File/{file_uuid}"
+    url = "https://" + util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.web+xml;type=File"}
+    try:
+        response = requests.delete(url, headers=headers, cookies=cookies, verify=False)
+        if response.status_code != 204:
+            logger.error(f"failed to remove ISO file {file} from VIOS after uploading to media repository. {response.text}")
+            raise Exception("failed to remove ISO file from VIOS after uploading to media repository")
+    except Exception as e:
+        logger.error(f"Failed to remove ISO file {file} from VIOS after uploading to media repository")
+
+    logger.info(f"iso file: {file} removed from VIOS successfully")
+    return
+
 def upload_iso_to_media_repository(config, cookies, vios_uuid):
     try:
         # Create ISO filepath for bootstrap iso
@@ -125,6 +140,11 @@ def upload_iso_to_media_repository(config, cookies, vios_uuid):
         with open(cloudinit_iso, 'rb') as f:
             uploadfile(config, cookies, f, cloudinit_file_uuid)
             logger.info(f"cloudinit iso {cloudinit_iso} file upload completed!!")
+
+        # remove iso files from VIOS
+        remove_iso_file(bootstrap_iso, bootstrap_file_uuid)
+        remove_iso_file(cloudinit_iso, cloudinit_file_uuid)
+        logger.info("both boostrap iso and cloudinit iso are removed from VIOS after copying to media repositoy")
     except Exception as e:
         logger.error(f"Failed to Upload ISO to VIOS {e}")
         raise e
@@ -363,6 +383,41 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios):
     logger.info("Successfully removed scsi mappings and vOpt media repositories and updated VIOS..")
     return
 
+def remove_vopt_device(config, cookies, vios, vopt_name):
+    # find volumegroup URL associated with StoragePool
+    soup = BeautifulSoup(vios, 'xml')
+    storage_pool = soup.find("StoragePools")
+    if storage_pool.find("link") is not None:
+        vg_url = storage_pool.find("link").attrs['href']
+    else:
+        raise PimError("failed to get volumegroup hyperlink from VIOS")
+
+    # make REST call to volume group URL(vg_url) to get list of media repositories
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; type=VolumeGroup"}
+    response = requests.get(vg_url, headers=headers, cookies=cookies, verify=False)
+    try:
+        if response.status_code != 200:
+            logger.error("Failed to get volumegroup details: %s", response.text)
+            raise PimError("Failed to get volumegroup details")
+        soup = BeautifulSoup(response.text, 'xml')
+        vol_group = soup.find("VolumeGroup")
+
+        # remove vopt_name from media repositoy
+        vopt_media = soup.find_all("VirtualOpticalMedia")
+        for v_media in vopt_media:
+            if v_media.find("MediaName") is not None and v_media.find("MediaName").tag == vopt_name:
+                v_media.decompose()
+                break
+
+        # Now update the modified media repositoy list after delete
+        response = requests.post(vg_url, data=vol_group.contents, headers=headers, cookies=cookies, verify=False)
+        if response.status_code != 200:
+            logger.error(f"Failed to update volumegroup after deleting vopt device from media repository: {response.text}")
+            raise PimError("Failed to update volumegroup after deleting vopt device from media repository")
+
+        logger.info(f"Virtual optical media {vopt_name} has been deleted successfully")
+    except Exception as e:
+        raise e
 
 # destroy partition
 def destroy(config, cookies, sys_uuid, vios_uuid):
@@ -378,6 +433,12 @@ def destroy(config, cookies, sys_uuid, vios_uuid):
         remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios)
 
         # TODO: delete virtual disk, volumegroup if created by the script during launch
+
+        vios_updated = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+        # remove mounted virtual optical devices from media repositoy.
+        # mounted bootstrap vopt could be used by many lpars. hence remove only cloudinit vopt
+        cloudinit_vopt = util.get_vopt_cloud_init_name(config)
+        remove_vopt_device(config, cookies, vios_updated, cloudinit_vopt)
 
         remove_partition(config, cookies, partition_uuid)
     except (PartitionError, PimError) as e:
