@@ -102,19 +102,19 @@ def uploadfile(config, cookies, filehandle, file_uuid):
         raise e
     return
 
-def remove_iso_file(config, cookies, file, file_uuid):
+def remove_iso_file(config, cookies, filename, file_uuid):
     uri = f"/rest/api/web/File/{file_uuid}"
     url = "https://" + util.get_host_address(config) + uri
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.web+xml;type=File"}
     try:
         response = requests.delete(url, headers=headers, cookies=cookies, verify=False)
         if response.status_code != 204:
-            logger.error(f"failed to remove ISO file {file} from VIOS after uploading to media repository. {response.text}")
+            logger.error(f"failed to remove ISO file {filename} from VIOS after uploading to media repository. {response.text}")
             raise Exception("failed to remove ISO file from VIOS after uploading to media repository")
     except Exception as e:
-        logger.error(f"Failed to remove ISO file {file} from VIOS after uploading to media repository")
+        logger.error(f"Failed to remove ISO file {filename} from VIOS after uploading to media repository")
 
-    logger.info(f"iso file: {file} removed from VIOS successfully")
+    logger.info(f"iso file: {filename} removed from VIOS successfully")
     return
 
 def upload_iso_to_media_repository(config, cookies, vios_uuid):
@@ -142,8 +142,8 @@ def upload_iso_to_media_repository(config, cookies, vios_uuid):
             logger.info(f"cloudinit iso {cloudinit_iso} file upload completed!!")
 
         # remove iso files from VIOS
-        remove_iso_file(bootstrap_iso, bootstrap_file_uuid)
-        remove_iso_file(cloudinit_iso, cloudinit_file_uuid)
+        remove_iso_file(config, cookies, bootstrap_iso, bootstrap_file_uuid)
+        remove_iso_file(config, cookies, cloudinit_iso, cloudinit_file_uuid)
         logger.info("both boostrap iso and cloudinit iso are removed from VIOS after copying to media repositoy")
     except Exception as e:
         logger.error(f"Failed to Upload ISO to VIOS {e}")
@@ -355,17 +355,22 @@ def remove_partition(config, cookies, partition_uuid):
     logger.info("Partition deleted successfully")
 
 def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios):
-    bootstap_name = util.get_vopt_bootstrap_name(config)
+    bootstrap_name = util.get_vopt_bootstrap_name(config)
     cloudinit_name = util.get_vopt_cloud_init_name(config)
 
     logger.info("removing scsi mappings..")
     soup = BeautifulSoup(vios, "xml")
     scsi_mappings = soup.find("VirtualSCSIMappings")
-    bootstrap_disk = scsi_mappings.find(lambda tag: tag.name == "BackingDeviceName" and tag.text == bootstap_name)
+    b_devs = scsi_mappings.find_all("BackingDeviceName")
+    for b_dev in b_devs:
+        if b_dev.text == bootstrap_name:
+            bootstrap_disk = b_dev
+        if b_dev.text == cloudinit_name:
+            cloudinit_disk = b_dev
+
     scsi1 = bootstrap_disk.parent.parent
     scsi1.decompose()
 
-    cloudinit_disk = scsi_mappings.find(lambda tag: tag.name == "BackingDeviceName" and tag.text == cloudinit_name)
     scsi2 = cloudinit_disk.parent.parent
     scsi2.decompose()
     logger.info("removed scsi mappings from vios payload")
@@ -403,14 +408,15 @@ def remove_vopt_device(config, cookies, vios, vopt_name):
         vol_group = soup.find("VolumeGroup")
 
         # remove vopt_name from media repositoy
-        vopt_media = soup.find_all("VirtualOpticalMedia")
+        vopt_media = vol_group.find_all("VirtualOpticalMedia")
         for v_media in vopt_media:
-            if v_media.find("MediaName") is not None and v_media.find("MediaName").tag == vopt_name:
+            if v_media.find("MediaName") is not None and v_media.find("MediaName").text == vopt_name:
                 v_media.decompose()
                 break
 
+        logger.info("updated volumegroup after removing vopt from media repositories")
         # Now update the modified media repositoy list after delete
-        response = requests.post(vg_url, data=vol_group.contents, headers=headers, cookies=cookies, verify=False)
+        response = requests.post(vg_url, data=str(vol_group), headers=headers, cookies=cookies, verify=False)
         if response.status_code != 200:
             logger.error(f"Failed to update volumegroup after deleting vopt device from media repository: {response.text}")
             raise PimError("Failed to update volumegroup after deleting vopt device from media repository")
