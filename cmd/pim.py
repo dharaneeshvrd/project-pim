@@ -1,4 +1,6 @@
 import argparse
+import hashlib
+import os
 import time
 from bs4 import BeautifulSoup
 
@@ -39,48 +41,115 @@ def get_ssh_client():
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     return client
 
-def copy_iso_and_create_disk(config, cookies):
-    scp_port = 22
-    client = get_ssh_client()
+def hash(file):
+    sha256 = hashlib.sha256()
+    with open(file, 'rb') as f:
+        for chunk in iter(lambda: f.read(128 * sha256.block_size), b''):
+            sha256.update(chunk)
+    return sha256.hexdigest()
 
-    host_ip = util.get_vios_address(config)
-    username = util.get_vios_username(config)
-    password = util.get_vios_password(config)
-    bootstrap_iso = util.get_bootstrap_iso(config)
-    cloud_init_iso = util.get_cloud_init_iso(config)
-    src_path = util.get_iso_source_path(config)
-    remote_path=util.get_iso_target_path(config)
+def create_iso_path(config, cookies, vios_uuid, filename, checksum, filesize):
+    uri = "/rest/api/web/File/"
+    url = "https://" + util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.web+xml;type=File", "Accept": "application/atom+xml"}
+    payload = f'''
+    <web:File xmlns:web="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" schemaVersion="V1_0">
+        <web:Filename>{filename}</web:Filename>
+        <web:InternetMediaType>application/octet-stream</web:InternetMediaType>
+        <web:SHA256>{checksum}</web:SHA256>
+        <web:ExpectedFileSizeInBytes>{filesize}</web:ExpectedFileSizeInBytes>
+        <web:FileEnumType>BROKERED_MEDIA_ISO</web:FileEnumType>
+        <web:TargetVirtualIOServerUUID>{vios_uuid}</web:TargetVirtualIOServerUUID>
+    </web:File>
+    '''
+    response = None
+    file_uuid = ""
+    try:
+        response = requests.put(url, headers=headers, data=payload, cookies=cookies, verify=False)
+        if response.status_code != 200:
+            logger.error(f"Failed to create ISO path for file: {filename}")
+            raise Exception(f"Failed to create ISO path for file: {filename}")
+        # extract file uuid from response
+        soup = BeautifulSoup(response.text, "xml")
+        file_uuid = soup.find("FileUUID").text
+    except Exception as e:
+        logger.error(f"Failed to create ISO path: {e}")
+        raise e
+    logger.info("ISO path created successfully")
 
-    client.connect(host_ip, scp_port, username, password)
-    scp = SCPClient(client.get_transport())
-    scp.put(src_path+cloud_init_iso ,remote_path=remote_path)
-    logger.info("Cloud init ISO file copy success!!")
-    scp.put(src_path+bootstrap_iso, remote_path=remote_path)
-    logger.info("Bootstrap ISO file copy success!!")
+    return file_uuid
 
-    # create virtual optical disk
-    bootstrap_disk_name = util.get_vopt_bootstrap_name(config)
-    cloud_init_disk_name = util.get_vopt_cloud_init_name(config)
+def uploadfile(config, cookies, filehandle, file_uuid):
+    uri = "/rest/api/web/File/contents/" + file_uuid
+    url = "https://" + util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/octet-stream", "Accept": "application/vnd.ibm.powervm.web+xml"}
 
-    command1 = f"ioscli mkvopt -name {bootstrap_disk_name} -file {remote_path}/{bootstrap_iso} -ro"
-    command2 = f"ioscli mkvopt -name {cloud_init_disk_name} -file {remote_path}/{cloud_init_iso} -ro"
+    def readfile(f, chunksize):
+        logger.info("reading iso file")
+        while True:
+            d = f.read(chunksize)
+            if not d:
+                break
+            yield d
 
-    logger.info("command1 %s", command1)
-    logger.info("command2 %s", command2)
-    stdin, stdout, stderr = client.exec_command(command1, get_pty=True)
-    if stdout.channel.recv_exit_status() != 0:
-        logger.error("command1 execution failed %s", command1)
-        logger.error(stderr.readlines())
-        raise paramiko.SSHException
+    try:
+        response = requests.put(url, headers=headers, data=readfile(filehandle, chunksize=65536) ,cookies=cookies, verify=False)
+        if response.status_code != 204:
+            logger.error("failed to upload ISO file to VIOS media repository")
+            raise Exception(f"failed to upload ISO file to VIOS media repository {response.text}")
+    except Exception as e:
+        logger.error(f"failed to upload ISO file to VIOS media repository {e}")
+        raise e
+    return
 
-    stdin, stdout, stderr = client.exec_command(command2, get_pty=True)
-    if stdout.channel.recv_exit_status() != 0:
-        logger.error("command2 execution failed %s", command2)
-        logger.error(stderr.readlines())
-        raise paramiko.SSHException
+def remove_iso_file(config, cookies, filename, file_uuid):
+    uri = f"/rest/api/web/File/{file_uuid}"
+    url = "https://" + util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.web+xml;type=File"}
+    try:
+        response = requests.delete(url, headers=headers, cookies=cookies, verify=False)
+        if response.status_code != 204:
+            logger.error(f"failed to remove ISO file {filename} from VIOS after uploading to media repository. {response.text}")
+            raise Exception("failed to remove ISO file from VIOS after uploading to media repository")
+    except Exception as e:
+        logger.error(f"Failed to remove ISO file {filename} from VIOS after uploading to media repository")
 
-    logger.info("Load vopt to VIOS successful")
-    client.close()
+    logger.info(f"iso file: {filename} removed from VIOS successfully")
+    return
+
+def upload_iso_to_media_repository(config, cookies, vios_uuid):
+    try:
+        # Create ISO filepath for bootstrap iso
+        vopt_bootstrap = util.get_vopt_bootstrap_name(config)
+        bootstrap_iso = util.get_iso_source_path(config) + util.get_bootstrap_iso(config)
+        bootstrap_iso_checksum = hash(bootstrap_iso)
+        bootstrap_iso_size = os.path.getsize(bootstrap_iso)
+        bootstrap_file_uuid = create_iso_path(config, cookies, vios_uuid, vopt_bootstrap, bootstrap_iso_checksum, bootstrap_iso_size)
+        # transfer bootstrap ISO file to VIOS media repository
+        with open(bootstrap_iso, 'rb') as f:
+            uploadfile(config, cookies, f, bootstrap_file_uuid)
+            logger.info(f"bootstrap iso {bootstrap_iso} file upload completed!!")
+
+        # Create ISO filepath for cloudinit iso
+        vopt_cloudinit = util.get_vopt_cloud_init_name(config)
+        cloudinit_iso = util.get_iso_source_path(config) + util.get_cloud_init_iso(config)
+        cloudinit_iso_checksum = hash(cloudinit_iso)
+        cloudinit_iso_size = os.path.getsize(cloudinit_iso)
+        cloudinit_file_uuid = create_iso_path(config, cookies, vios_uuid, vopt_cloudinit, cloudinit_iso_checksum, cloudinit_iso_size)
+        # transfer cloudinit ISO file to VIOS media repository
+        with open(cloudinit_iso, 'rb') as f:
+            uploadfile(config, cookies, f, cloudinit_file_uuid)
+            logger.info(f"cloudinit iso {cloudinit_iso} file upload completed!!")
+
+        # remove iso files from VIOS
+        remove_iso_file(config, cookies, bootstrap_iso, bootstrap_file_uuid)
+        remove_iso_file(config, cookies, cloudinit_iso, cloudinit_file_uuid)
+        logger.info("both boostrap iso and cloudinit iso are removed from VIOS after copying to media repositoy")
+    except Exception as e:
+        logger.error(f"Failed to Upload ISO to VIOS {e}")
+        raise e
+    logger.info("Both boostrap and cloudinit ISO file transfer completed..")
+    return
 
 def monitor_iso_installation(config, cookies):
     ip = util.get_ip_address(config)
@@ -287,17 +356,22 @@ def remove_partition(config, cookies, partition_uuid):
     logger.info("Partition deleted successfully")
 
 def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios):
-    bootstap_name = util.get_vopt_bootstrap_name(config)
+    bootstrap_name = util.get_vopt_bootstrap_name(config)
     cloudinit_name = util.get_vopt_cloud_init_name(config)
 
     logger.info("removing scsi mappings..")
     soup = BeautifulSoup(vios, "xml")
     scsi_mappings = soup.find("VirtualSCSIMappings")
-    bootstrap_disk = scsi_mappings.find(lambda tag: tag.name == "BackingDeviceName" and tag.text == bootstap_name)
+    b_devs = scsi_mappings.find_all("BackingDeviceName")
+    for b_dev in b_devs:
+        if b_dev.text == bootstrap_name:
+            bootstrap_disk = b_dev
+        if b_dev.text == cloudinit_name:
+            cloudinit_disk = b_dev
+
     scsi1 = bootstrap_disk.parent.parent
     scsi1.decompose()
 
-    cloudinit_disk = scsi_mappings.find(lambda tag: tag.name == "BackingDeviceName" and tag.text == cloudinit_name)
     scsi2 = cloudinit_disk.parent.parent
     scsi2.decompose()
     logger.info("removed scsi mappings from vios payload")
@@ -315,6 +389,42 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios):
     logger.info("Successfully removed scsi mappings and vOpt media repositories and updated VIOS..")
     return
 
+def remove_vopt_device(config, cookies, vios, vopt_name):
+    # find volumegroup URL associated with StoragePool
+    soup = BeautifulSoup(vios, 'xml')
+    storage_pool = soup.find("StoragePools")
+    if storage_pool.find("link") is not None:
+        vg_url = storage_pool.find("link").attrs['href']
+    else:
+        raise PimError("failed to get volumegroup hyperlink from VIOS")
+
+    # make REST call to volume group URL(vg_url) to get list of media repositories
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; type=VolumeGroup"}
+    response = requests.get(vg_url, headers=headers, cookies=cookies, verify=False)
+    try:
+        if response.status_code != 200:
+            logger.error("Failed to get volumegroup details: %s", response.text)
+            raise PimError("Failed to get volumegroup details")
+        soup = BeautifulSoup(response.text, 'xml')
+        vol_group = soup.find("VolumeGroup")
+
+        # remove vopt_name from media repositoy
+        vopt_media = vol_group.find_all("VirtualOpticalMedia")
+        for v_media in vopt_media:
+            if v_media.find("MediaName") is not None and v_media.find("MediaName").text == vopt_name:
+                v_media.decompose()
+                break
+
+        logger.info("updated volumegroup after removing vopt from media repositories")
+        # Now update the modified media repositoy list after delete
+        response = requests.post(vg_url, data=str(vol_group), headers=headers, cookies=cookies, verify=False)
+        if response.status_code != 200:
+            logger.error(f"Failed to update volumegroup after deleting vopt device from media repository: {response.text}")
+            raise PimError("Failed to update volumegroup after deleting vopt device from media repository")
+
+        logger.info(f"Virtual optical media {vopt_name} has been deleted successfully")
+    except Exception as e:
+        raise e
 
 # destroy partition
 def destroy(config, cookies, sys_uuid, vios_uuid):
@@ -330,6 +440,12 @@ def destroy(config, cookies, sys_uuid, vios_uuid):
         remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios)
 
         # TODO: delete virtual disk, volumegroup if created by the script during launch
+
+        vios_updated = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+        # remove mounted virtual optical devices from media repositoy.
+        # mounted bootstrap vopt could be used by many lpars. hence remove only cloudinit vopt
+        cloudinit_vopt = util.get_vopt_cloud_init_name(config)
+        remove_vopt_device(config, cookies, vios_updated, cloudinit_vopt)
 
         remove_partition(config, cookies, partition_uuid)
     except (PartitionError, PimError) as e:
@@ -359,9 +475,9 @@ def launch(config, cookies, sys_uuid, vios_uuids):
             raise StorageError("Failed to find physical volume for the partition")
         logger.info("Selecting %s vios and %s physcial volume for storage", vios_storage_uuid, physical_volme_name)
 
-        logger.info("4. Copy ISO file to VIOS server")
-        copy_iso_and_create_disk(config, cookies)
-        logger.info("---------------------- Copy ISO done ----------------------")
+        logger.info("4. Transfer ISO files to VIOS media repository")
+        upload_iso_to_media_repository(config, cookies, vios_media_uuid)
+        logger.info("---------------------- Transfer ISOs done ----------------------")
 
         logger.info("5. Create Partition on the target host")
         partition_uuid = partition.create_partition(config, cookies, sys_uuid)
