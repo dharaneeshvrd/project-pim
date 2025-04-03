@@ -1,0 +1,5 @@
+{
+    "workloadImage": "{{ config['ai']['workload-image'] }}",
+    "llmImage": "{{ config['ai']['llm-image'] }}",
+    "llmArgs": "{{ config['ai']['llm-args'] }}"
+}

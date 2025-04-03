@@ -21,6 +21,8 @@ PAYLOAD = '''
 </ClientNetworkAdapter:ClientNetworkAdapter>
 '''
 
+# Note: The VirtualSlotNumber tag is set to 3, which corresponds to the value in the 99_custom_network.cfg file.
+#       Any changes to this value must also be updated in the configuration file.
 def populate_payload(vlanid, vswitchid, vswitchname):
     return f'''
 <ClientNetworkAdapter:ClientNetworkAdapter xmlns:ClientNetworkAdapter="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">

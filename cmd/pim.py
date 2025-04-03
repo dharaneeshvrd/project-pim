@@ -5,11 +5,13 @@ import time
 from bs4 import BeautifulSoup
 
 from configobj import ConfigObj
+import os
 import paramiko.ssh_exception
 import requests
 import paramiko
 import urllib3
 import sys
+import subprocess
 
 import auth.auth as auth
 from auth.auth_exception import AuthError
@@ -27,7 +29,7 @@ import storage.storage as storage
 import storage.vopt_storage as vopt
 import storage.virtual_storage as vstorage
 from storage.storage_exception import StorageError
-
+from jinja2 import Environment, FileSystemLoader
 
 from scp import SCPClient
 
@@ -151,9 +153,74 @@ def upload_iso_to_media_repository(config, cookies, vios_uuid):
     logger.info("Both boostrap and cloudinit ISO file transfer completed..")
     return
 
+def build_and_download_iso(config):
+    iso_folder = "iso"
+    create_dir(iso_folder)
+    generate_cloud_init_iso_config(config)
+    generate_cloud_init_iso_file(iso_folder, config)
+    download_bootstap_iso(iso_folder, config)
+    
+def generate_cloud_init_iso_config(config):
+    file_loader = FileSystemLoader('cloud-init-iso/templates')
+    env = Environment(loader=file_loader)
+    pim_config_template = env.get_template('pim_config.json')
+    pim_config_output = pim_config_template.render(config=config)
+    
+    network_config_template = env.get_template('99_custom_network.cfg')
+    network_config_output = network_config_template.render(config=config)
+    
+    cloud_init_config_path = "cloud-init-iso/config"
+    create_dir(cloud_init_config_path)
+
+    pim_config_file = open(cloud_init_config_path + "/pim_config.json", "w")
+    pim_config_file.write(pim_config_output)
+
+    network_config_file = open(cloud_init_config_path + "/99_custom_network.cfg", "w")
+    network_config_file.write(network_config_output)
+
+    auth_json = config["ai"]["auth-json"]
+    auth_config_file = open(cloud_init_config_path + "/auth.json", "w")
+    auth_config_file.write(auth_json)
+    logger.info("Generated config files for the cloud-init iso.")
+
+def generate_cloud_init_iso_file(iso_folder, config):
+    logger.info("Generating cloud init iso file")
+    cloud_init_image_name = util.get_cloud_init_iso(config)
+    generate_cmd = f"mkisofs -l -o {iso_folder}/{cloud_init_image_name} ./cloud-init-iso/config"
+    
+    try: subprocess.run(generate_cmd.split(), check=True, capture_output=True)
+    except subprocess.CalledProcessError as e:
+        logger.error(f"failed to generate cloud init iso. {e.stderr}")
+        raise
+
+def download_bootstap_iso(iso_folder, config):
+    logger.info("Downloading bootstrap iso file...")
+    download_url = util.get_bootstrap_iso_download_url(config)
+    iso_file_path = f"{iso_folder}/{util.get_bootstrap_iso(config)}"
+    try:
+        response = requests.get(download_url, stream=True)
+        response.raise_for_status()
+
+        with open(iso_file_path, "wb") as iso_file:
+            for chunk in response.iter_content(chunk_size=8192):
+                iso_file.write(chunk)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"failed to download {util.get_bootstrap_iso(config)} file")
+        raise
+    
+    logger.info("Download completed for bootstrap iso file.")
+
+def create_dir(path):
+    try:
+        if not os.path.isdir(path):
+            os.mkdir(path)
+    except OSError as e:
+        logger.error(f"failed to create {path} directory")
+        raise
+
 def monitor_iso_installation(config, cookies):
     ip = util.get_ip_address(config)
-    username = "pim"
+    username = util.get_ssh_username(config)
     password = util.get_ssh_password(config)
     command = "sudo journalctl -u getcontainer.service -f 2>&1 | awk '{print} /Installation complete/ {print \"Match found: \" $0; exit 0}'"
 
@@ -474,6 +541,8 @@ def launch(config, cookies, sys_uuid, vios_uuids):
             logger.error("Failed to find physical volume for the partition")
             raise StorageError("Failed to find physical volume for the partition")
         logger.info("Selecting %s vios and %s physcial volume for storage", vios_storage_uuid, physical_volme_name)
+
+        build_and_download_iso(config)
 
         logger.info("4. Transfer ISO files to VIOS media repository")
         upload_iso_to_media_repository(config, cookies, vios_media_uuid)

@@ -152,6 +152,12 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+# ignoring config files generating during run time
+cloud-init-iso/config
+
+# iso files will be stored here
+iso
+
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore

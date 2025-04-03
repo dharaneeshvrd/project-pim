@@ -17,3 +17,4 @@ scp==0.15.0
 soupsieve==2.6
 urllib3==2.2.3
 configobj==5.0.9
+Jinja2==3.1.6
