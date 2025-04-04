@@ -70,6 +70,9 @@ def get_vnetwork_name(config):
 def get_ip_address(config):
     return config["partition"]["network"]["ip"]["address"]
 
+def get_ssh_username(config):
+    return config["partition"]["ssh"]["user-name"]
+
 def get_ssh_password(config):
     return "PIMForPowerSpyre"
 
@@ -104,3 +107,6 @@ def use_existing_vg(config):
 
 def get_virtual_disk_size(config):
     return config["storage"]["vdisk_size"]
+
+def get_bootstrap_iso_download_url(config):
+    return config["ai"]["bootstrap-iso-url"]
