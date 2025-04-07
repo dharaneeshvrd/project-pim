@@ -1,0 +1,15 @@
+[Unit]
+Description=Mount and setup pimconfig
+Before=network-online.target cloud-config.target
+Wants=network-online.target cloud-config.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/env /bin/bash /usr/bin/get_pimconfig.sh 
+RemainAfterExit=yes
+TimeoutSec=0 
+
+StandardOutput=journal+console
+
+[Install]
+WantedBy=cloud-config.target

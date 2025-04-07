@@ -1,0 +1,19 @@
+FROM registry.stage.redhat.io/rhel9/rhel-bootc:9.6
+
+ARG RH_SUBS_USERNAME
+ARG RH_SUBS_PASSWORD
+
+RUN subscription-manager register --username=$RH_SUBS_USERNAME --password=$RH_SUBS_PASSWORD --auto-attach
+
+RUN dnf -y install cloud-init && \
+    ln -s ../cloud-init.target /usr/lib/systemd/system/default.target.wants && \
+    rm -rf /var/{cache,log} /var/lib/{dnf,rhsm}
+COPY usr/ /usr/
+
+COPY get_pimconfig.sh /usr/bin/
+COPY pimconfig.service /etc/systemd/system
+
+RUN systemctl unmask pimconfig.service
+RUN systemctl enable pimconfig.service
+
+COPY vllm.container /usr/share/containers/systemd
