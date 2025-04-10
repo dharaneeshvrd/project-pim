@@ -1,8 +1,9 @@
 # PIM Linux Sidecar for wrapping bootable AI workloads
 
 ## Pre-requisites
-1. Hardware host to create logical partition and deploy PIM linux sidecar
-2. Custom ISO(ppc64le) with cloud-init
+1. Hardware host to create logical partition, VIOS to attach physical volume and virtual optical devices
+2. bootstrap ISO(ppc64le) and cloud-init ISO
+3. IBMi partition to run the PIM automation script
 
 ## Dependencies
 All dependencies are captured in requirements.txt
@@ -10,22 +11,22 @@ All dependencies are captured in requirements.txt
 2. paramiko and scp modules for performing scp operation
 3. bs4 (beautifulsoup) and lxml modules for XML parsing
 
-## Install depenencies in python virtual environment
+## Install depenencies on IBMi partition
+
+1. Currently the source code for PIM is internal, needs to be cloned by adding SSH key of the IBMi partition
+2. Run Installer script to install system and python dependencies needed for running PIM
 
 ```
-python3 -m venv myvirtual_venv
-source myvirtual_venv/bin/activate
-pip3 install -r requirements.txt
+bash install.sh
 ```
-### NOTE: If there are rust related errors during installation of dependencies, install cargo additionally
-          ** If there are cryptography related errors,  install python-dev libxml2-dev libxslt-dev packages **
 
-## Modify HMC, VIOS, partition related configurations in `config.ini`
+## Key in all the PIM configurations related to lpar, AI workload, etc in `config.ini`
 
 ## Run PIM lifecycle manager
 
   ```
   export PYTHONPATH=.
+  export PATH=$PATH:/opt/schily/bin
   python3 cmd/pim.py [launch/destroy]
   ```
-  
+
