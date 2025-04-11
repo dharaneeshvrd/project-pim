@@ -1,0 +1,13 @@
+diff --git a/driver/level3/level3_thread.c b/driver/level3/level3_thread.c
+index 3d56c45a9..1e2e2561b 100644
+--- a/driver/level3/level3_thread.c
++++ b/driver/level3/level3_thread.c
+@@ -742,7 +742,7 @@ static int gemm_driver(blas_arg_t *args, BLASLONG *range_m, BLASLONG
+     num_parts  = 0;
+     while (n > 0){
+       width = blas_quickdivide(n + nthreads - num_parts - 1, nthreads - num_parts);
+-      if (width < switch_ratio && width > 1) {
++      if (width < switch_ratio ) {
+         width = switch_ratio;
+       }
+       width = round_up(n, width, GEMM_PREFERED_SIZE
