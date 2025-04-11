@@ -16,8 +16,10 @@ The IBM i LPAR hosts the database with the credit card transactions. The schema 
 Clone this repository on your system
 ### Linux
 The REST API endpoint `linux_inference_endpoint.py` can be run inside a podman container.
-1. Build the image: `podman build -t fraud_analytics .`
-2. Run the container: `podman run -p 5000:5000 localhost/fraud_analytics`
+- Build the image: `podman build -t fraud_analytics .`
+  - The required files to build the image are in the `image-build` directory
+  - The following wheels need to be downloaded and placed in the `image-build` directory before building the image: https://ibm.ent.box.com/folder/316080260891?s=w0yl8bcf4ijvw6mdzpxyvsesv1f7uwu6
+- Run the container: `podman run -p 5000:5000 localhost/fraud_analytics`
    
 ### IBM i
 - Create the schema and table using `create_table.sql`
