@@ -174,7 +174,30 @@ def activate_partititon(config, cookies, partition_uuid):
     logger.info("Partition activated successfully.")
     return
 
+<<<<<<< HEAD
 def shutdown_partition(config, cookies, partition_uuid):
+=======
+def check_lpar_status(config, cookies, partition_uuid):
+    uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}"
+    url =  "https://" + util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config)}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        logger.error(f'Failed to get lpar details for {partition_uuid}')
+        raise PartitionError(f'Failed to get lpar details for {partition_uuid}')
+    soup = BeautifulSoup(response.text, 'xml')
+    state = soup.find("PartitionState")
+    if state == None:
+        raise PartitionError(f'Failed to get lpar status for {partition_uuid}')
+    return state.text
+
+def shutdown_paritition(config, cookies, partition_uuid):
+    lpar_state = check_lpar_status(config, cookies, partition_uuid)
+    if lpar_state != "running":
+        logger.info("Partition is not in running state, skipping shutdown")
+        return
+
+>>>>>>> 7bf1515 (Check lpar status to be running before shutdown)
     uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}/do/PowerOff"
     url =  "https://" + util.get_host_address(config) + uri
     payload = shutdown_payload()
