@@ -22,7 +22,7 @@ def extract_entities(prompt, fields, text):
 
     return ai_message
 
-st.title("Entity Extraction using OpenAI")
+st.title("Entity extraction on PIM using vLLM")
 
 prompt = st.text_area("Enter the system prompt", "You are an AI trained to extract specific entities and return the output in JSON format.")
 fields = st.text_input("Enter entities to extract (comma-separated)", "Person, Organization")
