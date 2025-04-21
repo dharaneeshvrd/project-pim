@@ -610,17 +610,17 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         logger.info("---------------------- Monitor ISO installation done ----------------------")
 
         logger.info("11. Wait for lpar to boot from the disk")
-        # Poll for the 8080 AI application port
-        time.sleep(200)
+        # Poll for the 8000 AI application port
+        time.sleep(300)
         logger.info("14. Check for AI app to be running")
         for i in range(10):
             up = app.check_app(config)
             if not up:
                 logger.info("AI application is still not up and running, retyring..")
-                time.sleep(30)
+                time.sleep(10)
                 continue
             else:
-                logger.info("AI application is up and running. Now checking response for prompt from bot")
+                logger.info("AI application is up and running. Now checking response for prompt from OpenAI API server")
                 resp = app.check_bot_service(config)
                 logger.info("Response from bot service: \n%s" % resp)
                 logger.info("---------------------- PIM workflow complete ----------------------")
