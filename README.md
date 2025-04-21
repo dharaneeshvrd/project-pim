@@ -14,7 +14,7 @@ All dependencies are captured in requirements.txt
 ## Install depenencies on IBMi partition
 
 1. Currently the source code for PIM is internal, needs to be cloned by adding SSH key of the IBMi partition
-2. Run Installer script to install system and python dependencies needed for running PIM
+2. Run Installer script from a bash shell on IBMi SSH terminal session to install system and python dependencies needed for running PIM
 
 ```
 bash install.sh
@@ -26,7 +26,6 @@ bash install.sh
 
   ```
   export PYTHONPATH=.
-  export PATH=$PATH:/opt/schily/bin
   python3 cmd/pim.py [launch/destroy]
   ```
 

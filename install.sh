@@ -30,7 +30,8 @@ pip3.9 install bs4 \
 # Install schily to generate cloudinit
 yum-config-manager --add-repo http://www.the-i-doctor.com/oss/repo/the-i-doctor.repo
 yum install -y schily-tools
-echo 'export PATH=$PATH:/opt/schily/bin' >> $HOME/.profile
+echo 'PATH=$PATH:/opt/schily/bin' >> $HOME/.profile
+echo 'export PATH' >> $HOME/.profile
 
 mkdir -p source
 cd source
