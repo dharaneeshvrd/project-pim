@@ -1,3 +1,4 @@
+import hashlib
 
 def get_system_name(config):
     return config["system"]["name"]
@@ -18,16 +19,12 @@ def get_session_key(config):
     return  config["session"]["x-api-key"]
 
 def get_bootstrap_iso(config):
-    return config["custom-iso"]["bootstrap_iso"]
+    # Use below return while handling the rerun scenario for bootstrap iso
+    #return hashlib.sha256(get_bootstrap_iso_download_url(config).encode()).hexdigest()[:32] + "_pimb"
+    return get_partition_name(config) + "_pimb" 
 
 def get_cloud_init_iso(config):
-    return config["custom-iso"]["cloud_init_iso"]
-
-def get_iso_source_path(config):
-    return config["custom-iso"]["source_path"]
-
-def get_iso_target_path(config):
-    return config["custom-iso"]["target_path"]
+    return get_partition_name(config) + "_pimc"
 
 # partition related Getters
 def get_desired_memory(config):
@@ -80,16 +77,6 @@ def get_ssh_password(config):
 def get_physical_volume_name(config):
     return config.get("STORAGE", "physical_volume_name").strip('"')
 
-# NOT USED
-# def get_vopt_name(config):
-#     return config.get("STORAGE", "vopt_name").strip('"')
-
-def get_vopt_bootstrap_name(config):
-    return config["partition"]["name"] + "_bootstrap"
-
-def get_vopt_cloud_init_name(config):
-    return config["partition"]["name"] + "_cloud_init"
-
 def get_volume_group(config):
     return config.get("STORAGE", "vg_name").strip('"')
 
@@ -105,8 +92,8 @@ def use_existing_vd(config):
 def use_existing_vg(config):
     return config.getboolean("STORAGE", "use_existing_vg")
 
-def get_virtual_disk_size(config):
-    return config["storage"]["vdisk_size"]
+def get_required_disk_size(config):
+    return config["partition"]["storage"]["size"]
 
 def get_bootstrap_iso_download_url(config):
     return config["ai"]["bootstrap-iso-url"]

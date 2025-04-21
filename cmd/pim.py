@@ -33,6 +33,8 @@ from jinja2 import Environment, FileSystemLoader
 
 from scp import SCPClient
 
+iso_folder = os.getcwd() + "/iso"
+
 def initialize():
     config_file = "config.ini"
     config = ConfigObj(config_file)
@@ -122,30 +124,30 @@ def remove_iso_file(config, cookies, filename, file_uuid):
 def upload_iso_to_media_repository(config, cookies, vios_uuid):
     try:
         # Create ISO filepath for bootstrap iso
-        vopt_bootstrap = util.get_vopt_bootstrap_name(config)
-        bootstrap_iso = util.get_iso_source_path(config) + util.get_bootstrap_iso(config)
-        bootstrap_iso_checksum = hash(bootstrap_iso)
-        bootstrap_iso_size = os.path.getsize(bootstrap_iso)
-        bootstrap_file_uuid = create_iso_path(config, cookies, vios_uuid, vopt_bootstrap, bootstrap_iso_checksum, bootstrap_iso_size)
+        bootstrap_iso = util.get_bootstrap_iso(config)
+        bootstrap_iso_file = iso_folder + "/" + bootstrap_iso
+        bootstrap_iso_checksum = hash(bootstrap_iso_file)
+        bootstrap_iso_size = os.path.getsize(bootstrap_iso_file)
+        bootstrap_file_uuid = create_iso_path(config, cookies, vios_uuid, bootstrap_iso, bootstrap_iso_checksum, bootstrap_iso_size)
         # transfer bootstrap ISO file to VIOS media repository
-        with open(bootstrap_iso, 'rb') as f:
+        with open(bootstrap_iso_file, 'rb') as f:
             uploadfile(config, cookies, f, bootstrap_file_uuid)
             logger.info(f"bootstrap iso {bootstrap_iso} file upload completed!!")
 
         # Create ISO filepath for cloudinit iso
-        vopt_cloudinit = util.get_vopt_cloud_init_name(config)
-        cloudinit_iso = util.get_iso_source_path(config) + util.get_cloud_init_iso(config)
-        cloudinit_iso_checksum = hash(cloudinit_iso)
-        cloudinit_iso_size = os.path.getsize(cloudinit_iso)
-        cloudinit_file_uuid = create_iso_path(config, cookies, vios_uuid, vopt_cloudinit, cloudinit_iso_checksum, cloudinit_iso_size)
+        cloudinit_iso = util.get_cloud_init_iso(config)
+        cloudinit_iso_file = iso_folder + "/" + cloudinit_iso
+        cloudinit_iso_checksum = hash(cloudinit_iso_file)
+        cloudinit_iso_size = os.path.getsize(cloudinit_iso_file)
+        cloudinit_file_uuid = create_iso_path(config, cookies, vios_uuid, cloudinit_iso, cloudinit_iso_checksum, cloudinit_iso_size)
         # transfer cloudinit ISO file to VIOS media repository
-        with open(cloudinit_iso, 'rb') as f:
+        with open(cloudinit_iso_file, 'rb') as f:
             uploadfile(config, cookies, f, cloudinit_file_uuid)
             logger.info(f"cloudinit iso {cloudinit_iso} file upload completed!!")
 
         # remove iso files from VIOS
-        remove_iso_file(config, cookies, bootstrap_iso, bootstrap_file_uuid)
-        remove_iso_file(config, cookies, cloudinit_iso, cloudinit_file_uuid)
+        remove_iso_file(config, cookies, bootstrap_iso_file, bootstrap_file_uuid)
+        remove_iso_file(config, cookies, cloudinit_iso_file, cloudinit_file_uuid)
         logger.info("both boostrap iso and cloudinit iso are removed from VIOS after copying to media repositoy")
     except Exception as e:
         logger.error(f"Failed to Upload ISO to VIOS {e}")
@@ -340,7 +342,7 @@ def get_vios_with_mediarepo_tag(active_vios_servers):
     return ""
 
 def get_vios_with_physical_storage(config, active_vios_servers):
-    required_capacity = int(util.get_virtual_disk_size(config)) * 1024
+    required_capacity = int(util.get_required_disk_size(config)) * 1024
     uuid = ""
     min_volume_capacity = sys.maxsize
     disk_name = ""
@@ -423,8 +425,8 @@ def remove_partition(config, cookies, partition_uuid):
     logger.info("Partition deleted successfully")
 
 def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios):
-    bootstrap_name = util.get_vopt_bootstrap_name(config)
-    cloudinit_name = util.get_vopt_cloud_init_name(config)
+    bootstrap_name = util.get_bootstrap_iso(config)
+    cloudinit_name = util.get_cloud_init_iso(config)
 
     logger.info("removing scsi mappings..")
     soup = BeautifulSoup(vios, "xml")
@@ -511,8 +513,12 @@ def destroy(config, cookies, sys_uuid, vios_uuid):
         vios_updated = get_vios_details(config, cookies, sys_uuid, vios_uuid)
         # remove mounted virtual optical devices from media repositoy.
         # mounted bootstrap vopt could be used by many lpars. hence remove only cloudinit vopt
-        cloudinit_vopt = util.get_vopt_cloud_init_name(config)
+        cloudinit_vopt = util.get_cloud_init_iso(config)
         remove_vopt_device(config, cookies, vios_updated, cloudinit_vopt)
+
+        vios_updated = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+        bootstrap_vopt = util.get_bootstrap_iso(config)
+        remove_vopt_device(config, cookies, vios_updated, bootstrap_vopt)
 
         remove_partition(config, cookies, partition_uuid)
     except (PartitionError, PimError) as e:
@@ -562,7 +568,7 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         vios_payload = get_vios_details(config, cookies, sys_uuid, vios_media_uuid)
 
         # Attach boostrap vopt
-        vopt_bootstrap = util.get_vopt_bootstrap_name(config)
+        vopt_bootstrap = util.get_bootstrap_iso(config)
         vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_media_uuid, vopt_bootstrap, -1)
         logger.info("a. bootstrap virtual optical device attached")
 
@@ -570,7 +576,7 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         # Get VirtualSlotNumber for the disk(physical/virtual)
         slot_num = get_virtual_slot_number(updated_vios_payload, vopt_bootstrap)
 
-        vopt_cloud_init = util.get_vopt_cloud_init_name(config)
+        vopt_cloud_init = util.get_cloud_init_iso(config)
         vopt.attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_media_uuid, vopt_cloud_init, slot_num)
         logger.info("b. cloudinit virtual optical device attached")
 
