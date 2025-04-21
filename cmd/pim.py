@@ -1,5 +1,6 @@
 import argparse
 import hashlib
+import logging
 import os
 import time
 from bs4 import BeautifulSoup
@@ -71,15 +72,15 @@ def create_iso_path(config, cookies, vios_uuid, filename, checksum, filesize):
     try:
         response = requests.put(url, headers=headers, data=payload, cookies=cookies, verify=False)
         if response.status_code != 200:
-            logger.error(f"Failed to create ISO path for file: {filename}")
-            raise Exception(f"Failed to create ISO path for file: {filename}")
+            logger.error(f"failed to create ISO path for file '{filename}', error: {response.text}")
+            raise Exception(f"failed to create ISO path for file '{filename}', error: {response.text}")
         # extract file uuid from response
         soup = BeautifulSoup(response.text, "xml")
         file_uuid = soup.find("FileUUID").text
     except Exception as e:
-        logger.error(f"Failed to create ISO path: {e}")
+        logger.error(f"failed to create ISO path, error: {e}")
         raise e
-    logger.info("ISO path created successfully")
+    logger.debug(f"{filename} ISO path created successfully")
 
     return file_uuid
 
@@ -88,8 +89,8 @@ def uploadfile(config, cookies, filehandle, file_uuid):
     url = "https://" + util.get_host_address(config) + uri
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/octet-stream", "Accept": "application/vnd.ibm.powervm.web+xml"}
 
+    logger.debug(f"Uploading file '{filehandle}'")
     def readfile(f, chunksize):
-        logger.info("reading iso file")
         while True:
             d = f.read(chunksize)
             if not d:
@@ -99,10 +100,10 @@ def uploadfile(config, cookies, filehandle, file_uuid):
     try:
         response = requests.put(url, headers=headers, data=readfile(filehandle, chunksize=65536) ,cookies=cookies, verify=False)
         if response.status_code != 204:
-            logger.error("failed to upload ISO file to VIOS media repository")
-            raise Exception(f"failed to upload ISO file to VIOS media repository {response.text}")
+            logger.error(f"failed to upload ISO file '{filehandle}' to VIOS media repository, error: {response.text}")
+            raise Exception(f"failed to upload ISO file '{filehandle}' to VIOS media repository, error: {response.text}")
     except Exception as e:
-        logger.error(f"failed to upload ISO file to VIOS media repository {e}")
+        logger.error(f"failed to upload ISO file '{filehandle}' to VIOS media repository, error: {e}")
         raise e
     return
 
@@ -113,17 +114,18 @@ def remove_iso_file(config, cookies, filename, file_uuid):
     try:
         response = requests.delete(url, headers=headers, cookies=cookies, verify=False)
         if response.status_code != 204:
-            logger.error(f"failed to remove ISO file {filename} from VIOS after uploading to media repository. {response.text}")
-            raise Exception("failed to remove ISO file from VIOS after uploading to media repository")
+            logger.error(f"failed to remove ISO file '{filename}' from VIOS after uploading to media repository, error: {response.text}")
+            raise Exception(f"failed to remove ISO file '{filename}' from VIOS after uploading to media repository, error: {response.text}")
     except Exception as e:
-        logger.error(f"Failed to remove ISO file {filename} from VIOS after uploading to media repository")
+        logger.error(f"Failed to remove ISO file '{filename}' from VIOS after uploading to media repository, error {e}")
 
-    logger.info(f"iso file: {filename} removed from VIOS successfully")
+    logger.debug(f"ISO file: '{filename}' removed from VIOS successfully")
     return
 
 def upload_iso_to_media_repository(config, cookies, vios_uuid):
     try:
-        # Create ISO filepath for bootstrap iso
+        # Create ISO filepath for bootstrap ISO
+        logger.debug(f"Uploading bootstrap ISO")
         bootstrap_iso = util.get_bootstrap_iso(config)
         bootstrap_iso_file = iso_folder + "/" + bootstrap_iso
         bootstrap_iso_checksum = hash(bootstrap_iso_file)
@@ -132,27 +134,28 @@ def upload_iso_to_media_repository(config, cookies, vios_uuid):
         # transfer bootstrap ISO file to VIOS media repository
         with open(bootstrap_iso_file, 'rb') as f:
             uploadfile(config, cookies, f, bootstrap_file_uuid)
-            logger.info(f"bootstrap iso {bootstrap_iso} file upload completed!!")
+            logger.info(f"Bootstrap ISO {bootstrap_iso} file upload completed!!")
 
-        # Create ISO filepath for cloudinit iso
+        # Create ISO filepath for cloud-init ISO
+        logger.debug(f"Uploading cloud-init ISO")
         cloudinit_iso = util.get_cloud_init_iso(config)
         cloudinit_iso_file = iso_folder + "/" + cloudinit_iso
         cloudinit_iso_checksum = hash(cloudinit_iso_file)
         cloudinit_iso_size = os.path.getsize(cloudinit_iso_file)
         cloudinit_file_uuid = create_iso_path(config, cookies, vios_uuid, cloudinit_iso, cloudinit_iso_checksum, cloudinit_iso_size)
-        # transfer cloudinit ISO file to VIOS media repository
+        # transfer cloud-init ISO file to VIOS media repository
         with open(cloudinit_iso_file, 'rb') as f:
             uploadfile(config, cookies, f, cloudinit_file_uuid)
-            logger.info(f"cloudinit iso {cloudinit_iso} file upload completed!!")
+            logger.info(f"Cloud-init ISO {cloudinit_iso} file upload completed!!")
 
-        # remove iso files from VIOS
+        # remove ISO files from VIOS
         remove_iso_file(config, cookies, bootstrap_iso_file, bootstrap_file_uuid)
         remove_iso_file(config, cookies, cloudinit_iso_file, cloudinit_file_uuid)
-        logger.info("both boostrap iso and cloudinit iso are removed from VIOS after copying to media repositoy")
+        logger.info("Both bootstrap ISO and cloud-init ISO are removed from VIOS after copying to media repositoy")
     except Exception as e:
-        logger.error(f"Failed to Upload ISO to VIOS {e}")
+        logger.error(f"failed to Upload ISO to VIOS, error: {e}")
         raise e
-    logger.info("Both boostrap and cloudinit ISO file transfer completed..")
+    logger.info("Both bootstrap and cloud-init ISO file transfer completed..")
     return
 
 def build_and_download_iso(config):
@@ -183,20 +186,20 @@ def generate_cloud_init_iso_config(config):
     auth_json = config["ai"]["auth-json"]
     auth_config_file = open(cloud_init_config_path + "/auth.json", "w")
     auth_config_file.write(auth_json)
-    logger.info("Generated config files for the cloud-init iso.")
+    logger.info("Generated config files for the cloud-init ISO")
 
 def generate_cloud_init_iso_file(iso_folder, config):
-    logger.info("Generating cloud init iso file")
+    logger.info("Generating cloud-init ISO file")
     cloud_init_image_name = util.get_cloud_init_iso(config)
     generate_cmd = f"mkisofs -l -o {iso_folder}/{cloud_init_image_name} ./cloud-init-iso/config"
     
     try: subprocess.run(generate_cmd.split(), check=True, capture_output=True)
     except subprocess.CalledProcessError as e:
-        logger.error(f"failed to generate cloud init iso. {e.stderr}")
+        logger.error(f"failed to generate cloud-init ISO via mkisofs, error: {e.stderr}")
         raise
 
 def download_bootstap_iso(iso_folder, config):
-    logger.info("Downloading bootstrap iso file...")
+    logger.info("Downloading bootstrap ISO file...")
     download_url = util.get_bootstrap_iso_download_url(config)
     iso_file_path = f"{iso_folder}/{util.get_bootstrap_iso(config)}"
     try:
@@ -207,17 +210,17 @@ def download_bootstap_iso(iso_folder, config):
             for chunk in response.iter_content(chunk_size=8192):
                 iso_file.write(chunk)
     except requests.exceptions.RequestException as e:
-        logger.error(f"failed to download {util.get_bootstrap_iso(config)} file")
+        logger.error(f"failed to download '{util.get_bootstrap_iso(config)}' file, error: {e}")
         raise
     
-    logger.info("Download completed for bootstrap iso file.")
+    logger.info("Download completed for bootstrap ISO file")
 
 def create_dir(path):
     try:
         if not os.path.isdir(path):
             os.mkdir(path)
     except OSError as e:
-        logger.error(f"failed to create {path} directory")
+        logger.error(f"failed to create '{path}' directory, error: {e}")
         raise
 
 def monitor_iso_installation(config, cookies):
@@ -234,7 +237,7 @@ def monitor_iso_installation(config, cookies):
         except (paramiko.BadHostKeyException, paramiko.AuthenticationException,
         paramiko.SSHException, paramiko.ssh_exception.NoValidConnectionsError) as e:
             if i == 9:
-                logger.error("failed to establish SSH connection to partition after 10 retries")
+                logger.error(f"failed to establish SSH connection to partition after 10 retries, error: {e}")
                 raise paramiko.SSHException
             logger.info("SSH to partition failed, retrying..")
             time.sleep(30)
@@ -249,8 +252,8 @@ def monitor_iso_installation(config, cookies):
                 logger.info("Received ISO Installation complete message")
                 break
             else:
-                logger.error("Failed to get ISO installation complete message. Please look at the errors if appear on the console and take appropriate resolution!!")
-                raise PimError("Failed to get ISO installation complete message")
+                logger.error("failed to get ISO installation complete message. Please look at the errors if appear on the console and take appropriate resolution!!")
+                raise PimError("failed to get ISO installation complete message")
     client.close()
     return
 
@@ -258,16 +261,15 @@ def get_system_uuid(config, cookies):
     uri = "/rest/api/uom/ManagedSystem/quick/All"
     url = "https://" + util.get_host_address(config) + uri
     headers = {"x-api-key": util.get_session_key(config)}
-    logger.debug(f"headers {headers}")
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        logger.error("Failed to get system UUID ", response.text)
-        raise PimError("Failed to get system UUID")
+        logger.error(f"failed to get system UUID, error: {response.text}")
+        raise PimError(f"failed to get system UUID, error: {response.text}")
     systems = []
     try: 
         systems = response.json()
-    except requests.JSONDecodeError:
-        logger.error("response is not valid json")
+    except requests.JSONDecodeError as e:
+        logger.error(f"failed to parse json while getting UUID of the system, error: {e}")
         raise
 
     uuid = ""
@@ -278,10 +280,10 @@ def get_system_uuid(config, cookies):
             break
     
     if "" == uuid:
-        logger.info("Failed to get UUID for the system %s", sys_name)
-        raise PimError("Failed to get UUID for the system")
+        logger.error(f"no system available with name '{sys_name}'")
+        raise PimError(f"no system available with name '{sys_name}'")
     else:
-        logger.info("UUID for the system %s: %s", sys_name, uuid)
+        logger.info(f"UUID for the system '{sys_name}': '{uuid}'")
     return uuid
 
 def get_vios_uuid_list(config, cookies, system_uuid):
@@ -290,8 +292,8 @@ def get_vios_uuid_list(config, cookies, system_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=VirtualIOServer"}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        logger.error("Failed to get VIOS id")
-        raise PimError("Failed to get VIOS id")
+        logger.error(f"failed to get VIOS list, error: {response.text}")
+        raise PimError(f"failed to get VIOS list, error: {response.text}")
 
     uuids = []
     sys_name = util.get_system_name(config)
@@ -300,10 +302,10 @@ def get_vios_uuid_list(config, cookies, system_uuid):
             uuids.append(vios["UUID"])
 
     if len(uuids) == 0:
-        logger.error("Failed to get VIOS uuid from json")
-        raise PimError("Failed to get VIOS uuid from json")
+        logger.error(f"no VIOS available for '{sys_name}'")
+        raise PimError(f"no VIOS available for '{sys_name}'")
     else:
-        logger.info(f"VIOS UUID(s) for system {sys_name}: {uuids}")
+        logger.debug(f"VIOS UUID(s) for system {sys_name}: {uuids}")
     return uuids
 
 def get_vios_details(config, cookies, system_uuid, vios_uuid):
@@ -312,8 +314,8 @@ def get_vios_details(config, cookies, system_uuid, vios_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=VirtualIOServer"}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        logger.error("Failed to get VIOS id")
-        raise PimError("Failed to get VIOS id")
+        logger.error(f"failed to get VIOS details for '{vios_uuid}', error")
+        raise PimError(f"failed to get VIOS details for '{vios_uuid}', error")
 
     soup = BeautifulSoup(response.text, 'xml')
     vios = str(soup.find("VirtualIOServer"))
@@ -349,7 +351,7 @@ def get_vios_with_physical_storage(config, active_vios_servers):
     for vios_uuid, vios_payload in active_vios_servers.items():
         soup = BeautifulSoup(vios_payload, 'xml')
         pvs_soup = soup.find("PhysicalVolumes")  
-        pv_list = pvs_soup.findAll("PhysicalVolume") 
+        pv_list = pvs_soup.find_all("PhysicalVolume") 
         
         for pv in pv_list:
             avilable_for_usage = pv.find("AvailableForUsage")
@@ -382,8 +384,8 @@ def get_volume_group(config, cookies, vios_uuid, vg_name):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; type=VolumeGroup"}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        logger.error("Failed to get volume group: %s", response.text)
-        raise PimError("Failed to get volume group")
+        logger.error(f"failed to get volume group, error: {response.text}")
+        raise PimError(f"failed to get volume group, error: {response.text}")
 
     soup = BeautifulSoup(response.text, 'xml')
     group = soup.find("GroupName", string=vg_name)
@@ -397,8 +399,8 @@ def get_partition_id(config, cookies, system_uuid):
     headers = {"x-api-key": util.get_session_key(config)}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        logger.error("Failed to get partition id")
-        raise PimError("Failed to get partition id")
+        logger.error(f"failed to get partition list, error: {response.text}")
+        raise PimError(f"failed to get partition list, error: {response.text}")
 
     uuid = ""
     partition_name = util.get_partition_name(config) + "-pim"
@@ -408,10 +410,10 @@ def get_partition_id(config, cookies, system_uuid):
             break
 
     if "" == uuid:
-        logger.error("Failed to get partition uuid")
-        raise PimError("Failed to get partition id")
+        logger.error(f"no partition available with name '{partition_name}'")
+        raise PimError(f"no partition available with name '{partition_name}'")
     else:
-        logger.info("partition UUID for the system %s: %s", partition_name, uuid)
+        logger.info(f"UUID of partition '{partition_name}': {uuid}")
     return uuid
 
 def remove_partition(config, cookies, partition_uuid):
@@ -420,15 +422,15 @@ def remove_partition(config, cookies, partition_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
     response = requests.delete(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 204:
-        logger.error("Failed to delete partition")
-        raise PimError("Failed to delete partition")
+        logger.error(f"failed to delete partition, error: {response.text}")
+        raise PimError(f"failed to delete partition, error: {response.text}")
     logger.info("Partition deleted successfully")
 
 def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios):
     bootstrap_name = util.get_bootstrap_iso(config)
     cloudinit_name = util.get_cloud_init_iso(config)
 
-    logger.info("removing scsi mappings..")
+    logger.info("Removing SCSI mappings..")
     soup = BeautifulSoup(vios, "xml")
     scsi_mappings = soup.find("VirtualSCSIMappings")
     b_devs = scsi_mappings.find_all("BackingDeviceName")
@@ -443,7 +445,7 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios):
 
     scsi2 = cloudinit_disk.parent.parent
     scsi2.decompose()
-    logger.info("removed scsi mappings from vios payload")
+    logger.debug("Removed SCSI mappings from VIOS payload")
 
     uri = f"/rest/api/uom/ManagedSystem/{sys_uuid}/VirtualIOServer/{vios_uuid}"
     hmc_host = util.get_host_address(config)
@@ -452,28 +454,29 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios):
     response = requests.post(url, headers=headers, cookies=cookies, data=str(soup), verify=False)
 
     if response.status_code != 200:
-        logger.error("Failed to update VIOS with removed storage mappings: %s", response.text)
-        raise PimError("Failed to update VIOS with removed storage mappings")
+        logger.error(f"failed to update VIOS with removed storage mappings, error: {response.text}")
+        raise PimError(f"failed to update VIOS with removed storage mappings, error: {response.text}")
 
-    logger.info("Successfully removed scsi mappings and vOpt media repositories and updated VIOS..")
+    logger.info("Successfully removed SCSI mappings and vOPT media repositories and updated VIOS..")
     return
 
 def remove_vopt_device(config, cookies, vios, vopt_name):
-    # find volumegroup URL associated with StoragePool
+    # find volume group URL associated with StoragePool
     soup = BeautifulSoup(vios, 'xml')
     storage_pool = soup.find("StoragePools")
     if storage_pool.find("link") is not None:
         vg_url = storage_pool.find("link").attrs['href']
     else:
-        raise PimError("failed to get volumegroup hyperlink from VIOS")
+        logger.error("failed to get volume group hyperlink from VIOS")
+        raise PimError("failed to get volume group hyperlink from VIOS")
 
     # make REST call to volume group URL(vg_url) to get list of media repositories
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; type=VolumeGroup"}
     response = requests.get(vg_url, headers=headers, cookies=cookies, verify=False)
     try:
         if response.status_code != 200:
-            logger.error("Failed to get volumegroup details: %s", response.text)
-            raise PimError("Failed to get volumegroup details")
+            logger.error(f"failed to get volume group details, error: {response.text}")
+            raise PimError(f"failed to get volume group details, error: {response.text}")
         soup = BeautifulSoup(response.text, 'xml')
         vol_group = soup.find("VolumeGroup")
 
@@ -484,20 +487,19 @@ def remove_vopt_device(config, cookies, vios, vopt_name):
                 v_media.decompose()
                 break
 
-        logger.info("updated volumegroup after removing vopt from media repositories")
+        logger.info("Updated volume group after removing vOPT from media repositories")
         # Now update the modified media repositoy list after delete
         response = requests.post(vg_url, data=str(vol_group), headers=headers, cookies=cookies, verify=False)
         if response.status_code != 200:
-            logger.error(f"Failed to update volumegroup after deleting vopt device from media repository: {response.text}")
-            raise PimError("Failed to update volumegroup after deleting vopt device from media repository")
+            logger.error(f"failed to update volume group after deleting vOPT device from media repository, error: {response.text}")
+            raise PimError(f"failed to update volume group after deleting vOPT device from media repository, error: {response.text}")
 
-        logger.info(f"Virtual optical media {vopt_name} has been deleted successfully")
+        logger.info(f"Virtual optical media '{vopt_name}' has been deleted successfully")
     except Exception as e:
         raise e
 
 # destroy partition
 def destroy(config, cookies, sys_uuid, vios_uuid):
-    logger.info("PIM destroy flow")
     try:
         partition_uuid = get_partition_id(config, cookies, sys_uuid)
 
@@ -508,14 +510,15 @@ def destroy(config, cookies, sys_uuid, vios_uuid):
         # remove SCSI mapping from VIOS
         remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios)
 
-        # TODO: delete virtual disk, volumegroup if created by the script during launch
+        # TODO: delete virtual disk, volume group if created by the script during launch
 
         vios_updated = get_vios_details(config, cookies, sys_uuid, vios_uuid)
         # remove mounted virtual optical devices from media repositoy.
-        # mounted bootstrap vopt could be used by many lpars. hence remove only cloudinit vopt
         cloudinit_vopt = util.get_cloud_init_iso(config)
         remove_vopt_device(config, cookies, vios_updated, cloudinit_vopt)
 
+        # TO-DO:
+        # mounted bootstrap vOPT could be used by many lpars. hence remove only cloud-init vOPT
         vios_updated = get_vios_details(config, cookies, sys_uuid, vios_uuid)
         bootstrap_vopt = util.get_bootstrap_iso(config)
         remove_vopt_device(config, cookies, vios_updated, bootstrap_vopt)
@@ -528,49 +531,51 @@ def destroy(config, cookies, sys_uuid, vios_uuid):
     return
 
 def launch(config, cookies, sys_uuid, vios_uuids):
-    logger.info("PIM launch flow")
     try:
         active_vios_servers = get_active_vios(config, cookies, sys_uuid, vios_uuids)
         if len(active_vios_servers) == 0:
-            logger.error("failed to find active vios server")
-            raise PimError("Failed to find active vios server")
-        logger.info("List of active vios %s", list(active_vios_servers.keys()))
+            logger.error("failed to find active VIOS servers")
+            raise PimError("failed to find active VIOS servers")
+        logger.debug(f"Number of active VIOS servers: '{len(active_vios_servers)}'")
 
         vios_media_uuid = get_vios_with_mediarepo_tag(active_vios_servers)
         if vios_media_uuid == "":
-            logger.error("Failed to find vios server for the partition")
-            raise StorageError("Failed to find vios server for the partition")
-        logger.info("Selecting %s vios to mount virtual optical devices", vios_media_uuid)
+            logger.error("failed to find VIOS servers with media repository")
+            raise StorageError("failed to find VIOS servers with media repository")
+        logger.info(f"a. Selecting '{vios_media_uuid}' VIOS to mount virtual optical devices")
 
         vios_storage_uuid, physical_volme_name = get_vios_with_physical_storage(config, active_vios_servers)
         if vios_storage_uuid == "" or physical_volme_name == "":
-            logger.error("Failed to find physical volume for the partition")
+            logger.error("failed to find physical volume for the partition")
             raise StorageError("Failed to find physical volume for the partition")
-        logger.info("Selecting %s vios and %s physcial volume for storage", vios_storage_uuid, physical_volme_name)
+        logger.info(f"b. Selecting '{vios_storage_uuid}' VIOS and '{physical_volme_name}' physcial volume for storage")
+        logger.info("---------------------- VIOS Selection done ----------------------")
 
+        logger.info("5. Setup installation ISOs")
         build_and_download_iso(config)
+        logger.info("---------------------- Setup instalation ISOs done ----------------------")
 
-        logger.info("4. Transfer ISO files to VIOS media repository")
+        logger.info("6. Transfer ISO files to VIOS media repository")
         upload_iso_to_media_repository(config, cookies, vios_media_uuid)
         logger.info("---------------------- Transfer ISOs done ----------------------")
 
-        logger.info("5. Create Partition on the target host")
+        logger.info("7. Create Partition on the target host")
         partition_uuid = partition.create_partition(config, cookies, sys_uuid)
 
-        logger.info("partition creation success. partition UUID: %s", partition_uuid)
+        logger.debug(f"Partition created successfully. partition UUID: {partition_uuid}")
         logger.info("---------------------- Create partition done ----------------------")
 
-        logger.info("6. Attach Network to the partition")
+        logger.info("8. Attach Network to the partition")
         virtual_network.attach_network(config, cookies, sys_uuid, partition_uuid)
         logger.info("---------------------- Attach network done ----------------------")
 
-        logger.info("7. Attach storage to the partition")
+        logger.info("9. Attach storage to the partition")
         vios_payload = get_vios_details(config, cookies, sys_uuid, vios_media_uuid)
 
-        # Attach boostrap vopt
+        # Attach bootstrap vOPT
         vopt_bootstrap = util.get_bootstrap_iso(config)
         vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_media_uuid, vopt_bootstrap, -1)
-        logger.info("a. bootstrap virtual optical device attached")
+        logger.info("a. Bootstrap virtual optical device attached")
 
         updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_media_uuid)
         # Get VirtualSlotNumber for the disk(physical/virtual)
@@ -578,7 +583,7 @@ def launch(config, cookies, sys_uuid, vios_uuids):
 
         vopt_cloud_init = util.get_cloud_init_iso(config)
         vopt.attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_media_uuid, vopt_cloud_init, slot_num)
-        logger.info("b. cloudinit virtual optical device attached")
+        logger.info("b. Cloudinit virtual optical device attached")
 
         updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
         use_vdisk = util.use_virtual_disk(config)
@@ -594,7 +599,6 @@ def launch(config, cookies, sys_uuid, vios_uuids):
                     vg_id = vstorage.create_volumegroup(config, cookies, vios_storage_uuid)
                 else:
                     vg_id = get_volume_group(config, cookies, vios_storage_uuid, util.get_volume_group(config))
-                    logger.info("volume group id ", vg_id)
                     vstorage.create_virtualdisk(config, cookies, vios_storage_uuid, vg_id)
                     time.sleep(60)
                     updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
@@ -603,22 +607,23 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         else:
             updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
             storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid, slot_num, physical_volme_name)
-            logger.info("c. physical storage attached")
+            logger.info("c. Physical storage attached")
         logger.info("---------------------- Attach storage done ----------------------")
 
-        logger.info("9. Activate partition")
+        logger.info("10. Activate partition")
         activation.activate_partititon(config, cookies, partition_uuid)
+        logger.info("---------------------- Partition activation done ----------------------")
 
         time.sleep(120)
         # monitor ISO installation
-        logger.info("10. Monitor ISO installation")
+        logger.info("11. Monitor ISO installation")
         monitor_iso_installation(config, cookies)
         logger.info("---------------------- Monitor ISO installation done ----------------------")
 
-        logger.info("11. Wait for lpar to boot from the disk")
+        logger.info("12. Wait for lpar to boot from the disk")
         # Poll for the 8000 AI application port
         time.sleep(300)
-        logger.info("14. Check for AI app to be running")
+        logger.info("13. Check for AI app to be running")
         for i in range(10):
             up = app.check_app(config)
             if not up:
@@ -631,8 +636,8 @@ def launch(config, cookies, sys_uuid, vios_uuids):
                 logger.info("Response from bot service: \n%s" % resp)
                 logger.info("---------------------- PIM workflow complete ----------------------")
                 return
-        logger.error("AI application failed to load from bootc")
-        raise AiAppError("AI application failed to load from bootc")
+        logger.error("failed to bring up AI application from bootc")
+        raise AiAppError("failed to bring up AI application from bootc")
     except (AiAppError, AuthError, NetworkError, PartitionError, StorageError, PimError, paramiko.SSHException, Exception) as e:
         raise e
 
@@ -640,8 +645,15 @@ def start_manager():
     try:
         parser = argparse.ArgumentParser(description="PIM lifecycle manager")
         parser.add_argument("action", choices=["launch", "destroy"] , help="Launch and destroy flow of bootc partition.")
+        parser.add_argument("--debug", action='store_true', help='Enable debug logging level')
         args = parser.parse_args()
 
+        if args.debug:
+            common.setup_logging(logging.DEBUG)
+        else:
+            common.setup_logging(logging.INFO)
+        
+        logger.info("Starting PIM lifecycle manager")
         logger.info("1. Initilaize and parse configuration")
         config = initialize()
         logger.info("---------------------- Initialize done ----------------------")
@@ -656,7 +668,7 @@ def start_manager():
         sys_uuid = get_system_uuid(config, cookies)
         logger.info("---------------------- Get System UUID done ----------------------")
 
-        logger.info("4. Get VIOS UUID for target host")
+        logger.info("4. Select VIOS for target host")
         vios_uuid_list = get_vios_uuid_list(config, cookies, sys_uuid)
 
         if args.action == "launch":
@@ -664,11 +676,10 @@ def start_manager():
         elif args.action == "destroy":
             destroy(config, cookies, sys_uuid, vios_uuid_list)
     except (AiAppError, AuthError, NetworkError, PartitionError, StorageError, PimError, Exception) as e:
-        logger.error(f"encountered an error {e}")
+        logger.error(f"encountered an error: {e}")
     finally:
         common.cleanup_and_exit(config, cookies, 0)
 
 logger = common.get_logger("pim-manager")
-logger.info("Starting PIM lifecycle manager")
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 start_manager()
