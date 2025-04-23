@@ -27,7 +27,16 @@ def populate_payload(config):
         <Metadata>
             <Atom/>
         </Metadata>
-        <DedicatedProcessorConfiguration kb="CUD" kxe="false" schemaVersion="V1_8_0">
+        {get_processor_config(config)}
+        <SharingMode kxe="false" kb="CUD">{util.get_sharing_mode(config)}</SharingMode>
+    </PartitionProcessorConfiguration>
+    <PartitionType kxe="false" kb="COD">{util.get_partition_type(config)}</PartitionType>
+</LogicalPartition:LogicalPartition>
+'''
+
+def get_processor_config(config):
+    if util.has_dedicated_proc(config) == "true":
+        return f'''<DedicatedProcessorConfiguration kb="CUD" kxe="false" schemaVersion="V1_8_0">
             <Metadata>
                 <Atom/>
             </Metadata>
@@ -35,12 +44,20 @@ def populate_payload(config):
             <MaximumProcessors kxe="false" kb="CUD">{util.get_max_proc(config)}</MaximumProcessors>
             <MinimumProcessors kb="CUD" kxe="false">{util.get_min_proc(config)}</MinimumProcessors>
         </DedicatedProcessorConfiguration>
-        <HasDedicatedProcessors kxe="false" kb="CUD">{util.has_dedicated_proc(config)}</HasDedicatedProcessors>
-        <SharingMode kxe="false" kb="CUD">{util.get_sharing_mode(config)}</SharingMode>
-    </PartitionProcessorConfiguration>
-    <PartitionType kxe="false" kb="COD">{util.get_partition_type(config)}</PartitionType>
-</LogicalPartition:LogicalPartition>
-'''
+        <HasDedicatedProcessors kxe="false" kb="CUD">{util.has_dedicated_proc(config)}</HasDedicatedProcessors>'''
+
+    return f'''<HasDedicatedProcessors kxe="false" kb="CUD">{util.has_dedicated_proc(config)}</HasDedicatedProcessors>
+        <SharedProcessorConfiguration kb="CUD" kxe="false" schemaVersion="V1_0">
+            <Metadata>
+                <Atom />
+            </Metadata>
+            <DesiredProcessingUnits kb="CUD" kxe="false">{util.get_shared_desired_proc(config)}</DesiredProcessingUnits>
+            <DesiredVirtualProcessors kb="CUD" kxe="false">{util.get_shared_desired_virt_proc(config)}</DesiredVirtualProcessors>
+            <MaximumProcessingUnits kb="CUD" kxe="false">{util.get_shared_max_proc(config)}</MaximumProcessingUnits>
+            <MaximumVirtualProcessors kb="CUD" kxe="false">{util.get_shared_max_virt_proc(config)}</MaximumVirtualProcessors>
+            <MinimumProcessingUnits kb="CUD" kxe="false">{util.get_shared_min_proc(config)}</MinimumProcessingUnits>
+            <MinimumVirtualProcessors kb="CUD" kxe="false">{util.get_shared_min_virt_proc(config)}</MinimumVirtualProcessors>
+        </SharedProcessorConfiguration>''' 
 
 def get_bootorder_payload(partition_payload, bootorder):
     lpar_bs =  BeautifulSoup(partition_payload, 'xml')

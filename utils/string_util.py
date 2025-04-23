@@ -45,8 +45,26 @@ def get_max_proc(config):
 def get_min_proc(config):
     return config["custom-flavor"]["cpu"]["dedicated"]["min-proc-unit"]
 
+def get_shared_desired_proc(config):
+    return config["custom-flavor"]["cpu"]["shared"]["desired-proc-unit"]
+
+def get_shared_max_proc(config):
+    return config["custom-flavor"]["cpu"]["shared"]["max-proc-unit"]
+
+def get_shared_min_proc(config):
+    return config["custom-flavor"]["cpu"]["shared"]["min-proc-unit"]
+
+def get_shared_desired_virt_proc(config):
+    return config["custom-flavor"]["cpu"]["shared"]["desired-virt-proc"]
+
+def get_shared_max_virt_proc(config):
+    return config["custom-flavor"]["cpu"]["shared"]["max-virt-proc"]
+
+def get_shared_min_virt_proc(config):
+    return config["custom-flavor"]["cpu"]["shared"]["min-virt-proc"]
+
 def has_dedicated_proc(config):
-    return  "true" if config["custom-flavor"]["cpu"]["mode"] == "deicated" else "false"
+    return  "true" if config["custom-flavor"]["cpu"]["mode"] == "dedicated" else "false"
 
 def get_sharing_mode(config):
     return config["custom-flavor"]["cpu"]["sharing-mode"]
