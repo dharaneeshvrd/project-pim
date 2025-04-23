@@ -97,3 +97,22 @@ def get_required_disk_size(config):
 
 def get_bootstrap_iso_download_url(config):
     return config["ai"]["bootstrap-iso-url"]
+
+def get_llm_args(config):
+    return config["ai"]["llm-args"]
+
+def get_model(config):
+    llm_args = get_llm_args(config)
+    llm_args_s = llm_args.split(" ")
+    model = ""
+    for i, arg in enumerate(llm_args_s):
+     if "--model=" in arg:
+             model = arg.split("=")[-1]
+             break
+     elif "--model" == arg and len(llm_args_s) > i+1:
+             model = llm_args_s[i+1]
+             break
+     if model == "":
+         raise Exception("Not able to retrieve model from input config, check your llm_args. llm_args: {}".format(llm_args))
+     
+     return model
