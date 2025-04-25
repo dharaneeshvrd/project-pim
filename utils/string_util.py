@@ -86,10 +86,13 @@ def get_ip_address(config):
     return config["partition"]["network"]["ip"]["address"]
 
 def get_ssh_username(config):
-    return config["partition"]["ssh"]["user-name"]
+    return config["custom-flavor"]["ssh"]["user-name"]
 
-def get_ssh_password(config):
-    return "PIMForPowerSpyre"
+def get_ssh_priv_key(config):
+    return config["custom-flavor"]["ssh"]["priv-key-file"]
+
+def get_ssh_pub_key(config):
+    return config["custom-flavor"]["ssh"]["pub-key-file"]
 
 # storage related Getters
 def get_physical_volume_name(config):

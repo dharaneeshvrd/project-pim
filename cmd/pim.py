@@ -34,6 +34,7 @@ from jinja2 import Environment, FileSystemLoader
 from scp import SCPClient
 
 iso_folder = os.getcwd() + "/iso"
+keys_path = os.getcwd() + "/keys"
 
 def initialize():
     config_file = "config.ini"
@@ -223,14 +224,14 @@ def create_dir(path):
 def monitor_iso_installation(config, cookies):
     ip = util.get_ip_address(config)
     username = util.get_ssh_username(config)
-    password = util.get_ssh_password(config)
+    ssh_key = util.get_ssh_priv_key(config)
     command = "sudo journalctl -u getcontainer.service -f 2>&1 | awk '{print} /Installation complete/ {print \"Match found: \" $0; exit 0}'"
 
     for i in range(10):
         scp_port = 22
         client = get_ssh_client()
         try:
-            client.connect(ip, scp_port, username, password)
+            client.connect(ip, scp_port, username, key_filename=ssh_key)
         except (paramiko.BadHostKeyException, paramiko.AuthenticationException,
         paramiko.SSHException, paramiko.ssh_exception.NoValidConnectionsError) as e:
             if i == 9:
@@ -527,9 +528,30 @@ def destroy(config, cookies, sys_uuid, vios_uuid):
     logger.info("Delete partition done")
     return
 
+def generate_ssh_keys(config):
+    create_dir(keys_path)
+    key_name = f"{keys_path}/{util.get_partition_name(config)}_pim"
+    cmd = f"ssh-keygen -b 4096 -t rsa -m PEM -f {key_name} -q -N \"\""
+    result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
+    if result.returncode != 0:
+        logger.error(f"failed to run ssh-keygen command to generate keypair, error: {result.stderr}")
+        raise Exception(f"failed to run ssh-keygen command to generate keypair, error: {result.stderr}")
+
+    logger.info("SSH keypair generated successfully")
+    config["custom-flavor"]["ssh"]["priv-key-file"] = keys_path + "/" + util.get_partition_name(config) + "_pim"
+    config["custom-flavor"]["ssh"]["pub-key-file"] = keys_path+ "/" + util.get_partition_name(config) + "_pim.pub"
+    return config
+
 def launch(config, cookies, sys_uuid, vios_uuids):
     logger.info("PIM launch flow")
     try:
+        # Check if SSH key pair is configured, if empty generate key pair
+        if not util.get_ssh_priv_key(config) or not util.get_ssh_pub_key(config):
+            config = generate_ssh_keys(config)
+
+        # Populate configobj with public key content to get populated in cloud-init config
+        config["custom-flavor"]["ssh"] = {"pub-key" : common.readfile(keys_path+ "/" + util.get_partition_name(config) + "_pim.pub")}
+
         active_vios_servers = get_active_vios(config, cookies, sys_uuid, vios_uuids)
         if len(active_vios_servers) == 0:
             logger.error("failed to find active vios server")

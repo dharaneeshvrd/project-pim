@@ -12,3 +12,8 @@ def cleanup_and_exit(config, cookies, status):
     print("deleting user HMC session")
     auth.delete_session(config, cookies)
     exit(status)
+
+def readfile(filename):
+    f = open(filename, "r")
+    data = f.read()
+    return data
