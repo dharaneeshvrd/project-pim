@@ -1,4 +1,3 @@
-import logging
 import requests
 import time
 from bs4 import BeautifulSoup
@@ -115,8 +114,8 @@ def get_lpar_profile_id(config, cookies, partition_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartitionProfile"}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        logger.error(f"Failed to get lpar profile id {response.text}")
-        raise PartitionError(f"Failed to get lpar profile id {response.text}")
+        logger.error(f"failed to get LPAR profile ID, error: {response.text}")
+        raise PartitionError(f"failed to get LPAR profile ID, error: {response.text}")
     soup = BeautifulSoup(response.text, 'xml')
     entry_node = soup.find('entry')
     lpar_profile_id = entry_node.find('id')
@@ -128,12 +127,14 @@ def poll_job_status(config, cookies, job_id):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.web+xml; type=JobRequest"}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        logger.error(f"Failed to get job completion {response.text}")
-        raise PartitionError(f"Failed to get job completion {response.text}")
+        logger.error(f"failed to get job completion, error: {response.text}")
+        raise PartitionError(f"failed to get job completion, error: {response.text}")
     soup = BeautifulSoup(response.text, 'xml')
-    if soup.find("Status").text == "COMPLETED_OK":
+    status = soup.find("Status").text
+    if status == "COMPLETED_OK":
         return True
     else:
+        logger.debug(f"Job '{job_id}' status: {status}")
         return False
 
 def check_job_status(config, cookies, response):
@@ -163,13 +164,13 @@ def activate_partititon(config, cookies, partition_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": CONTENT_TYPE}
     response = requests.put(url, headers=headers, cookies=cookies, data=payload, verify=False)
     if response.status_code != 200:
-        logger.error(f"Failed to activate partition {partition_uuid}")
-        raise PartitionError(f"Failed to activate partition {partition_uuid}")
+        logger.error(f"failed to activate partition, error: {response.text}")
+        raise PartitionError(f"failed to activate partition, error: {response.text}")
     # check job status for COMPLETED_OK
     status = check_job_status(config, cookies, response.text)
     if not status:
-        logger.error(f"Failed to activate partition {partition_uuid}")
-        raise PartitionError(f"Failed to activate partition {partition_uuid}")
+        logger.error(f"failed to activate partition, activate job returned false")
+        raise PartitionError(f"failed to activate partition, activate job returned false")
     logger.info("Partition activated successfully.")
     return
 
@@ -180,12 +181,12 @@ def shutdown_paritition(config, cookies, partition_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": CONTENT_TYPE}
     response = requests.put(url, headers=headers, cookies=cookies, data=payload, verify=False)
     if response.status_code != 200:
-        logger.error(f"Failed to shutdown partition {partition_uuid}")
-        raise PartitionError(f"Failed to shutdown partition {partition_uuid}")
+        logger.error(f"failed to shutdown partition, error: {response.text}")
+        raise PartitionError(f"failed to shutdown partition, error: {response.text}")
     # check job status for COMPLETED_OK
     status = check_job_status(config, cookies, response.text)
     if not status:
-        logger.error(f"Failed to shutdown partition {partition_uuid}")
-        raise PartitionError(f"Failed to shutdown partition {partition_uuid}")
+        logger.error(f"failed to shutdown partition, shutdown job returned false")
+        raise PartitionError(f"failed to shutdown partition, shutdown job returned false")
     logger.info("Partition shutdown successfully.")
     return

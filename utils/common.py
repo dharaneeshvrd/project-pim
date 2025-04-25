@@ -2,14 +2,17 @@ import logging
 
 import auth.auth as auth
 
+def setup_logging(level):
+    logging.basicConfig(
+        format='%(asctime)s %(levelname)-8s %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        level=level
+    )
+
 def get_logger(name):
-    logger = logging.getLogger(name)
-    logging.basicConfig()
-    logger.setLevel(logging.INFO)
-    return logger
+    return logging.getLogger(name)
 
 def cleanup_and_exit(config, cookies, status):
-    print("deleting user HMC session")
     auth.delete_session(config, cookies)
     exit(status)
 

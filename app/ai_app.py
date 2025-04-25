@@ -29,7 +29,7 @@ def check_app(config):
     try:
         response = requests.get(url)
         if response.status_code != 200:
-            logger.error(f"AI application didn't respond {response.text}, will retry...")
+            logger.error(f"AI application didn't respond, response: '{response.text}', will retry...")
             return False
     except Exception as e:
         logger.info(f"AI application not responding yet, err: {e}")
@@ -47,11 +47,11 @@ def check_bot_service(config):
         logger.info(f"Prompt: \n{prompt}")
         response = requests.post(url,  data=payload, headers={"Content-Type": "application/json"})
         if response.status_code != 200:
-            logger.error(f"Failed to get response for a prompt from OpenAI API server: {response.text}")
-            raise AiAppError(f"Failed to get response for a prompt from OpenAI API server: {response.text}")
+            logger.error(f"failed to get response for a prompt from OpenAI API server, error: {response.text}")
+            raise AiAppError(f"failed to get response for a prompt from OpenAI API server, error: {response.text}")
         resp_json = response.json()
     except Exception as e:
-        logger.info(f"Failed to get response for a prompt from OpenAI API server: {e}")
-        raise AiAppError(f"Failed to get response for a prompt from OpenAI API server: {e}")
+        logger.info(f"failed to get response for a prompt from OpenAI API server: {e}")
+        raise AiAppError(f"failed to get response for a prompt from OpenAI API server: {e}")
     
     return resp_json

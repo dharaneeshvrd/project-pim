@@ -1,4 +1,3 @@
-import logging
 import requests
 from bs4 import BeautifulSoup
 
@@ -78,6 +77,6 @@ def attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uu
     response = requests.post(url, headers=headers, cookies=cookies, data=payload, verify=False)
 
     if response.status_code != 200:
-        logger.error(f"Failed to attach virtual storage to the partition {response.text}")
-        raise StorageError(f"Failed to attach virtual storage to the partition {response.text}")
+        logger.error(f"failed to attach virtual storage to the partition, error: {response.text}")
+        raise StorageError(f"failed to attach virtual storage to the partition, error: {response.text}")
     return
