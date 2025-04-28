@@ -639,7 +639,9 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         vopt_cloud_init = util.get_cloud_init_iso(config)
         vopt.attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_cloudinit_media_uuid, vopt_cloud_init, slot_num)
         logger.info("b. Cloudinit virtual optical device attached")
+        logger.info("---------------------- Attach installation medias done ----------------------")
 
+        logger.info("---------------------- Attach storage ----------------------")
         use_vdisk = util.use_virtual_disk(config)
         if use_vdisk:
             vios_storage_uuid = vios_storage_list[0][0]
