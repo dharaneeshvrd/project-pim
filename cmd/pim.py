@@ -641,7 +641,7 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         logger.info("b. Cloudinit virtual optical device attached")
         logger.info("---------------------- Attach installation medias done ----------------------")
 
-        logger.info("---------------------- Attach storage ----------------------")
+        logger.info("10. Attach storage")
         use_vdisk = util.use_virtual_disk(config)
         if use_vdisk:
             vios_storage_uuid = vios_storage_list[0][0]
@@ -666,20 +666,20 @@ def launch(config, cookies, sys_uuid, vios_uuids):
             attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_bootstrap_media_uuid, vios_cloudinit_media_uuid, vios_storage_list)
         logger.info("---------------------- Attach storage done ----------------------")
 
-        logger.info("10. Activate partition")
+        logger.info("11. Activate partition")
         activation.activate_partititon(config, cookies, partition_uuid)
         logger.info("---------------------- Partition activation done ----------------------")
 
         time.sleep(120)
         # monitor ISO installation
-        logger.info("11. Monitor ISO installation")
+        logger.info("12. Monitor ISO installation")
         monitor_iso_installation(config, cookies)
         logger.info("---------------------- Monitor ISO installation done ----------------------")
 
-        logger.info("12. Wait for lpar to boot from the disk")
+        logger.info("13. Wait for lpar to boot from the disk")
         # Poll for the 8000 AI application port
         time.sleep(300)
-        logger.info("13. Check for AI app to be running")
+        logger.info("14. Check for AI app to be running")
         for i in range(10):
             up = app.check_app(config)
             if not up:
