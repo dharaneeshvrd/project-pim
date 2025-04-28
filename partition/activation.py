@@ -174,7 +174,7 @@ def activate_partititon(config, cookies, partition_uuid):
     logger.info("Partition activated successfully.")
     return
 
-def shutdown_paritition(config, cookies, partition_uuid):
+def shutdown_partition(config, cookies, partition_uuid):
     uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}/do/PowerOff"
     url =  "https://" + util.get_host_address(config) + uri
     payload = shutdown_payload()

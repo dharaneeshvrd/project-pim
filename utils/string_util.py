@@ -19,7 +19,7 @@ def get_session_key(config):
     return  config["session"]["x-api-key"]
 
 def get_bootstrap_iso(config):
-    # Use below return while handling the rerun scenario for bootstrap iso
+    # Use below return while handling the rerun scenario for bootstrap ISO
     #return hashlib.sha256(get_bootstrap_iso_download_url(config).encode()).hexdigest()[:32] + "_pimb"
     return get_partition_name(config) + "_pimb" 
 

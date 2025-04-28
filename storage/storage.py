@@ -10,7 +10,7 @@ logger = common.get_logger("storage")
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=VirtualIOServer"
 
 def populate_payload(vios_payload, hmc_host, partition_uuid, system_uuid, physical_volume_name, slot):
-    physical_vol = f'''
+    physical_vol_slot = f'''
     <VirtualSCSIMapping schemaVersion="V1_0">
             <Metadata>
                 <Atom/>
@@ -33,6 +33,26 @@ def populate_payload(vios_payload, hmc_host, partition_uuid, system_uuid, physic
             </Storage>
         </VirtualSCSIMapping>
 '''
+    physical_vol_no_slot = f'''
+    <VirtualSCSIMapping schemaVersion="V1_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <AssociatedLogicalPartition kb="CUR" kxe="false" href="https://{hmc_host}/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition/{partition_uuid}" rel="related"/>
+            <Storage kxe="false" kb="CUR">
+                <PhysicalVolume schemaVersion="V1_0">
+                    <Metadata>
+                        <Atom/>
+                    </Metadata>
+                    <VolumeName kb="CUR" kxe="false">{physical_volume_name}</VolumeName>
+                </PhysicalVolume>
+            </Storage>
+        </VirtualSCSIMapping>
+'''
+    if slot == -1:
+        physical_vol = physical_vol_no_slot
+    else:
+        physical_vol = physical_vol_slot
     phys_bs = BeautifulSoup(physical_vol, 'xml')
     vios_bs = BeautifulSoup(vios_payload, 'xml')
     scsi_mappings = vios_bs.find('VirtualSCSIMappings')

@@ -124,40 +124,33 @@ def remove_iso_file(config, cookies, filename, file_uuid):
     logger.debug(f"ISO file: '{filename}' removed from VIOS successfully")
     return
 
-def upload_iso_to_media_repository(config, cookies, vios_uuid):
-    try:
-        # Create ISO filepath for bootstrap ISO
-        logger.debug(f"Uploading bootstrap ISO")
-        bootstrap_iso = util.get_bootstrap_iso(config)
-        bootstrap_iso_file = iso_folder + "/" + bootstrap_iso
-        bootstrap_iso_checksum = hash(bootstrap_iso_file)
-        bootstrap_iso_size = os.path.getsize(bootstrap_iso_file)
-        bootstrap_file_uuid = create_iso_path(config, cookies, vios_uuid, bootstrap_iso, bootstrap_iso_checksum, bootstrap_iso_size)
-        # transfer bootstrap ISO file to VIOS media repository
-        with open(bootstrap_iso_file, 'rb') as f:
-            uploadfile(config, cookies, f, bootstrap_file_uuid)
-            logger.info(f"Bootstrap ISO {bootstrap_iso} file upload completed!!")
-
-        # Create ISO filepath for cloud-init ISO
-        logger.debug(f"Uploading cloud-init ISO")
-        cloudinit_iso = util.get_cloud_init_iso(config)
-        cloudinit_iso_file = iso_folder + "/" + cloudinit_iso
-        cloudinit_iso_checksum = hash(cloudinit_iso_file)
-        cloudinit_iso_size = os.path.getsize(cloudinit_iso_file)
-        cloudinit_file_uuid = create_iso_path(config, cookies, vios_uuid, cloudinit_iso, cloudinit_iso_checksum, cloudinit_iso_size)
-        # transfer cloud-init ISO file to VIOS media repository
-        with open(cloudinit_iso_file, 'rb') as f:
-            uploadfile(config, cookies, f, cloudinit_file_uuid)
-            logger.info(f"Cloud-init ISO {cloudinit_iso} file upload completed!!")
-
-        # remove ISO files from VIOS
-        remove_iso_file(config, cookies, bootstrap_iso_file, bootstrap_file_uuid)
-        remove_iso_file(config, cookies, cloudinit_iso_file, cloudinit_file_uuid)
-        logger.info("Both bootstrap ISO and cloud-init ISO are removed from VIOS after copying to media repositoy")
-    except Exception as e:
-        logger.error(f"failed to Upload ISO to VIOS, error: {e}")
-        raise e
-    logger.info("Both bootstrap and cloud-init ISO file transfer completed..")
+def upload_iso_to_media_repository(config, cookies, iso_file_name, vios_uuid_list):
+    # Iterating over the vios_uuid_list to upload the ISO to the media repository for a VIOS
+    # If upload operation fails for current VIOS, next available VIOS in the list will be used as a fallback.
+    file_uuid = ""
+    for index, vios_uuid in enumerate(vios_uuid_list):
+        try:
+            # Create ISO filepath for bootstrap iso
+            iso_file = iso_folder + "/" + iso_file_name
+            iso_checksum = hash(iso_file)
+            iso_size = os.path.getsize(iso_file)
+            file_uuid = create_iso_path(config, cookies, vios_uuid, iso_file_name, iso_checksum, iso_size)
+            # transfer ISO file to VIOS media repository
+            with open(iso_file, 'rb') as f:
+                uploadfile(config, cookies, f, file_uuid)
+                logger.info(f"'{iso_file_name}' ISO file upload completed!!")
+            
+            # remove iso files from VIOS
+            remove_iso_file(config, cookies, iso_file, file_uuid)
+            return vios_uuid
+        except Exception as e:
+            logger.error(f"failed to upload ISO to '{vios_uuid}' VIOS")
+            if file_uuid != "":
+                remove_iso_file(config, cookies, iso_file, file_uuid)
+            if index == len(vios_uuid_list)-1:
+                raise e
+            else:
+                logger.info("Upload of ISO file will be attempted on next available VIOS")
     return
 
 def build_and_download_iso(config):
@@ -165,7 +158,7 @@ def build_and_download_iso(config):
     create_dir(iso_folder)
     generate_cloud_init_iso_config(config)
     generate_cloud_init_iso_file(iso_folder, config)
-    download_bootstap_iso(iso_folder, config)
+    download_bootstrap_iso(iso_folder, config)
     
 def generate_cloud_init_iso_config(config):
     file_loader = FileSystemLoader('cloud-init-iso/templates')
@@ -200,7 +193,7 @@ def generate_cloud_init_iso_file(iso_folder, config):
         logger.error(f"failed to generate cloud-init ISO via mkisofs, error: {e.stderr}")
         raise
 
-def download_bootstap_iso(iso_folder, config):
+def download_bootstrap_iso(iso_folder, config):
     logger.info("Downloading bootstrap ISO file...")
     download_url = util.get_bootstrap_iso_download_url(config)
     iso_file_path = f"{iso_folder}/{util.get_bootstrap_iso(config)}"
@@ -339,33 +332,37 @@ def get_active_vios(config, cookies, sys_uuid, vios_uuids):
     return active_vios_servers
 
 def get_vios_with_mediarepo_tag(active_vios_servers):
+    vios_uuid_list = []
     for vios_uuid, vios_payload in active_vios_servers.items():
         soup = BeautifulSoup(vios_payload, 'xml')
         if soup.find("MediaRepositories"):
-            return vios_uuid
-    return ""
+            vios_uuid_list.append(vios_uuid)
+    return vios_uuid_list
 
 def get_vios_with_physical_storage(config, active_vios_servers):
     required_capacity = int(util.get_required_disk_size(config)) * 1024
-    uuid = ""
+    vios_list = []
     min_volume_capacity = sys.maxsize
-    disk_name = ""
     for vios_uuid, vios_payload in active_vios_servers.items():
         soup = BeautifulSoup(vios_payload, 'xml')
         pvs_soup = soup.find("PhysicalVolumes")  
         pv_list = pvs_soup.find_all("PhysicalVolume") 
         
+        min_volume_capacity = sys.maxsize
+        disk_name = ""
+        
         for pv in pv_list:
-            avilable_for_usage = pv.find("AvailableForUsage")
+            available_for_usage = pv.find("AvailableForUsage")
             volume_capacity = int(pv.find("VolumeCapacity").text)
-            if avilable_for_usage.text == "true" and volume_capacity >= required_capacity:
+            if available_for_usage.text == "true" and volume_capacity >= required_capacity:
                 # Selecting the physical volume with disk capacity nearest to the required storage size
                 if volume_capacity < min_volume_capacity:
                     min_volume_capacity = volume_capacity
                     disk_name = pv.find("VolumeName").text
-                    uuid = vios_uuid
-            
-    return uuid, disk_name
+        if disk_name != "":
+            vios_list.append((vios_uuid, disk_name, min_volume_capacity))
+    vios_list.sort(key=lambda vios: vios[2])
+    return vios_list
 
 def get_virtual_slot_number(vios_payload, disk_name):
     soup = BeautifulSoup(vios_payload, 'xml')
@@ -428,25 +425,23 @@ def remove_partition(config, cookies, partition_uuid):
         raise PimError(f"failed to delete partition, error: {response.text}")
     logger.info("Partition deleted successfully")
 
-def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios):
-    bootstrap_name = util.get_bootstrap_iso(config)
-    cloudinit_name = util.get_cloud_init_iso(config)
-
+def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, disk_name):
     logger.info("Removing SCSI mappings..")
     soup = BeautifulSoup(vios, "xml")
     scsi_mappings = soup.find("VirtualSCSIMappings")
     b_devs = scsi_mappings.find_all("BackingDeviceName")
+    disk = None
     for b_dev in b_devs:
-        if b_dev.text == bootstrap_name:
-            bootstrap_disk = b_dev
-        if b_dev.text == cloudinit_name:
-            cloudinit_disk = b_dev
-
-    scsi1 = bootstrap_disk.parent.parent
+        if b_dev.text == disk_name:
+            disk = b_dev
+            break
+    
+    if disk == None:
+        logger.error(f"no SCSI mapping available for '{disk_name}'")
+        raise PimError(f"no SCSI mapping available for '{disk_name}'")
+    scsi1 = disk.parent.parent
     scsi1.decompose()
 
-    scsi2 = cloudinit_disk.parent.parent
-    scsi2.decompose()
     logger.debug("Removed SCSI mappings from VIOS payload")
 
     uri = f"/rest/api/uom/ManagedSystem/{sys_uuid}/VirtualIOServer/{vios_uuid}"
@@ -500,30 +495,42 @@ def remove_vopt_device(config, cookies, vios, vopt_name):
     except Exception as e:
         raise e
 
+def find_vios_with_vopt_mounted(config, cookies, sys_uuid, vios_uuid_list, vopt_name):
+    for uuid in vios_uuid_list:
+        vios = get_vios_details(config, cookies, sys_uuid, uuid)
+        soup = BeautifulSoup(vios, "xml")
+        media_repo_tag = soup.find("MediaRepositories")
+        vopts = media_repo_tag.find_all("VirtualOpticalMedia")
+
+        for vopt in vopts:
+            media_name = vopt.find("MediaName")
+            if media_name.text == vopt_name:
+                return uuid
+    raise PimError("no matching VIOS found where vOPTs mounted")
+
 # destroy partition
-def destroy(config, cookies, sys_uuid, vios_uuid):
+def destroy(config, cookies, sys_uuid, vios_uuid_list):
+    logger.info("PIM destroy flow")
     try:
         partition_uuid = get_partition_id(config, cookies, sys_uuid)
 
         # shutdown partition
-        activation.shutdown_paritition(config, cookies, partition_uuid)
+        activation.shutdown_partition(config, cookies, partition_uuid)
 
-        vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-        # remove SCSI mapping from VIOS
-        remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios)
+        vopt_list = [util.get_bootstrap_iso(config), util.get_cloud_init_iso(config)]
+        for vopt in vopt_list:
+            vios_uuid = find_vios_with_vopt_mounted(config, cookies, sys_uuid, vios_uuid_list, vopt)
+            vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
 
-        # TODO: delete virtual disk, volume group if created by the script during launch
+            # remove SCSI mapping from VIOS
+            remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, vopt)
 
-        vios_updated = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-        # remove mounted virtual optical devices from media repositoy.
-        cloudinit_vopt = util.get_cloud_init_iso(config)
-        remove_vopt_device(config, cookies, vios_updated, cloudinit_vopt)
+             # TODO: delete virtual disk, volumegroup if created by the script during launch
 
-        # TO-DO:
-        # mounted bootstrap vOPT could be used by many lpars. hence remove only cloud-init vOPT
-        vios_updated = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-        bootstrap_vopt = util.get_bootstrap_iso(config)
-        remove_vopt_device(config, cookies, vios_updated, bootstrap_vopt)
+            vios_updated = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+
+            # remove mounted virtual optical devices from media repositoy.
+            remove_vopt_device(config, cookies, vios_updated, vopt)
 
         remove_partition(config, cookies, partition_uuid)
     except (PartitionError, PimError) as e:
@@ -545,6 +552,29 @@ def generate_ssh_keys(config):
     config["custom-flavor"]["ssh"]["priv-key-file"] = keys_path + "/" + util.get_partition_name(config) + "_pim"
     config["custom-flavor"]["ssh"]["pub-key-file"] = keys_path+ "/" + util.get_partition_name(config) + "_pim.pub"
     return config
+def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_bootstrap_media_uuid, vios_cloudinit_media_uuid, vios_storage_list):
+    # Iterating over the vios_storage_list to attach physical volume from VIOS to a partition.
+    # If attachment operation fails for current VIOS, next available VIOS in the list will be used as a fallback.
+    for index, vios_storage in enumerate(vios_storage_list):
+        try:
+            vios_storage_uuid, physical_volume_name, _ = vios_storage
+            updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
+            logger.debug("Attach physical storage to the partition")
+            storage_slot_num = -1
+            if vios_storage_uuid == vios_bootstrap_media_uuid:
+                storage_slot_num = get_virtual_slot_number(updated_vios_payload, util.get_bootstrap_iso(config))
+            elif vios_storage_uuid == vios_cloudinit_media_uuid:
+                storage_slot_num = get_virtual_slot_number(updated_vios_payload, util.get_cloud_init_iso(config))
+            
+            storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid, storage_slot_num, physical_volume_name)
+            logger.info(f"Attached '{physical_volume_name}' physical volume to the partition from VIOS '{vios_storage_uuid}'")
+            break
+        except (PimError, StorageError) as e:
+            logger.error(f"failed to attach '{physical_volume_name}' physical storage in VIOS '{vios_storage_uuid}'")
+            if index == len(vios_storage_list) - 1:
+                raise e
+            else:
+                logger.info("Attempting to attach physical storage present in next available VIOS")
 
 def launch(config, cookies, sys_uuid, vios_uuids):
     try:
@@ -557,29 +587,30 @@ def launch(config, cookies, sys_uuid, vios_uuids):
 
         active_vios_servers = get_active_vios(config, cookies, sys_uuid, vios_uuids)
         if len(active_vios_servers) == 0:
-            logger.error("failed to find active VIOS servers")
-            raise PimError("failed to find active VIOS servers")
-        logger.debug(f"Number of active VIOS servers: '{len(active_vios_servers)}'")
+            logger.error("failed to find active VIOS server")
+            raise PimError("failed to find active VIOS server")
+        logger.debug(f"List of active VIOS '{list(active_vios_servers.keys())}'")
 
-        vios_media_uuid = get_vios_with_mediarepo_tag(active_vios_servers)
-        if vios_media_uuid == "":
-            logger.error("failed to find VIOS servers with media repository")
-            raise StorageError("failed to find VIOS servers with media repository")
-        logger.info(f"a. Selecting '{vios_media_uuid}' VIOS to mount virtual optical devices")
+        vios_media_uuid_list = get_vios_with_mediarepo_tag(active_vios_servers)
+        if len(vios_media_uuid_list) == 0:
+            logger.error("failed to find VIOS server for the partition")
+            raise StorageError("failed to find VIOS server for the partition")
 
-        vios_storage_uuid, physical_volme_name = get_vios_with_physical_storage(config, active_vios_servers)
-        if vios_storage_uuid == "" or physical_volme_name == "":
+        vios_storage_list = get_vios_with_physical_storage(config, active_vios_servers)
+        if len(vios_storage_list) == 0:
             logger.error("failed to find physical volume for the partition")
-            raise StorageError("Failed to find physical volume for the partition")
-        logger.info(f"b. Selecting '{vios_storage_uuid}' VIOS and '{physical_volme_name}' physcial volume for storage")
-        logger.info("---------------------- VIOS Selection done ----------------------")
+            raise StorageError("failed to find physical volume for the partition")
 
         logger.info("5. Setup installation ISOs")
         build_and_download_iso(config)
-        logger.info("---------------------- Setup instalation ISOs done ----------------------")
-
+        logger.info("---------------------- Setup installation ISOs done ----------------------")
+        
         logger.info("6. Transfer ISO files to VIOS media repository")
-        upload_iso_to_media_repository(config, cookies, vios_media_uuid)
+        vios_bootstrap_media_uuid = upload_iso_to_media_repository(config, cookies, util.get_bootstrap_iso(config),vios_media_uuid_list)
+        logger.info(f"a. Selecting '{vios_bootstrap_media_uuid}' VIOS to mount bootstrap vOPT")
+        vios_cloudinit_media_uuid = upload_iso_to_media_repository(config, cookies, util.get_cloud_init_iso(config),vios_media_uuid_list)
+        logger.info(f"b. Selecting '{vios_cloudinit_media_uuid}' VIOS to mount cloudinit vOPT")
+        
         logger.info("---------------------- Transfer ISOs done ----------------------")
 
         logger.info("7. Create Partition on the target host")
@@ -592,25 +623,29 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         virtual_network.attach_network(config, cookies, sys_uuid, partition_uuid)
         logger.info("---------------------- Attach network done ----------------------")
 
-        logger.info("9. Attach storage to the partition")
-        vios_payload = get_vios_details(config, cookies, sys_uuid, vios_media_uuid)
+        logger.info("9. Attach installation medias to the partition")
+        vios_payload = get_vios_details(config, cookies, sys_uuid, vios_bootstrap_media_uuid)
 
         # Attach bootstrap vOPT
         vopt_bootstrap = util.get_bootstrap_iso(config)
-        vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_media_uuid, vopt_bootstrap, -1)
+        vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_bootstrap_media_uuid, vopt_bootstrap, -1)
         logger.info("a. Bootstrap virtual optical device attached")
 
-        updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_media_uuid)
+        updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_cloudinit_media_uuid)
         # Get VirtualSlotNumber for the disk(physical/virtual)
-        slot_num = get_virtual_slot_number(updated_vios_payload, vopt_bootstrap)
-
+        slot_num = -1
+        if vios_bootstrap_media_uuid == vios_cloudinit_media_uuid:
+            slot_num = get_virtual_slot_number(updated_vios_payload, vopt_bootstrap)
         vopt_cloud_init = util.get_cloud_init_iso(config)
-        vopt.attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_media_uuid, vopt_cloud_init, slot_num)
+        vopt.attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_cloudinit_media_uuid, vopt_cloud_init, slot_num)
         logger.info("b. Cloudinit virtual optical device attached")
+        logger.info("---------------------- Attach installation medias done ----------------------")
 
-        updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
+        logger.info("10. Attach storage")
         use_vdisk = util.use_virtual_disk(config)
         if use_vdisk:
+            vios_storage_uuid = vios_storage_list[0][0]
+            updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
             use_existing_vd = util.use_existing_vd(config)
             if use_existing_vd:
                 vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid)
@@ -628,35 +663,33 @@ def launch(config, cookies, sys_uuid, vios_uuids):
                     vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid)
                     diskname = util.get_virtual_disk_name(config)
         else:
-            updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
-            storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid, slot_num, physical_volme_name)
-            logger.info("c. Physical storage attached")
+            attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_bootstrap_media_uuid, vios_cloudinit_media_uuid, vios_storage_list)
         logger.info("---------------------- Attach storage done ----------------------")
 
-        logger.info("10. Activate partition")
+        logger.info("11. Activate partition")
         activation.activate_partititon(config, cookies, partition_uuid)
         logger.info("---------------------- Partition activation done ----------------------")
 
         time.sleep(120)
         # monitor ISO installation
-        logger.info("11. Monitor ISO installation")
+        logger.info("12. Monitor ISO installation")
         monitor_iso_installation(config, cookies)
         logger.info("---------------------- Monitor ISO installation done ----------------------")
 
-        logger.info("12. Wait for lpar to boot from the disk")
+        logger.info("13. Wait for lpar to boot from the disk")
         # Poll for the 8000 AI application port
         time.sleep(300)
-        logger.info("13. Check for AI app to be running")
+        logger.info("14. Check for AI app to be running")
         for i in range(10):
             up = app.check_app(config)
             if not up:
-                logger.info("AI application is still not up and running, retyring..")
+                logger.info("AI application is still not up and running, retrying..")
                 time.sleep(10)
                 continue
             else:
                 logger.info("AI application is up and running. Now checking response for prompt from OpenAI API server")
                 resp = app.check_bot_service(config)
-                logger.info("Response from bot service: \n%s" % resp)
+                logger.info(f"Response from bot service: \n{resp}")
                 logger.info("---------------------- PIM workflow complete ----------------------")
                 return
         logger.error("failed to bring up AI application from bootc")
