@@ -437,8 +437,8 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, disk_name):
             break
     
     if disk == None:
-        logger.error("no SCSI mapping available for '{disk_name}'")
-        raise PimError("no SCSI mapping available for '{disk_name}'")
+        logger.error(f"no SCSI mapping available for '{disk_name}'")
+        raise PimError(f"no SCSI mapping available for '{disk_name}'")
     scsi1 = disk.parent.parent
     scsi1.decompose()
 
@@ -574,7 +574,7 @@ def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_boot
             if index == len(vios_storage_list) - 1:
                 raise e
             else:
-                logger.info("Attempting to attach physical storage present in next available VIOS.")
+                logger.info("Attempting to attach physical storage present in next available VIOS")
 
 def launch(config, cookies, sys_uuid, vios_uuids):
     try:
@@ -589,7 +589,7 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         if len(active_vios_servers) == 0:
             logger.error("failed to find active VIOS server")
             raise PimError("failed to find active VIOS server")
-        logger.debug(f"List of active VIOS '{list(active_vios_servers.keys())}'", )
+        logger.debug(f"List of active VIOS '{list(active_vios_servers.keys())}'")
 
         vios_media_uuid_list = get_vios_with_mediarepo_tag(active_vios_servers)
         if len(vios_media_uuid_list) == 0:
@@ -687,7 +687,7 @@ def launch(config, cookies, sys_uuid, vios_uuids):
             else:
                 logger.info("AI application is up and running. Now checking response for prompt from OpenAI API server")
                 resp = app.check_bot_service(config)
-                logger.info("Response from bot service: \n%s" % resp)
+                logger.info(f"Response from bot service: \n{resp}")
                 logger.info("---------------------- PIM workflow complete ----------------------")
                 return
         logger.error("failed to bring up AI application from bootc")
