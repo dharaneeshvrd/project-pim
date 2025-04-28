@@ -18,9 +18,9 @@ def populate_payload(config):
         <Metadata>
             <Atom/>
         </Metadata>
-        <DesiredMemory kb="CUD" kxe="false">{util.get_desired_memory(config)}</DesiredMemory>
-        <MaximumMemory kb="CUD" kxe="false">{util.get_max_memory(config)}</MaximumMemory>
-        <MinimumMemory kb="CUD" kxe="false">{util.get_min_memory(config)}</MinimumMemory>
+        <DesiredMemory kb="CUD" kxe="false">{convert_gb_to_mb(util.get_desired_memory(config))}</DesiredMemory>
+        <MaximumMemory kb="CUD" kxe="false">{convert_gb_to_mb(util.get_max_memory(config))}</MaximumMemory>
+        <MinimumMemory kb="CUD" kxe="false">{convert_gb_to_mb(util.get_min_memory(config))}</MinimumMemory>
     </PartitionMemoryConfiguration>
     <PartitionName kxe="false" kb="CUR">{partition_name}</PartitionName>
     <PartitionProcessorConfiguration kb="CUD" kxe="false" schemaVersion="V1_8_0">
@@ -64,6 +64,9 @@ def get_bootorder_payload(partition_payload, bootorder):
     pending_boot = lpar_bs.find("PendingBootString")
     pending_boot.append(bootorder)
     return str(lpar_bs)
+
+def convert_gb_to_mb(value):
+    return int(value) * 1024
 
 def create_partition(config, cookies, system_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition"
