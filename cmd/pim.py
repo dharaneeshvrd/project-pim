@@ -589,7 +589,7 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         if len(active_vios_servers) == 0:
             logger.error("failed to find active VIOS server")
             raise PimError("failed to find active VIOS server")
-        logger.info(f"List of active VIOS '{list(active_vios_servers.keys())}'", )
+        logger.debug(f"List of active VIOS '{list(active_vios_servers.keys())}'", )
 
         vios_media_uuid_list = get_vios_with_mediarepo_tag(active_vios_servers)
         if len(vios_media_uuid_list) == 0:
