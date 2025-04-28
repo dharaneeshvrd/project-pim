@@ -570,7 +570,7 @@ def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_boot
             logger.info(f"Attached '{vios_storage_uuid}' VIOS and '{physical_volume_name}' physical storage")
             break
         except (PimError, StorageError) as e:
-            logger.error(f"failed to attach {physical_volume_name} physical storage in VIOS {vios_storage_uuid}")
+            logger.error(f"failed to attach '{physical_volume_name}' physical storage in VIOS '{vios_storage_uuid}'")
             if index == len(vios_storage_list) - 1:
                 raise e
             else:
