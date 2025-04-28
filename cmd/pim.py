@@ -26,6 +26,7 @@ import network.virtual_network as virtual_network
 from network.network_exception import NetworkError
 import utils.string_util as util
 import utils.common as common
+import utils.validator as validator
 import storage.storage as storage
 import storage.vopt_storage as vopt
 import storage.virtual_storage as vstorage
@@ -665,6 +666,7 @@ def launch(config, cookies, sys_uuid, vios_uuids):
 
 def start_manager():
     try:
+        cookies = None
         parser = argparse.ArgumentParser(description="PIM lifecycle manager")
         parser.add_argument("action", choices=["launch", "destroy"] , help="Launch and destroy flow of bootc partition.")
         parser.add_argument("--debug", action='store_true', help='Enable debug logging level')
@@ -676,9 +678,11 @@ def start_manager():
             common.setup_logging(logging.INFO)
         
         logger.info("Starting PIM lifecycle manager")
-        logger.info("1. Initilaize and parse configuration")
+        logger.info("1. Parse and Validate configuration")
         config = initialize()
-        logger.info("---------------------- Initialize done ----------------------")
+        
+        if not validator.validate_config(config):
+            return
 
         logger.info("2. Authenticate with HMC host")
         session_token, cookies = auth.authenticate_hmc(config)
@@ -691,6 +695,9 @@ def start_manager():
         logger.info("---------------------- Get System UUID done ----------------------")
 
         logger.info("4. Select VIOS for target host")
+        if not validator.validate_networks(config, cookies, sys_uuid):
+            return
+
         vios_uuid_list = get_vios_uuid_list(config, cookies, sys_uuid)
 
         if args.action == "launch":
@@ -700,7 +707,8 @@ def start_manager():
     except (AiAppError, AuthError, NetworkError, PartitionError, StorageError, PimError, Exception) as e:
         logger.error(f"encountered an error: {e}")
     finally:
-        common.cleanup_and_exit(config, cookies, 0)
+        if cookies:
+            common.cleanup_and_exit(config, cookies, 0)
 
 logger = common.get_logger("pim-manager")
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)

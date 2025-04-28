@@ -66,6 +66,9 @@ def get_shared_min_virt_proc(config):
 def has_dedicated_proc(config):
     return  "true" if config["custom-flavor"]["cpu"]["mode"] == "dedicated" else "false"
 
+def get_cpu_mode(config):
+    return config["custom-flavor"]["cpu"]["mode"]
+
 def get_sharing_mode(config):
     return config["custom-flavor"]["cpu"]["sharing-mode"]
 
@@ -74,6 +77,9 @@ def get_partition_type(config):
 
 def get_partition_name(config):
     return config["partition"]["name"]
+
+def get_partition_flavor(config):
+    return config["partition"]["flavor"]
 
 # Network config Getters
 def get_vswitch_name(config):
@@ -84,6 +90,15 @@ def get_vnetwork_name(config):
 
 def get_ip_address(config):
     return config["partition"]["network"]["ip"]["address"]
+
+def get_network_prefix_length(config):
+    return config["partition"]["network"]["ip"]["prefix-length"]
+
+def get_network_gateway(config):
+    return config["partition"]["network"]["ip"]["gateway"]
+
+def get_network_nameserver(config):
+    return config["partition"]["network"]["ip"]["nameserver"]
 
 def get_ssh_username(config):
     return config["custom-flavor"]["ssh"]["user-name"]
@@ -119,8 +134,17 @@ def get_required_disk_size(config):
 def get_bootstrap_iso_download_url(config):
     return config["ai"]["bootstrap-iso-url"]
 
+def get_workload_image(config):
+    return config["ai"]["workload-image"]
+
 def get_llm_args(config):
     return config["ai"]["llm-args"]
+
+def get_llm_image(config):
+    return config["ai"]["llm-image"]
+
+def get_auth_json(config):
+    return config["ai"]["auth-json"]
 
 def get_model(config):
     llm_args = get_llm_args(config)
