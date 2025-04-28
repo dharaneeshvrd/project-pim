@@ -559,7 +559,7 @@ def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_boot
         try:
             vios_storage_uuid, physical_volume_name, _ = vios_storage
             updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
-            logger.info("Attach physical storage to the partition")
+            logger.debug("Attach physical storage to the partition")
             storage_slot_num = -1
             if vios_storage_uuid == vios_bootstrap_media_uuid:
                 storage_slot_num = get_virtual_slot_number(updated_vios_payload, util.get_bootstrap_iso(config))
@@ -567,7 +567,7 @@ def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_boot
                 storage_slot_num = get_virtual_slot_number(updated_vios_payload, util.get_cloud_init_iso(config))
             
             storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid, storage_slot_num, physical_volume_name)
-            logger.info(f"Attached '{vios_storage_uuid}' VIOS and '{physical_volume_name}' physical storage")
+            logger.info(f"Attached '{physical_volume_name}' physical volume to the partition from VIOS '{vios_storage_uuid}'")
             break
         except (PimError, StorageError) as e:
             logger.error(f"failed to attach '{physical_volume_name}' physical storage in VIOS '{vios_storage_uuid}'")
