@@ -567,7 +567,7 @@ def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_boot
                 storage_slot_num = get_virtual_slot_number(updated_vios_payload, util.get_cloud_init_iso(config))
             
             storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid, storage_slot_num, physical_volume_name)
-            logger.info("Attached '%s' VIOS and '%s' physical storage", vios_storage_uuid, physical_volume_name)
+            logger.info(f"Attached '{vios_storage_uuid}' VIOS and '{physical_volume_name}' physical storage")
             break
         except (PimError, StorageError) as e:
             logger.error(f"failed to attach {physical_volume_name} physical storage in VIOS {vios_storage_uuid}")
@@ -589,7 +589,7 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         if len(active_vios_servers) == 0:
             logger.error("failed to find active VIOS server")
             raise PimError("failed to find active VIOS server")
-        logger.info("List of active VIOS %s", list(active_vios_servers.keys()))
+        logger.info(f"List of active VIOS '{list(active_vios_servers.keys())}'", )
 
         vios_media_uuid_list = get_vios_with_mediarepo_tag(active_vios_servers)
         if len(vios_media_uuid_list) == 0:
@@ -603,11 +603,13 @@ def launch(config, cookies, sys_uuid, vios_uuids):
 
         logger.info("5. Setup installation ISOs")
         build_and_download_iso(config)
+        logger.info("---------------------- Setup installation ISOs done ----------------------")
+        
         logger.info("6. Transfer ISO files to VIOS media repository")
         vios_bootstrap_media_uuid = upload_iso_to_media_repository(config, cookies, util.get_bootstrap_iso(config),vios_media_uuid_list)
-        logger.info("Selecting %s VIOS to mount bootstrap vOPT", vios_bootstrap_media_uuid)
+        logger.info(f"a. Selecting '{vios_bootstrap_media_uuid}' VIOS to mount bootstrap vOPT")
         vios_cloudinit_media_uuid = upload_iso_to_media_repository(config, cookies, util.get_cloud_init_iso(config),vios_media_uuid_list)
-        logger.info("Selecting %s VIOS to mount cloudinit vOPT", vios_cloudinit_media_uuid)
+        logger.info(f"b. Selecting '{vios_cloudinit_media_uuid}' VIOS to mount cloudinit vOPT")
         
         logger.info("---------------------- Transfer ISOs done ----------------------")
 
