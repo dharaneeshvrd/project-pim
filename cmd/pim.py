@@ -583,7 +583,7 @@ def launch(config, cookies, sys_uuid, vios_uuids):
             config = generate_ssh_keys(config)
 
         # Populate configobj with public key content to get populated in cloud-init config
-        config["custom-flavor"]["ssh"] = {"pub-key" : common.readfile(keys_path+ "/" + util.get_partition_name(config) + "_pim.pub")}
+        config["custom-flavor"]["ssh"]["pub-key"] = common.readfile(keys_path+ "/" + util.get_partition_name(config) + "_pim.pub")
 
         active_vios_servers = get_active_vios(config, cookies, sys_uuid, vios_uuids)
         if len(active_vios_servers) == 0:
