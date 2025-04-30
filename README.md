@@ -14,7 +14,12 @@ All dependencies are captured in requirements.txt
 ## Install depenencies on IBMi partition
 
 1. Currently the source code for PIM is internal, needs to be cloned by adding SSH key of the IBMi partition
-2. Run Installer script from a bash shell on IBMi SSH terminal session to install system and python dependencies needed for running PIM
+2. Add internal github's SSH key to known_hosts file on IBMi partition
+```
+ssh-keyscan github.ibm.com >> ~/.ssh/known_hosts
+```
+
+3. Run Installer script from a bash shell on IBMi SSH terminal session to install system and python dependencies needed for running PIM
 
 ```
 bash install.sh
