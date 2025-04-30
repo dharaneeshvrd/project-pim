@@ -1,7 +1,5 @@
 [Unit]
-Description=Run simple entity extraction app
-Requires=vllm.service
-After=vllm.service
+Description=Run fraud analytics app
 
 [Service]
 Restart=on-failure
@@ -9,7 +7,7 @@ RestartSec=60
 EnvironmentFile=/etc/pim/env.conf
 
 [Container]
-Image=na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/entity-extraction
+Image=na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/fraud-analytics
 Network=host
 SecurityLabelType=unconfined_t
 AutoUpdate=registry
