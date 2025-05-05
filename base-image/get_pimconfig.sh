@@ -17,6 +17,4 @@ cp /tmp/pim/99_custom_network.cfg /etc/cloud/cloud.cfg.d/
 cp /tmp/pim/pim_config.json /etc/pim/
 cp /tmp/pim/auth.json /etc/pim/
 
-echo LLM_ARGS=$(jq -r '.llmArgs' /etc/pim/pim_config.json) > /etc/pim/env.conf
-echo LLM_IMAGE=$(jq -r '.llmImage' /etc/pim/pim_config.json) >> /etc/pim/env.conf
 echo REGISTRY_AUTH_FILE=/etc/pim/auth.json >> /etc/pim/env.conf

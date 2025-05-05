@@ -10,5 +10,3 @@ COPY pimconfig.service /etc/systemd/system
 
 RUN systemctl unmask pimconfig.service
 RUN systemctl enable pimconfig.service
-
-COPY vllm.container /usr/share/containers/systemd

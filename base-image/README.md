@@ -23,11 +23,6 @@ RUN systemctl enable pimconfig.service
 ```
 Systemd service to setup pimconfig like copying cloud init config and pim config files to respective directory
 
-```
-COPY vllm.container /usr/share/containers/systemd
-```
-`vllm.container` will be converted to systemd service that runs vLLM image passed via pim config which copied in previous step
-
 ## Build
 
 Run the build in a RHEL machine with proper subscription activated. `podman build` will use the build machine's host subscription to install pkgs in PIM image.
