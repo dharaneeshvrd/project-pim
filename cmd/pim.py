@@ -100,6 +100,13 @@ def uploadfile(config, cookies, filehandle, file_uuid):
     try:
         response = requests.put(url, headers=headers, data=readfile(filehandle, chunksize=65536) ,cookies=cookies, verify=False)
         if response.status_code != 204:
+            soup = BeautifulSoup(response.text, 'xml')
+            logger.info(soup)
+            reason = soup.find("Message")
+            file_exists_msg = "already exists"
+            if file_exists_msg in reason.text:
+                logger.info("ISO file is already available in VIOS media respository.")
+                return
             logger.error(f"failed to upload ISO file '{filehandle}' to VIOS media repository, error: {response.text}")
             raise Exception(f"failed to upload ISO file '{filehandle}' to VIOS media repository, error: {response.text}")
     except Exception as e:
@@ -128,19 +135,20 @@ def is_bootstrap_iso_uploaded(config, cookies, iso_file_name,  sys_uuid, vios_uu
             vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
             _, _, media_repos = get_media_repositories(config, cookies, vios)
             vopt_media = media_repos.find_all("VirtualOpticalMedia")
-            vopt = vopt_media.find(lambda tag: tag.name == "MediaName" and tag.text == iso_file_name)
-            if vopt is not  None:
-                logger.info(f"found bootstrap ISO file {iso_file_name} in media repositories")
-                return True, vios_uuid
+            for vopt in vopt_media:
+                if  vopt.find(lambda tag: tag.name == "MediaName" and tag.text == iso_file_name):
+                    logger.info(f"found bootstrap ISO file {iso_file_name} in media repositories")
+                    return True, vios_uuid
+
     except Exception as e:
         raise e
     logger.info(f"bootstrap ISO file {iso_file_name} was not found in the media repositories")
     return False, ""
 
-def upload_iso_to_media_repository(config, cookies, iso_file_name, vios_uuid_list):
+def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vios_uuid_list):
     # Check if bootstrap ISO file is already uploaded to any of the available VIOS
     if "_pimb" in iso_file_name:
-        uploaded, vios_uuid = is_bootstrap_iso_uploaded(config, cookies, iso_file_name, vios_uuid_list)
+        uploaded, vios_uuid = is_bootstrap_iso_uploaded(config, cookies, iso_file_name, sys_uuid, vios_uuid_list)
         if uploaded:
             return vios_uuid
 
@@ -617,9 +625,9 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         logger.info("---------------------- Setup installation ISOs done ----------------------")
         
         logger.info("6. Transfer ISO files to VIOS media repository")
-        vios_bootstrap_media_uuid = upload_iso_to_media_repository(config, cookies, util.get_bootstrap_iso(config),vios_media_uuid_list)
+        vios_bootstrap_media_uuid = upload_iso_to_media_repository(config, cookies, util.get_bootstrap_iso(config), sys_uuid, vios_media_uuid_list)
         logger.info(f"a. Selecting '{vios_bootstrap_media_uuid}' VIOS to mount bootstrap vOPT")
-        vios_cloudinit_media_uuid = upload_iso_to_media_repository(config, cookies, util.get_cloud_init_iso(config),vios_media_uuid_list)
+        vios_cloudinit_media_uuid = upload_iso_to_media_repository(config, cookies, util.get_cloud_init_iso(config), sys_uuid, vios_media_uuid_list)
         logger.info(f"b. Selecting '{vios_cloudinit_media_uuid}' VIOS to mount cloudinit vOPT")
         
         logger.info("---------------------- Transfer ISOs done ----------------------")
