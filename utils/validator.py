@@ -144,7 +144,7 @@ def validate_prefix_length(config):
 
 # Validating partition is in correct format
 def validate_partition_name(config):
-    pattern = r"[A-Za-z0-9_\.]{1,79}"
+    pattern = r"^[A-Za-z0-9_\.]{1,79}$"
     result = re.match(pattern, get_partition_name(config))
     if not bool(result):
         logger.error(f"validation failed: 'partition.name' value '{get_partition_name(config)}' have invalid format.")

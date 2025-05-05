@@ -101,13 +101,13 @@ def get_network_nameserver(config):
     return config["partition"]["network"]["ip"]["nameserver"]
 
 def get_ssh_username(config):
-    return config["custom-flavor"]["ssh"]["user-name"]
+    return config["ssh"]["user-name"]
 
 def get_ssh_priv_key(config):
-    return config["custom-flavor"]["ssh"]["priv-key-file"]
+    return config["ssh"]["priv-key-file"]
 
 def get_ssh_pub_key(config):
-    return config["custom-flavor"]["ssh"]["pub-key-file"]
+    return config["ssh"]["pub-key-file"]
 
 # storage related Getters
 def get_physical_volume_name(config):
@@ -151,13 +151,11 @@ def get_model(config):
     llm_args_s = llm_args.split(" ")
     model = ""
     for i, arg in enumerate(llm_args_s):
-     if "--model=" in arg:
-             model = arg.split("=")[-1]
-             break
-     elif "--model" == arg and len(llm_args_s) > i+1:
-             model = llm_args_s[i+1]
-             break
-     if model == "":
-         raise Exception("Not able to retrieve model from input config, check your llm_args. llm_args: {}".format(llm_args))
-     
-     return model
+        if "--model=" in arg:
+            model = arg.split("=")[-1]
+            return model
+        elif "--model" == arg and len(llm_args_s) > i+1:
+            model = llm_args_s[i+1]
+            return model
+
+    raise Exception("Not able to retrieve model from input config, check your llm_args. llm_args: {}".format(llm_args))
