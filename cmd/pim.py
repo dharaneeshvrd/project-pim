@@ -122,7 +122,27 @@ def remove_iso_file(config, cookies, filename, file_uuid):
     logger.debug(f"ISO file: '{filename}' removed from VIOS successfully")
     return
 
+def is_iso_uploaded(config, cookies, iso_file_name,  sys_uuid, vios_uuid_list):
+    try:
+        for _, vios_uuid in enumerate(vios_uuid_list):
+            vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+            _, _, media_repos = get_media_repositories(config, cookies, vios)
+            vopt_media = media_repos.find_all("VirtualOpticalMedia")
+            vopt = vopt_media.find(lambda tag: tag.name == "MediaName" and tag.text == iso_file_name)
+            if vopt is not  None:
+                logger.info(f"found ISO file {iso_file_name} in media repositories")
+                return True, vios_uuid
+    except Exception as e:
+        raise e
+    logger.info(f"ISO file {iso_file_name} was not found in the media repositories")
+    return False, ""
+
 def upload_iso_to_media_repository(config, cookies, iso_file_name, vios_uuid_list):
+    # Check if ISO file is already uploaded to any of the available VIOS
+    uploaded, vios_uuid = is_iso_uploaded(config, cookies, iso_file_name, vios_uuid_list)
+    if uploaded:
+        return vios_uuid
+
     # Iterating over the vios_uuid_list to upload the ISO to the media repository for a VIOS
     # If upload operation fails for current VIOS, next available VIOS in the list will be used as a fallback.
     file_uuid = ""
@@ -442,7 +462,7 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, disk_name):
     logger.info("Successfully removed SCSI mappings and vOPT media repositories and updated VIOS..")
     return
 
-def remove_vopt_device(config, cookies, vios, vopt_name):
+def get_media_repositories(config, cookies, vios):
     # find volume group URL associated with StoragePool
     soup = BeautifulSoup(vios, 'xml')
     storage_pool = soup.find("StoragePools")
@@ -455,21 +475,29 @@ def remove_vopt_device(config, cookies, vios, vopt_name):
     # make REST call to volume group URL(vg_url) to get list of media repositories
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; type=VolumeGroup"}
     response = requests.get(vg_url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        logger.error(f"failed to get volume group details, error: {response.text}")
+        raise PimError(f"failed to get volume group details, error: {response.text}")
+    soup = BeautifulSoup(response.text, 'xml')
+    media_repos = soup.find("MediaRepositories")
+    vol_group = soup.find("VolumeGroup")
+    logger.info("Obtained media repositories from VIOS successfully")
+    return vg_url, vol_group, media_repos
+
+def remove_vopt_device(config, cookies, vios, vopt_name):
     try:
-        if response.status_code != 200:
-            logger.error(f"failed to get volume group details, error: {response.text}")
-            raise PimError(f"failed to get volume group details, error: {response.text}")
-        soup = BeautifulSoup(response.text, 'xml')
-        vol_group = soup.find("VolumeGroup")
+        vg_url, vol_group, media_repos = get_media_repositories(config, cookies, vios)
 
         # remove vopt_name from media repositoy
-        vopt_media = vol_group.find_all("VirtualOpticalMedia")
+        vopt_media = media_repos.find_all("VirtualOpticalMedia")
         for v_media in vopt_media:
             if v_media.find("MediaName") is not None and v_media.find("MediaName").text == vopt_name:
                 v_media.decompose()
                 break
 
         logger.info("Updated volume group after removing vOPT from media repositories")
+
+        headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; type=VolumeGroup"}
         # Now update the modified media repositoy list after delete
         response = requests.post(vg_url, data=str(vol_group), headers=headers, cookies=cookies, verify=False)
         if response.status_code != 200:
