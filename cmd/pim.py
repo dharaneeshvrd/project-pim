@@ -122,7 +122,7 @@ def remove_iso_file(config, cookies, filename, file_uuid):
     logger.debug(f"ISO file: '{filename}' removed from VIOS successfully")
     return
 
-def is_iso_uploaded(config, cookies, iso_file_name,  sys_uuid, vios_uuid_list):
+def is_bootstrap_iso_uploaded(config, cookies, iso_file_name,  sys_uuid, vios_uuid_list):
     try:
         for _, vios_uuid in enumerate(vios_uuid_list):
             vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
@@ -130,18 +130,19 @@ def is_iso_uploaded(config, cookies, iso_file_name,  sys_uuid, vios_uuid_list):
             vopt_media = media_repos.find_all("VirtualOpticalMedia")
             vopt = vopt_media.find(lambda tag: tag.name == "MediaName" and tag.text == iso_file_name)
             if vopt is not  None:
-                logger.info(f"found ISO file {iso_file_name} in media repositories")
+                logger.info(f"found bootstrap ISO file {iso_file_name} in media repositories")
                 return True, vios_uuid
     except Exception as e:
         raise e
-    logger.info(f"ISO file {iso_file_name} was not found in the media repositories")
+    logger.info(f"bootstrap ISO file {iso_file_name} was not found in the media repositories")
     return False, ""
 
 def upload_iso_to_media_repository(config, cookies, iso_file_name, vios_uuid_list):
-    # Check if ISO file is already uploaded to any of the available VIOS
-    uploaded, vios_uuid = is_iso_uploaded(config, cookies, iso_file_name, vios_uuid_list)
-    if uploaded:
-        return vios_uuid
+    # Check if bootstrap ISO file is already uploaded to any of the available VIOS
+    if "_pimb" in iso_file_name:
+        uploaded, vios_uuid = is_bootstrap_iso_uploaded(config, cookies, iso_file_name, vios_uuid_list)
+        if uploaded:
+            return vios_uuid
 
     # Iterating over the vios_uuid_list to upload the ISO to the media repository for a VIOS
     # If upload operation fails for current VIOS, next available VIOS in the list will be used as a fallback.
