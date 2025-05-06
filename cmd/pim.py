@@ -101,9 +101,9 @@ def uploadfile(config, cookies, filehandle, file_uuid):
         response = requests.put(url, headers=headers, data=readfile(filehandle, chunksize=65536) ,cookies=cookies, verify=False)
         if response.status_code != 204:
             soup = BeautifulSoup(response.text, 'xml')
-            logger.info(soup)
             reason = soup.find("Message")
             file_exists_msg = "already exists"
+            # This check is to account for cloud-init iso reupload scenario.
             if file_exists_msg in reason.text:
                 logger.info("ISO file is already available in VIOS media respository.")
                 return
@@ -137,12 +137,12 @@ def is_bootstrap_iso_uploaded(config, cookies, iso_file_name,  sys_uuid, vios_uu
             vopt_media = media_repos.find_all("VirtualOpticalMedia")
             for vopt in vopt_media:
                 if  vopt.find(lambda tag: tag.name == "MediaName" and tag.text == iso_file_name):
-                    logger.info(f"found bootstrap ISO file {iso_file_name} in media repositories")
+                    logger.info(f"Found bootstrap ISO file '{iso_file_name}' in media repositories")
                     return True, vios_uuid
 
     except Exception as e:
         raise e
-    logger.info(f"bootstrap ISO file {iso_file_name} was not found in the media repositories")
+    logger.info(f"Bootstrap ISO file '{iso_file_name}' was not found in the media repositories")
     return False, ""
 
 def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vios_uuid_list):
