@@ -11,17 +11,18 @@ APP_PORT = "8000"
 PROMPT_PAYLOAD = '''
 {{
     "model": "{model}",
-    "messages": [[
+    "messages": [
         {{
             "role": "user",
             "content": "What is the capital of France?"
         }}
-    ]]
+    ]
 }}
 '''
 
-def get_prompt_payload():
-    return PROMPT_PAYLOAD.format(model=util.get_model())
+def get_prompt_payload(config):
+    model = util.get_model(config)
+    return PROMPT_PAYLOAD.format(model=model)
 
 def check_app(config):
     ip_address = util.get_ip_address(config)
@@ -42,7 +43,7 @@ def check_bot_service(config):
     ip_address = util.get_ip_address(config)
     url = "http://" + ip_address + ":" + APP_PORT + "/v1/chat/completions"
     try:
-        payload = get_prompt_payload()
+        payload = get_prompt_payload(config)
         prompt = json.loads(payload)
         logger.info(f"Prompt: \n{prompt}")
         response = requests.post(url,  data=payload, headers={"Content-Type": "application/json"})

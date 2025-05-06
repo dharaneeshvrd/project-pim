@@ -33,8 +33,6 @@ import storage.virtual_storage as vstorage
 from storage.storage_exception import StorageError
 from jinja2 import Environment, FileSystemLoader
 
-from scp import SCPClient
-
 iso_folder = os.getcwd() + "/iso"
 keys_path = os.getcwd() + "/keys"
 
@@ -549,9 +547,11 @@ def generate_ssh_keys(config):
         raise Exception(f"failed to run ssh-keygen command to generate keypair, error: {result.stderr}")
 
     logger.info("SSH keypair generated successfully")
-    config["custom-flavor"]["ssh"]["priv-key-file"] = keys_path + "/" + util.get_partition_name(config) + "_pim"
-    config["custom-flavor"]["ssh"]["pub-key-file"] = keys_path+ "/" + util.get_partition_name(config) + "_pim.pub"
+    config["ssh"]["user-name"] = "pim"
+    config["ssh"]["priv-key-file"] = keys_path + "/" + util.get_partition_name(config) + "_pim"
+    config["ssh"]["pub-key-file"] = keys_path+ "/" + util.get_partition_name(config) + "_pim.pub"
     return config
+
 def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_bootstrap_media_uuid, vios_cloudinit_media_uuid, vios_storage_list):
     # Iterating over the vios_storage_list to attach physical volume from VIOS to a partition.
     # If attachment operation fails for current VIOS, next available VIOS in the list will be used as a fallback.
@@ -583,7 +583,7 @@ def launch(config, cookies, sys_uuid, vios_uuids):
             config = generate_ssh_keys(config)
 
         # Populate configobj with public key content to get populated in cloud-init config
-        config["custom-flavor"]["ssh"]["pub-key"] = common.readfile(keys_path+ "/" + util.get_partition_name(config) + "_pim.pub")
+        config["ssh"]["pub-key"] = common.readfile(util.get_ssh_pub_key(config))
 
         active_vios_servers = get_active_vios(config, cookies, sys_uuid, vios_uuids)
         if len(active_vios_servers) == 0:
