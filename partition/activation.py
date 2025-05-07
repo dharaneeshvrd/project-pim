@@ -180,11 +180,12 @@ def check_lpar_status(config, cookies, partition_uuid):
     headers = {"x-api-key": util.get_session_key(config)}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        logger.error(f'Failed to get lpar details for {partition_uuid}')
+        logger.error(f"failed to get lpar details for '{partition_uuid}', error: {response.text}")
         raise PartitionError(f'Failed to get lpar details for {partition_uuid}')
     soup = BeautifulSoup(response.text, 'xml')
     state = soup.find("PartitionState")
     if state == None:
+        logger.error(f"partition state of lpar '{partition_uuid}' found to be None")
         raise PartitionError(f'Failed to get lpar status for {partition_uuid}')
     return state.text
 
