@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 
+from .activation import check_lpar_status
 from .partition_exception import PartitionError
 import utils.string_util as util
 import utils.common as common
@@ -105,3 +106,18 @@ def update_partition(config, cookies, system_uuid, partition_uuid, partition_pay
         raise PartitionError(f"failed to attach virtual storage to the partition, error: {response.text}")
     logger.info(f"Updated the bootorder for the partition: {partition_uuid}")
     return
+
+def remove_partition(config, cookies, partition_uuid):
+    lpar_state = check_lpar_status(config, cookies, partition_uuid)
+    if lpar_state == "running":
+        logger.info("Partition already in 'running' state, skipping delete partition")
+        return
+
+    uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}"
+    url = "https://" +  util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
+    response = requests.delete(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 204:
+        logger.error(f"failed to delete partition, error: {response.text}")
+        return
+    logger.info("Partition deleted successfully")

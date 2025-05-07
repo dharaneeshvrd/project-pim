@@ -439,16 +439,6 @@ def get_partition_id(config, cookies, system_uuid):
         logger.info(f"UUID of partition '{partition_name}': {uuid}")
     return uuid
 
-def remove_partition(config, cookies, partition_uuid):
-    uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}"
-    url = "https://" +  util.get_host_address(config) + uri
-    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
-    response = requests.delete(url, headers=headers, cookies=cookies, verify=False)
-    if response.status_code != 204:
-        logger.error(f"failed to delete partition, error: {response.text}")
-        raise PimError(f"failed to delete partition, error: {response.text}")
-    logger.info("Partition deleted successfully")
-
 def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, disk_name):
     logger.info("Removing SCSI mappings..")
     soup = BeautifulSoup(vios, "xml")
@@ -476,7 +466,7 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, disk_name):
 
     if response.status_code != 200:
         logger.error(f"failed to update VIOS with removed storage mappings, error: {response.text}")
-        raise PimError(f"failed to update VIOS with removed storage mappings, error: {response.text}")
+        return
 
     logger.info("Successfully removed SCSI mappings and vOPT media repositories and updated VIOS..")
     return
@@ -524,7 +514,11 @@ def remove_vopt_device(config, cookies, vios, vopt_name):
             if v_media.find("MediaName") is not None and v_media.find("MediaName").text == vopt_name:
                 found = True
                 v_media.decompose()
+                is_vopt_decomposed = True
                 break
+        
+        if not is_vopt_decomposed:
+            return
 
         if not found:
             logger.info("vOPT device '{vopt_name}' is not present in media repository")
@@ -535,11 +529,12 @@ def remove_vopt_device(config, cookies, vios, vopt_name):
         response = requests.post(vg_url, data=str(vol_group), headers=headers, cookies=cookies, verify=False)
         if response.status_code != 200:
             logger.error(f"failed to update volume group after deleting vOPT device from media repository, error: {response.text}")
-            raise PimError(f"failed to update volume group after deleting vOPT device from media repository, error: {response.text}")
+            return
 
         logger.info(f"Virtual optical media '{vopt_name}' has been deleted successfully")
     except Exception as e:
         raise e
+    return
 
 def find_vios_with_vopt_mounted(config, cookies, sys_uuid, vios_uuid_list, vopt_name):
     for uuid in vios_uuid_list:
@@ -552,35 +547,43 @@ def find_vios_with_vopt_mounted(config, cookies, sys_uuid, vios_uuid_list, vopt_
             media_name = vopt.find("MediaName")
             if media_name.text == vopt_name:
                 return uuid
-    raise PimError("no matching VIOS found where vOPTs mounted")
+    return ""
 
-# destroy partition
-def destroy(config, cookies, sys_uuid, vios_uuid_list):
-    logger.info("PIM destroy flow")
-    try:
-        partition_uuid = get_partition_id(config, cookies, sys_uuid)
-
-        # shutdown partition
-        activation.shutdown_partition(config, cookies, partition_uuid)
-
-        vopt_list = [util.get_bootstrap_iso(config), util.get_cloud_init_iso(config)]
-        for vopt in vopt_list:
+def cleanup_vios(config, cookies, sys_uuid, vios_uuid_list):
+    vopt_list = [util.get_bootstrap_iso(config), util.get_cloud_init_iso(config)]
+    for vopt in vopt_list:
+        try:
             vios_uuid = find_vios_with_vopt_mounted(config, cookies, sys_uuid, vios_uuid_list, vopt)
+            if not vios_uuid:
+                logger.error(f"no matching VIOS found where {vopt} vOPTs mounted")
+                continue
             vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
 
             # remove SCSI mapping from VIOS
             remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, vopt)
-
-             # TODO: delete virtual disk, volumegroup if created by the script during launch
+            # TODO: delete virtual disk, volumegroup if created by the script during launch
 
             vios_updated = get_vios_details(config, cookies, sys_uuid, vios_uuid)
 
             # remove mounted virtual optical devices from media repositoy.
             remove_vopt_device(config, cookies, vios_updated, vopt)
+        except Exception as e:
+            logger.error(f"failed to clean up vios")
 
-        remove_partition(config, cookies, partition_uuid)
+def destroy_partition(config, cookies, sys_uuid):
+    try:
+        partition_uuid = get_partition_id(config, cookies, sys_uuid)
+        activation.shutdown_partition(config, cookies, partition_uuid)
+        partition.remove_partition(config, cookies, partition_uuid)
     except (PartitionError, PimError) as e:
-        raise e
+        logger.error(f"failed to destroy partition")
+
+# destroy partition
+def destroy(config, cookies, sys_uuid, vios_uuid_list):
+    logger.info("PIM destroy flow")
+
+    destroy_partition(config, cookies, sys_uuid)
+    cleanup_vios(config, cookies, sys_uuid, vios_uuid_list)
 
     logger.info("Delete partition done")
     return
