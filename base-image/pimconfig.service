@@ -4,7 +4,7 @@ Before=network-online.target cloud-config.target
 Wants=network-online.target cloud-config.target
 
 [Service]
-Type=simple
+Type=oneshot
 ExecStart=/usr/bin/env /bin/bash /usr/bin/get_pimconfig.sh 
 RemainAfterExit=yes
 TimeoutSec=0 
