@@ -9,8 +9,8 @@ logger = common.get_logger("storage")
 
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=VirtualIOServer"
 
-def populate_payload(vios_payload, hmc_host, partition_uuid, system_uuid, vopt_name, slot):
-    vopt_vol_no_slot = f'''
+def get_vopt_scsi_mapping(hmc_host, partition_uuid, system_uuid, vopt_name):
+    scsi_mapping = f'''
     <VirtualSCSIMapping schemaVersion="V1_0">
         <Metadata>
             <Atom/>
@@ -23,57 +23,33 @@ def populate_payload(vios_payload, hmc_host, partition_uuid, system_uuid, vopt_n
                 </Metadata>
                 <MediaName kxe="false" kb="CUR">{vopt_name}</MediaName>
                 <MountType kxe="false" kb="CUD">r</MountType>
-                <Size kb="CUR" kxe="false">0.1221</Size>
             </VirtualOpticalMedia>
         </Storage>
     </VirtualSCSIMapping>
     '''
+    return BeautifulSoup(scsi_mapping, 'xml')
 
-    vopt_vol_slot = f'''
-    <VirtualSCSIMapping schemaVersion="V1_0">
-        <Metadata>
-            <Atom/>
-        </Metadata>
-        <AssociatedLogicalPartition kb="CUR" kxe="false" href="https://{hmc_host}/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition/{partition_uuid}" rel="related"/>
-        <ClientAdapter kb="CUR" kxe="false" schemaVersion="V1_0">
-            <Metadata>
-                <Atom/>
-            </Metadata>
-            <AdapterType kxe="false" kb="ROR">Client</AdapterType>
-            <VirtualSlotNumber kxe="false" kb="COD">{slot}</VirtualSlotNumber>
-        </ClientAdapter>
-        <Storage kxe="false" kb="CUR">
-            <VirtualOpticalMedia schemaVersion="V1_0">
-                <Metadata>
-                    <Atom/>
-                </Metadata>
-                <MediaName kxe="false" kb="CUR">{vopt_name}</MediaName>
-                <MountType kxe="false" kb="CUD">r</MountType>
-                <Size kb="CUR" kxe="false">0.1221</Size>
-            </VirtualOpticalMedia>
-        </Storage>
-    </VirtualSCSIMapping>
-'''
-    
-    if slot == -1:
-        vopt_vol = vopt_vol_no_slot
-    else:
-        vopt_vol = vopt_vol_slot
-
-    vopt_bs = BeautifulSoup(vopt_vol, 'xml')
+def populate_payload(config, vios_payload, hmc_host, partition_uuid, system_uuid, vopt_name):
     vios_bs = BeautifulSoup(vios_payload, 'xml')
     scsi_mappings = vios_bs.find('VirtualSCSIMappings')
-    scsi_mappings.append(vopt_bs)
-    payload = str(vios_bs)
-    return payload
 
-def attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_name, slot):
+    if vopt_name:
+        bc_scsi = get_vopt_scsi_mapping(hmc_host, partition_uuid, system_uuid, vopt_name)
+        scsi_mappings.append(bc_scsi)
+    else:
+        bootstrap_scsi = get_vopt_scsi_mapping(hmc_host, partition_uuid, system_uuid, util.get_bootstrap_iso(config))
+        cloudinit_scsi = get_vopt_scsi_mapping(hmc_host, partition_uuid, system_uuid, util.get_cloud_init_iso(config))
+        scsi_mappings.append(bootstrap_scsi)
+        scsi_mappings.append(cloudinit_scsi)
+
+    return str(vios_bs)
+
+def attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_name):
     uri = f"/rest/api/uom/ManagedSystem/{sys_uuid}/VirtualIOServer/{vios_uuid}"
     hmc_host = util.get_host_address(config)
     url =  "https://" +  hmc_host + uri
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=VirtualIOServer"}
-    #vopt_name = util.get_vopt_name(config)
-    payload = populate_payload(vios_payload, hmc_host, partition_uuid, sys_uuid, vopt_name, slot)
+    payload = populate_payload(config, vios_payload, hmc_host, partition_uuid, sys_uuid, vopt_name)
     response = requests.post(url, headers=headers, cookies=cookies, data=payload, verify=False)
 
     if response.status_code != 200:

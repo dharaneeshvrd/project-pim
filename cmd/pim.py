@@ -628,17 +628,14 @@ def launch(config, cookies, sys_uuid, vios_uuids):
 
         # Attach bootstrap vOPT
         vopt_bootstrap = util.get_bootstrap_iso(config)
-        vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_bootstrap_media_uuid, vopt_bootstrap, -1)
-        logger.info("a. Bootstrap virtual optical device attached")
-
-        updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_cloudinit_media_uuid)
-        # Get VirtualSlotNumber for the disk(physical/virtual)
-        slot_num = -1
-        if vios_bootstrap_media_uuid == vios_cloudinit_media_uuid:
-            slot_num = get_virtual_slot_number(updated_vios_payload, vopt_bootstrap)
         vopt_cloud_init = util.get_cloud_init_iso(config)
-        vopt.attach_vopt(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_cloudinit_media_uuid, vopt_cloud_init, slot_num)
-        logger.info("b. Cloudinit virtual optical device attached")
+        if vios_cloudinit_media_uuid == vios_bootstrap_media_uuid:
+            vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_bootstrap_media_uuid, "")
+        else:
+            vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_bootstrap_media_uuid, vopt_bootstrap)
+            vios_payload = get_vios_details(config, cookies, sys_uuid, vios_cloudinit_media_uuid)
+            vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_cloudinit_media_uuid, vopt_cloud_init)
+        logger.info("Bootstrap and cloudinit virtual optical device attached")
         logger.info("---------------------- Attach installation medias done ----------------------")
 
         logger.info("10. Attach storage")
