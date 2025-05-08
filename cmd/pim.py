@@ -165,7 +165,11 @@ def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vio
                 lpar_state = activation.check_lpar_status(config, cookies, lpar_uuid)
                 if lpar_state == "running":
                     logger.info("Partition already in 'running' state, skipping reupload of cloud-init ISO")
-                    return
+                    return vios_uuid
+
+            # remove SCSI mapping from VIOS
+            remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, iso_file_name)
+
             # Delete existing cloud-init vOPT with same name if already loaded in VIOS media repository
             remove_vopt_device(config, cookies, vios, iso_file_name)
 
@@ -464,7 +468,7 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, disk_name):
     
     if disk == None:
         logger.error(f"no SCSI mapping available for '{disk_name}'")
-        raise PimError(f"no SCSI mapping available for '{disk_name}'")
+        return
     scsi1 = disk.parent.parent
     scsi1.decompose()
 
