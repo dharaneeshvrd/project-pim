@@ -574,7 +574,7 @@ def destroy_partition(config, cookies, sys_uuid):
     try:
         exists, partition_uuid = partition.check_partition_exists(config, cookies, sys_uuid)
         if not exists:
-            logger.error(f"no partition available with name '{util.get_partition_name(config) + "-pim"}'")
+            logger.info(f"Partition named '{util.get_partition_name(config)}-pim' not found.")
             return
         
         activation.shutdown_partition(config, cookies, partition_uuid)
