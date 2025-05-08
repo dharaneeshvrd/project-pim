@@ -69,6 +69,35 @@ def get_bootorder_payload(partition_payload, bootorder):
 def convert_gb_to_mb(value):
     return int(value) * 1024
 
+def get_all_partitions(config, cookies, system_uuid):
+    uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition/quick/All"
+    url = "https://" +  util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config)}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        logger.error(f"failed to get partition list, error: {response.text}")
+        raise PartitionError(f"failed to get partition list, error: {response.text}")
+    return response.json()
+
+def check_partition_exists(config, cookies, system_uuid):
+    uuid = ""
+    try:
+        partitions = get_all_partitions(config, cookies, system_uuid)
+        lpar_name = util.get_partition_name(config) + "-pim"
+        for partition in partitions:
+            if partition["PartitionName"] == lpar_name:
+                uuid = partition["UUID"]
+                break
+
+        if len(uuid) > 0:
+            logger.info(f"UUID of partition '{lpar_name}': {uuid}")
+            return True, uuid
+        else:
+            logger.error(f"no partition available with name '{lpar_name}'")
+    except Exception as e:
+        raise e
+    return False, uuid
+
 def create_partition(config, cookies, system_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition"
     url = "https://" +  util.get_host_address(config) + uri

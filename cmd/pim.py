@@ -572,7 +572,11 @@ def cleanup_vios(config, cookies, sys_uuid, vios_uuid_list):
 
 def destroy_partition(config, cookies, sys_uuid):
     try:
-        partition_uuid = get_partition_id(config, cookies, sys_uuid)
+        exists, partition_uuid = partition.check_partition_exists(config, cookies, sys_uuid)
+        if not exists:
+            logger.error(f"no partition available with name '{util.get_partition_name(config) + "-pim"}'")
+            return
+        
         activation.shutdown_partition(config, cookies, partition_uuid)
         partition.remove_partition(config, cookies, partition_uuid)
     except (PartitionError, PimError) as e:
