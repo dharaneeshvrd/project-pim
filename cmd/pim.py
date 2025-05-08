@@ -159,6 +159,13 @@ def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vio
         try:
             vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
 
+            # Re-run scenario: If lpar is already activated but launch flow failed during monitoring or app_check stage in previous run. Skip reupload of cloudinit iso
+            exists, lpar_uuid = partition.check_partition_exists(config, cookies, sys_uuid)
+            if exists:
+                lpar_state = activation.check_lpar_status(config, cookies, lpar_uuid)
+                if lpar_state == "running":
+                    logger.info("Partition already in 'running' state, skipping reupload of cloud-init ISO")
+                    return
             # Delete existing cloud-init vOPT with same name if already loaded in VIOS media repository
             remove_vopt_device(config, cookies, vios, iso_file_name)
 
