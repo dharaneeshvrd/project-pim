@@ -362,19 +362,6 @@ def get_vios_with_physical_storage(config, active_vios_servers):
     vios_list.sort(key=lambda vios: vios[2])
     return vios_list
 
-def get_virtual_slot_number(vios_payload, disk_name):
-    soup = BeautifulSoup(vios_payload, 'xml')
-    scsi_mappings = soup.find("VirtualSCSIMappings")
-
-    # Below double XMl parsing (convert xml -> str and str -> xml) is done as workaround for the XML parsing issue seen on IBMi partititon
-    # TODO: Identify root cause and remove the workaround later
-    scsi_mappings = BeautifulSoup(str(scsi_mappings), 'xml')
-
-    disk = scsi_mappings.find(lambda tag: tag.name == "MediaName" and tag.text == disk_name)
-    storage_scsi = disk.parent.parent.parent
-    slot_num = storage_scsi.find("VirtualSlotNumber")
-    return slot_num.text
-
 def get_volume_group(config, cookies, vios_uuid, vg_name):
     uri = f"/rest/api/uom/VirtualIOServer/{vios_uuid}/VolumeGroup"
     url =  "https://" + util.get_host_address(config) + uri
@@ -552,7 +539,7 @@ def generate_ssh_keys(config):
     config["ssh"]["pub-key-file"] = keys_path+ "/" + util.get_partition_name(config) + "_pim.pub"
     return config
 
-def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_bootstrap_media_uuid, vios_cloudinit_media_uuid, vios_storage_list):
+def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_storage_list):
     # Iterating over the vios_storage_list to attach physical volume from VIOS to a partition.
     # If attachment operation fails for current VIOS, next available VIOS in the list will be used as a fallback.
     for index, vios_storage in enumerate(vios_storage_list):
@@ -560,13 +547,8 @@ def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_boot
             vios_storage_uuid, physical_volume_name, _ = vios_storage
             updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
             logger.debug("Attach physical storage to the partition")
-            storage_slot_num = -1
-            if vios_storage_uuid == vios_bootstrap_media_uuid:
-                storage_slot_num = get_virtual_slot_number(updated_vios_payload, util.get_bootstrap_iso(config))
-            elif vios_storage_uuid == vios_cloudinit_media_uuid:
-                storage_slot_num = get_virtual_slot_number(updated_vios_payload, util.get_cloud_init_iso(config))
             
-            storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid, storage_slot_num, physical_volume_name)
+            storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid, physical_volume_name)
             logger.info(f"Attached '{physical_volume_name}' physical volume to the partition from VIOS '{vios_storage_uuid}'")
             break
         except (PimError, StorageError) as e:
@@ -660,7 +642,7 @@ def launch(config, cookies, sys_uuid, vios_uuids):
                     vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid)
                     diskname = util.get_virtual_disk_name(config)
         else:
-            attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_bootstrap_media_uuid, vios_cloudinit_media_uuid, vios_storage_list)
+            attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_storage_list)
         logger.info("---------------------- Attach storage done ----------------------")
 
         logger.info("11. Activate partition")
