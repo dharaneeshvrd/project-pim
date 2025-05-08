@@ -514,12 +514,8 @@ def remove_vopt_device(config, cookies, vios, vopt_name):
             if v_media.find("MediaName") is not None and v_media.find("MediaName").text == vopt_name:
                 found = True
                 v_media.decompose()
-                is_vopt_decomposed = True
                 break
         
-        if not is_vopt_decomposed:
-            return
-
         if not found:
             logger.info("vOPT device '{vopt_name}' is not present in media repository")
             return
