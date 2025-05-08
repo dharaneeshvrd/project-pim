@@ -122,12 +122,51 @@ def remove_iso_file(config, cookies, filename, file_uuid):
     logger.debug(f"ISO file: '{filename}' removed from VIOS successfully")
     return
 
-def upload_iso_to_media_repository(config, cookies, iso_file_name, vios_uuid_list):
+def is_iso_uploaded(config, cookies, iso_file_name,  sys_uuid, vios_uuid_list):
+    try:
+        for _, vios_uuid in enumerate(vios_uuid_list):
+            vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+            _, _, media_repos = get_media_repositories(config, cookies, vios)
+            vopt_media = media_repos.find_all("VirtualOpticalMedia")
+            for vopt in vopt_media:
+                if  vopt.find(lambda tag: tag.name == "MediaName" and tag.text == iso_file_name):
+                    logger.info(f"Found ISO file '{iso_file_name}' in media repositories")
+                    return True, vios_uuid
+
+    except Exception as e:
+        raise e
+    logger.info(f"ISO file '{iso_file_name}' was not found in the media repositories")
+    return False, ""
+
+def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vios_uuid_list):
+    # Check if bootstrap ISO file is already uploaded to any of the available VIOS
+    if "_pimb" in iso_file_name:
+        uploaded, vios_uuid = is_iso_uploaded(config, cookies, iso_file_name, sys_uuid, vios_uuid_list)
+        if uploaded:
+            return vios_uuid
+
     # Iterating over the vios_uuid_list to upload the ISO to the media repository for a VIOS
     # If upload operation fails for current VIOS, next available VIOS in the list will be used as a fallback.
     file_uuid = ""
     for index, vios_uuid in enumerate(vios_uuid_list):
         try:
+            # Re-run scenario: If lpar is already activated but launch flow failed during monitoring or app_check stage in previous run. Skip reupload of cloudinit iso
+            if "_pimc" in iso_file_name:
+                exists, lpar_uuid = partition.check_partition_exists(config, cookies, sys_uuid)
+                if exists:
+                    lpar_state = activation.check_lpar_status(config, cookies, lpar_uuid)
+                    if lpar_state == "running":
+                        logger.info(f"Partition already in 'running' state, skipping reupload of cloud-init ISO '{iso_file_name}'")
+                        return vios_uuid
+
+                    vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+
+                    # remove SCSI mapping from VIOS
+                    remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, iso_file_name)
+
+                    # Delete existing cloud-init vOPT with same name if already loaded in VIOS media repository
+                    remove_vopt_device(config, cookies, vios, iso_file_name)
+
             # Create ISO filepath for bootstrap iso
             iso_file = iso_folder + "/" + iso_file_name
             iso_checksum = hash(iso_file)
@@ -423,7 +462,7 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, disk_name):
     
     if disk == None:
         logger.error(f"no SCSI mapping available for '{disk_name}'")
-        raise PimError(f"no SCSI mapping available for '{disk_name}'")
+        return
     scsi1 = disk.parent.parent
     scsi1.decompose()
 
@@ -442,34 +481,56 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, disk_name):
     logger.info("Successfully removed SCSI mappings and vOPT media repositories and updated VIOS..")
     return
 
-def remove_vopt_device(config, cookies, vios, vopt_name):
-    # find volume group URL associated with StoragePool
-    soup = BeautifulSoup(vios, 'xml')
-    storage_pool = soup.find("StoragePools")
-    if storage_pool.find("link") is not None:
-        vg_url = storage_pool.find("link").attrs['href']
-    else:
-        logger.error("failed to get volume group hyperlink from VIOS")
-        raise PimError("failed to get volume group hyperlink from VIOS")
-
-    # make REST call to volume group URL(vg_url) to get list of media repositories
-    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; type=VolumeGroup"}
-    response = requests.get(vg_url, headers=headers, cookies=cookies, verify=False)
+def get_media_repositories(config, cookies, vios):
+    vg_url = ""
+    vol_group = None
+    media_repos = None
     try:
-        if response.status_code != 200:
-            logger.error(f"failed to get volume group details, error: {response.text}")
-            raise PimError(f"failed to get volume group details, error: {response.text}")
-        soup = BeautifulSoup(response.text, 'xml')
-        vol_group = soup.find("VolumeGroup")
+        # find volume group URL associated with StoragePool
+        soup = BeautifulSoup(vios, 'xml')
+        storage_pool = soup.find("StoragePools")
+        if storage_pool.find("link") is not None:
+            vg_url = storage_pool.find("link").attrs['href']
+        else:
+            logger.error("failed to get volume group hyperlink from VIOS")
+            raise PimError("failed to get volume group hyperlink from VIOS")
 
+        # make REST call to volume group URL(vg_url) to get list of media repositories
+        headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; type=VolumeGroup"}
+        response = requests.get(vg_url, headers=headers, cookies=cookies, verify=False)
+        if response.status_code != 200:
+            logger.error(f"failed to get media repositories, error: {response.text}")
+            raise PimError(f"failed to get media repositories, error: {response.text}")
+        soup = BeautifulSoup(response.text, 'xml')
+        media_repos = soup.find("MediaRepositories")
+        vol_group = soup.find("VolumeGroup")
+    except Exception as e:
+        logger.error(f"failed to get media repositories, error: {e}")
+        raise e
+    logger.info("Obtained media repositories from VIOS successfully")
+    return vg_url, vol_group, media_repos
+
+def remove_vopt_device(config, cookies, vios, vopt_name):
+    try:
+        vg_url, vol_group, media_repos = get_media_repositories(config, cookies, vios)
+        if media_repos is None:
+            logger.error("failed to get media repositories")
+            raise Exception("failed to get media repositories")
+
+        found = False
         # remove vopt_name from media repositoy
-        vopt_media = vol_group.find_all("VirtualOpticalMedia")
+        vopt_media = media_repos.find_all("VirtualOpticalMedia")
         for v_media in vopt_media:
             if v_media.find("MediaName") is not None and v_media.find("MediaName").text == vopt_name:
+                found = True
                 v_media.decompose()
                 break
 
-        logger.info("Updated volume group after removing vOPT from media repositories")
+        if not found:
+            logger.info("vOPT device '{vopt_name}' is not present in media repository")
+            return
+
+        headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; type=VolumeGroup"}
         # Now update the modified media repositoy list after delete
         response = requests.post(vg_url, data=str(vol_group), headers=headers, cookies=cookies, verify=False)
         if response.status_code != 200:
@@ -588,9 +649,9 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         logger.info("---------------------- Setup installation ISOs done ----------------------")
         
         logger.info("6. Transfer ISO files to VIOS media repository")
-        vios_bootstrap_media_uuid = upload_iso_to_media_repository(config, cookies, util.get_bootstrap_iso(config),vios_media_uuid_list)
+        vios_bootstrap_media_uuid = upload_iso_to_media_repository(config, cookies, util.get_bootstrap_iso(config), sys_uuid, vios_media_uuid_list)
         logger.info(f"a. Selecting '{vios_bootstrap_media_uuid}' VIOS to mount bootstrap vOPT")
-        vios_cloudinit_media_uuid = upload_iso_to_media_repository(config, cookies, util.get_cloud_init_iso(config),vios_media_uuid_list)
+        vios_cloudinit_media_uuid = upload_iso_to_media_repository(config, cookies, util.get_cloud_init_iso(config), sys_uuid, vios_media_uuid_list)
         logger.info(f"b. Selecting '{vios_cloudinit_media_uuid}' VIOS to mount cloudinit vOPT")
         
         logger.info("---------------------- Transfer ISOs done ----------------------")
