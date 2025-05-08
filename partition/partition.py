@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 
+from .activation import check_lpar_status
 from .partition_exception import PartitionError
 import utils.string_util as util
 import utils.common as common
@@ -68,6 +69,35 @@ def get_bootorder_payload(partition_payload, bootorder):
 def convert_gb_to_mb(value):
     return int(value) * 1024
 
+def get_all_partitions(config, cookies, system_uuid):
+    uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition/quick/All"
+    url = "https://" +  util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config)}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        logger.error(f"failed to get partition list, error: {response.text}")
+        raise PartitionError(f"failed to get partition list, error: {response.text}")
+    return response.json()
+
+def check_partition_exists(config, cookies, system_uuid):
+    uuid = ""
+    try:
+        partitions = get_all_partitions(config, cookies, system_uuid)
+        lpar_name = util.get_partition_name(config) + "-pim"
+        for partition in partitions:
+            if partition["PartitionName"] == lpar_name:
+                uuid = partition["UUID"]
+                break
+
+        if len(uuid) > 0:
+            logger.info(f"UUID of partition '{lpar_name}': {uuid}")
+            return True, uuid
+        else:
+            logger.error(f"no partition available with name '{lpar_name}'")
+    except Exception as e:
+        raise e
+    return False, uuid
+
 def create_partition(config, cookies, system_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition"
     url = "https://" +  util.get_host_address(config) + uri
@@ -105,3 +135,13 @@ def update_partition(config, cookies, system_uuid, partition_uuid, partition_pay
         raise PartitionError(f"failed to attach virtual storage to the partition, error: {response.text}")
     logger.info(f"Updated the bootorder for the partition: {partition_uuid}")
     return
+
+def remove_partition(config, cookies, partition_uuid):
+    uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}"
+    url = "https://" +  util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
+    response = requests.delete(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 204:
+        logger.error(f"failed to delete partition, error: {response.text}")
+        return
+    logger.info("Partition deleted successfully")

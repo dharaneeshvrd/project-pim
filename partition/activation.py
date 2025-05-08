@@ -189,7 +189,7 @@ def check_lpar_status(config, cookies, partition_uuid):
         raise PartitionError(f'Failed to get lpar status for {partition_uuid}')
     return state.text
 
-def shutdown_paritition(config, cookies, partition_uuid):
+def shutdown_partition(config, cookies, partition_uuid):
     lpar_state = check_lpar_status(config, cookies, partition_uuid)
     if lpar_state == "not activated":
         logger.info("Partition already in 'not activated' state, skipping shutdown")
@@ -202,11 +202,11 @@ def shutdown_paritition(config, cookies, partition_uuid):
     response = requests.put(url, headers=headers, cookies=cookies, data=payload, verify=False)
     if response.status_code != 200:
         logger.error(f"failed to shutdown partition, error: {response.text}")
-        raise PartitionError(f"failed to shutdown partition, error: {response.text}")
+        return
     # check job status for COMPLETED_OK
     status = check_job_status(config, cookies, response.text)
     if not status:
         logger.error(f"failed to shutdown partition, shutdown job returned false")
-        raise PartitionError(f"failed to shutdown partition, shutdown job returned false")
+        return
     logger.info("Partition shutdown successfully.")
     return
