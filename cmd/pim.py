@@ -568,7 +568,7 @@ def cleanup_vios(config, cookies, sys_uuid, vios_uuid_list):
             # remove mounted virtual optical devices from media repositoy.
             remove_vopt_device(config, cookies, vios_updated, vopt)
         except Exception as e:
-            logger.error(f"failed to clean up vios")
+            logger.error(f"failed to clean up vios. error: {e}")
 
 def destroy_partition(config, cookies, sys_uuid):
     try:
@@ -576,7 +576,7 @@ def destroy_partition(config, cookies, sys_uuid):
         activation.shutdown_partition(config, cookies, partition_uuid)
         partition.remove_partition(config, cookies, partition_uuid)
     except (PartitionError, PimError) as e:
-        logger.error(f"failed to destroy partition")
+        logger.error(f"failed to destroy partition. error: {e}")
 
 # destroy partition
 def destroy(config, cookies, sys_uuid, vios_uuid_list):
@@ -585,7 +585,7 @@ def destroy(config, cookies, sys_uuid, vios_uuid_list):
     destroy_partition(config, cookies, sys_uuid)
     cleanup_vios(config, cookies, sys_uuid, vios_uuid_list)
 
-    logger.info("Delete partition done")
+    logger.info("Destroy partition done")
     return
 
 def generate_ssh_keys(config):

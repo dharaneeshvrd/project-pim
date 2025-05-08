@@ -108,11 +108,6 @@ def update_partition(config, cookies, system_uuid, partition_uuid, partition_pay
     return
 
 def remove_partition(config, cookies, partition_uuid):
-    lpar_state = check_lpar_status(config, cookies, partition_uuid)
-    if lpar_state == "running":
-        logger.info("Partition already in 'running' state, skipping delete partition")
-        return
-
     uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}"
     url = "https://" +  util.get_host_address(config) + uri
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
