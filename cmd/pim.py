@@ -157,6 +157,11 @@ def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vio
     file_uuid = ""
     for index, vios_uuid in enumerate(vios_uuid_list):
         try:
+            vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+
+            # Delete existing cloud-init vOPT with same name if already loaded in VIOS media repository
+            remove_vopt_device(config, cookies, vios, iso_file_name)
+
             # Create ISO filepath for bootstrap iso
             iso_file = iso_folder + "/" + iso_file_name
             iso_checksum = hash(iso_file)
@@ -497,12 +502,18 @@ def remove_vopt_device(config, cookies, vios, vopt_name):
     try:
         vg_url, vol_group, media_repos = get_media_repositories(config, cookies, vios)
 
+        found = False
         # remove vopt_name from media repositoy
         vopt_media = media_repos.find_all("VirtualOpticalMedia")
         for v_media in vopt_media:
             if v_media.find("MediaName") is not None and v_media.find("MediaName").text == vopt_name:
+                found = True
                 v_media.decompose()
                 break
+
+        if not found:
+            logger.info("vOPT device '{vopt_name}' is not present in media repository")
+            return
 
         logger.info("Updated volume group after removing vOPT from media repositories")
 
