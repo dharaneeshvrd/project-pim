@@ -42,6 +42,6 @@ def attach_storage(vios_payload, config, cookies, partition_uuid, system_uuid, v
     response = requests.post(url, headers=headers, cookies=cookies, data=payload, verify=False)
 
     if response.status_code != 200:
-        logger.error(f"failed to attach virtual storage to the partition, error: {response.text}")
-        raise StorageError(f"failed to attach virtual storage to the partition, error: {response.text}")
+        logger.error(f"failed to attach physical disk to the partition, error: {response.text}")
+        raise StorageError(f"failed to attach physical disk to the partition, error: {response.text}")
     return
