@@ -100,13 +100,13 @@ def uploadfile(config, cookies, filehandle, file_uuid):
     try:
         response = requests.put(url, headers=headers, data=readfile(filehandle, chunksize=65536) ,cookies=cookies, verify=False)
         if response.status_code != 204:
-            soup = BeautifulSoup(response.text, 'xml')
-            reason = soup.find("Message")
-            file_exists_msg = "already exists"
-            # This check is to account for cloud-init iso reupload scenario.
-            if file_exists_msg in reason.text:
-                logger.info("ISO file is already available in VIOS media respository.")
-                return
+            # soup = BeautifulSoup(response.text, 'xml')
+            # reason = soup.find("Message")
+            # file_exists_msg = "already exists"
+            # # This check is to account for cloud-init iso reupload scenario.
+            # if file_exists_msg in reason.text:
+            #     logger.info("ISO file is already available in VIOS media respository.")
+            #     return
             logger.error(f"failed to upload ISO file '{filehandle}' to VIOS media repository, error: {response.text}")
             raise Exception(f"failed to upload ISO file '{filehandle}' to VIOS media repository, error: {response.text}")
     except Exception as e:
