@@ -34,3 +34,31 @@ bash install.sh
   python3 cmd/pim.py [launch/destroy]
   ```
 
+## PIM Task Role
+Create a new task role with base role as "hmcsuperadmin" and with limited set of permissions to perform pim operations.
+
+List of permissions required to perform all necessary actions.
+- Managed System
+  - Create Partitions
+  - View Managed Systems
+  - Manage Virtual Network
+  - ManageVirtualStorage
+- Partition
+  - Modify Partitions
+  - Activate Partition
+  - Close Vterm
+  - Delete Partition
+  - DLPAR Operations
+  - Suspend Partition
+  - View Partitions
+  - View Profile
+  - Open Vterm
+  - Reboot Partition
+  - RemoteRestartLPAR
+  - Shutdown Partition
+  - ViosAdminOp
+  - Virtual IO Server Command
+- HMC Console
+  - Modify HMC Configuration
+  - Change HMC File Systems
+  - View HMC File Systems
