@@ -135,25 +135,23 @@ def get_bootstrap_iso_download_url(config):
 def get_workload_image(config):
     return config["ai"]["workload-image"]
 
-def get_llm_args(config):
-    return config["ai"]["llm-args"]
-
-def get_llm_image(config):
-    return config["ai"]["llm-image"]
+def get_pim_config_json(config):
+    return config["ai"]["pim-config-json"]
 
 def get_auth_json(config):
     return config["ai"]["auth-json"]
 
-def get_model(config):
-    llm_args = get_llm_args(config)
-    llm_args_s = llm_args.split(" ")
-    model = ""
-    for i, arg in enumerate(llm_args_s):
-        if "--model=" in arg:
-            model = arg.split("=")[-1]
-            return model
-        elif "--model" == arg and len(llm_args_s) > i+1:
-            model = llm_args_s[i+1]
-            return model
+def get_ai_app_request(config):
+    return config["ai"]["validation"]["request"]
 
-    raise Exception("Not able to retrieve model from input config, check your llm_args. llm_args: {}".format(llm_args))
+def get_ai_app_url(config):
+    return config["ai"]["validation"]["url"]
+
+def get_ai_app_method(config):
+    return config["ai"]["validation"]["method"]
+
+def get_ai_app_headers(config):
+    return config["ai"]["validation"]["headers"]
+
+def get_ai_app_payload(config):
+    return config["ai"]["validation"]["payload"]

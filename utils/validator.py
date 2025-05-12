@@ -25,8 +25,6 @@ def validate_str_params(config):
         # AI parameter validations
         (get_bootstrap_iso_download_url, "ai.bootstrap-iso-url"),
         (get_workload_image, "ai.workload-image"),
-        (get_llm_image, "ai.llm-image"),
-        (get_llm_args, "ai.llm-args"),
         
         # Partition parameter validations
         (get_partition_name, "partition.name"),
@@ -40,6 +38,10 @@ def validate_str_params(config):
 
     if get_partition_flavor(config) == "custom":
         parameter_list.append((get_sharing_mode, "custom-flavor.cpu.sharing-mode"))
+
+    if get_ai_app_request == "yes":
+        parameter_list.append(get_ai_app_url, "ai.validation.url")
+        parameter_list.append(get_ai_app_method, "ai.validation.method")
 
     is_valid = True
     for get_str, param_name in parameter_list:
@@ -104,12 +106,16 @@ def validate_params_value(config):
         validate_bootstrap_url,
         validate_ip_addresses,
         validate_ssh_keys,
-        validate_auth_json
+        validate_auth_json,
+        validate_pim_config_json,
     ]
     if get_partition_flavor == "custom":
         params_validators.append(validate_cpu_mode)
         if has_dedicated_proc(config):
             params_validators.append(validate_dedicated_desired_proc)
+
+    if get_ai_app_request == "yes":
+        params_validators.append(validate_ai_app_validator)
 
     return all ( validator(config) for validator in params_validators)
 
@@ -189,10 +195,13 @@ def validate_system_name(config):
         logger.error(f"validation failed: 'system.name' value '{get_system_name(config)}' have invalid format.")
     return bool(result)
 
+def validate_url(url):
+    pattern = "^https?:\\/\\/(?:www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b(?:[-a-zA-Z0-9()@:%_\\+.~#?&\\/=]*)$"
+    return re.match(pattern, url)
+
 # Validate the correctness of the bootstrap URL format
 def validate_bootstrap_url(config):
-    pattern = "^https?:\\/\\/(?:www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b(?:[-a-zA-Z0-9()@:%_\\+.~#?&\\/=]*)$"
-    result = re.match(pattern, get_bootstrap_iso_download_url(config))
+    result = validate_url(get_bootstrap_iso_download_url(config))
     if not bool(result):
         logger.error(f"validation failed: 'ai.bootstrap-iso-url' value '{get_bootstrap_iso_download_url(config)}' must be a url")
     return bool(result)
@@ -235,13 +244,41 @@ def validate_virtual_switch_name(config, cookies, system_uuid):
 
     return found
 
-def validate_auth_json(config):
-    value = get_auth_json(config)
+def validate_json(value, field):
     if value != "":
         try:
             json.loads(value)
             return True
         except Exception as e:
-            logger.error(f"validation failed: 'ai.auth-json' must have valid json value. {e}")
+            logger.error(f"validation failed: '{field}' must have valid json value. {e}")
             return False
     return True
+
+def validate_auth_json(config):
+    return validate_json(get_auth_json(config), "ai.auth-json")
+
+def validate_pim_config_json(config):
+    return validate_json(get_pim_config_json(config), "ai.pim-config-json")
+
+def validate_ai_app_validator(config):
+    result = True
+
+    url = get_ai_app_url(config)
+    if not bool(validate_url(url)):
+        logger.error(f"validation failed: 'ai.validation.url' value '{url}' must be a url")
+        result = False
+
+    method = get_ai_app_method(config)
+    if method != "GET" and method != "POST":
+        logger.error(f"validation failed: 'ai.validation.method' value '{method}' must be either GET or POST")
+        result = False
+
+    payload = get_ai_app_payload(config)
+    if not validate_json(payload, "ai.validation.payload"):
+        result = False
+
+    headers = get_ai_app_headers(config)
+    if headers != "" and not validate_json(headers, "ai.validation.headers"):
+        result = False
+    
+    return result

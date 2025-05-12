@@ -1,5 +1,6 @@
 import argparse
 import hashlib
+import json
 import logging
 import os
 import time
@@ -38,7 +39,11 @@ keys_path = os.getcwd() + "/keys"
 
 def initialize():
     config_file = "config.ini"
-    config = ConfigObj(config_file)
+    try:
+        config = ConfigObj(config_file)
+    except Exception as e:
+        logger.error(f"failed to parse config.ini, error: {e}")
+        raise e
     return config
 
 def get_ssh_client():
@@ -208,8 +213,6 @@ def build_and_download_iso(config):
 def generate_cloud_init_iso_config(config):
     file_loader = FileSystemLoader('cloud-init-iso/templates')
     env = Environment(loader=file_loader)
-    pim_config_template = env.get_template('pim_config.json')
-    pim_config_output = pim_config_template.render(config=config)
     
     network_config_template = env.get_template('99_custom_network.cfg')
     network_config_output = network_config_template.render(config=config)
@@ -217,8 +220,14 @@ def generate_cloud_init_iso_config(config):
     cloud_init_config_path = "cloud-init-iso/config"
     create_dir(cloud_init_config_path)
 
+    pim_config_json = config["ai"]["pim-config-json"] if config["ai"]["pim-config-json"] != "" else "{}"
+    pim_config_json = json.loads(pim_config_json)
+
+    # 'workloadImage' is being used inside the bootstrap iso to write the bootc image into disk, in case of modification of this field name, needs same modification in bootstrap.iso too.
+    pim_config_json["workloadImage"] = util.get_workload_image(config)
+    
     pim_config_file = open(cloud_init_config_path + "/pim_config.json", "w")
-    pim_config_file.write(pim_config_output)
+    pim_config_file.write(json.dumps(pim_config_json))
 
     network_config_file = open(cloud_init_config_path + "/99_custom_network.cfg", "w")
     network_config_file.write(network_config_output)
@@ -714,6 +723,10 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         monitor_iso_installation(config, cookies)
         logger.info("---------------------- Monitor ISO installation done ----------------------")
 
+        if util.get_ai_app_request(config) == "no":
+            logger.info("PIM image installed onto disk and rebooted, application should be available in few mins")
+            logger.info("---------------------- PIM workflow complete ----------------------")
+
         logger.info("13. Wait for lpar to boot from the disk")
         # Poll for the 8000 AI application port
         time.sleep(300)
@@ -725,9 +738,7 @@ def launch(config, cookies, sys_uuid, vios_uuids):
                 time.sleep(10)
                 continue
             else:
-                logger.info("AI application is up and running. Now checking response for prompt from OpenAI API server")
-                resp = app.check_bot_service(config)
-                logger.info(f"Response from bot service: \n{resp}")
+                logger.info("AI application is up and running")
                 logger.info("---------------------- PIM workflow complete ----------------------")
                 return
         logger.error("failed to bring up AI application from bootc")
