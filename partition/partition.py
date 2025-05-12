@@ -99,6 +99,9 @@ def check_partition_exists(config, cookies, system_uuid):
     return False, uuid
 
 def create_partition(config, cookies, system_uuid):
+    exists, partition_uuid = check_partition_exists(config, cookies, system_uuid)
+    if exists:
+        return partition_uuid
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition"
     url = "https://" +  util.get_host_address(config) + uri
     payload = populate_payload(config)

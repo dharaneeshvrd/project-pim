@@ -53,6 +53,13 @@ def hash(file):
             sha256.update(chunk)
     return sha256.hexdigest()
 
+def check_if_keys_generated(config):
+    priv_key = f"{keys_path}/{util.get_partition_name(config)}_pim"
+    pub_key = f"{keys_path}/{util.get_partition_name(config)}_pim.pub"
+    if os.path.isfile(priv_key) and os.path.isfile(pub_key):
+        return True
+    return False
+
 def create_iso_path(config, cookies, vios_uuid, filename, checksum, filesize):
     uri = "/rest/api/web/File/"
     url = "https://" + util.get_host_address(config) + uri
@@ -145,6 +152,7 @@ def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vio
         if uploaded:
             return vios_uuid
 
+    logger.info(f"Uploading ISO file '{iso_file_name} to VIOS media repository")
     # Iterating over the vios_uuid_list to upload the ISO to the media repository for a VIOS
     # If upload operation fails for current VIOS, next available VIOS in the list will be used as a fallback.
     file_uuid = ""
@@ -231,9 +239,16 @@ def generate_cloud_init_iso_file(iso_folder, config):
         raise
 
 def download_bootstrap_iso(iso_folder, config):
-    logger.info("Downloading bootstrap ISO file...")
     download_url = util.get_bootstrap_iso_download_url(config)
     iso_file_path = f"{iso_folder}/{util.get_bootstrap_iso(config)}"
+
+    # Check if bootstrap iso is already downloaded locally(on IBMi)
+    if os.path.isfile(iso_file_path):
+        logger.info(f"Bootstrap iso '{iso_file_path}' found, skipping download..")
+        return
+
+    logger.info("Downloading bootstrap ISO file...")
+
     try:
         response = requests.get(download_url, stream=True)
         response.raise_for_status()
@@ -416,29 +431,6 @@ def get_volume_group(config, cookies, vios_uuid, vg_name):
     vg_id = vol_group.find("AtomID").text
     return vg_id
 
-def get_partition_id(config, cookies, system_uuid):
-    uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition/quick/All"
-    url = "https://" +  util.get_host_address(config) + uri
-    headers = {"x-api-key": util.get_session_key(config)}
-    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
-    if response.status_code != 200:
-        logger.error(f"failed to get partition list, error: {response.text}")
-        raise PimError(f"failed to get partition list, error: {response.text}")
-
-    uuid = ""
-    partition_name = util.get_partition_name(config) + "-pim"
-    for partition in response.json():
-        if partition["PartitionName"] == partition_name:
-            uuid = partition["UUID"]
-            break
-
-    if "" == uuid:
-        logger.error(f"no partition available with name '{partition_name}'")
-        raise PimError(f"no partition available with name '{partition_name}'")
-    else:
-        logger.info(f"UUID of partition '{partition_name}': {uuid}")
-    return uuid
-
 def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, disk_name):
     logger.info("Removing SCSI mappings..")
     soup = BeautifulSoup(vios, "xml")
@@ -546,25 +538,24 @@ def find_vios_with_vopt_mounted(config, cookies, sys_uuid, vios_uuid_list, vopt_
     return ""
 
 def cleanup_vios(config, cookies, sys_uuid, vios_uuid_list):
-    vopt_list = [util.get_bootstrap_iso(config), util.get_cloud_init_iso(config)]
-    for vopt in vopt_list:
-        try:
-            vios_uuid = find_vios_with_vopt_mounted(config, cookies, sys_uuid, vios_uuid_list, vopt)
-            if not vios_uuid:
-                logger.error(f"no matching VIOS found where {vopt} vOPTs mounted")
-                continue
-            vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+    vopt = util.get_cloud_init_iso(config)
+    try:
+        vios_uuid = find_vios_with_vopt_mounted(config, cookies, sys_uuid, vios_uuid_list, vopt)
+        if not vios_uuid:
+            logger.error(f"no matching VIOS found where {vopt} vOPTs mounted")
+            return
+        vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
 
-            # remove SCSI mapping from VIOS
-            remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, vopt)
-            # TODO: delete virtual disk, volumegroup if created by the script during launch
+        # remove SCSI mapping from VIOS
+        remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, vopt)
+        # TODO: delete virtual disk, volumegroup if created by the script during launch
 
-            vios_updated = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+        vios_updated = get_vios_details(config, cookies, sys_uuid, vios_uuid)
 
-            # remove mounted virtual optical devices from media repositoy.
-            remove_vopt_device(config, cookies, vios_updated, vopt)
-        except Exception as e:
-            logger.error(f"failed to clean up vios. error: {e}")
+        # remove mounted virtual optical device(cloud-init) from media repositoy.
+        remove_vopt_device(config, cookies, vios_updated, vopt)
+    except Exception as e:
+        logger.error(f"failed to clean up vios. error: {e}")
 
 def destroy_partition(config, cookies, sys_uuid):
     try:
@@ -577,27 +568,31 @@ def destroy_partition(config, cookies, sys_uuid):
         partition.remove_partition(config, cookies, partition_uuid)
     except (PartitionError, PimError) as e:
         logger.error(f"failed to destroy partition. error: {e}")
+    logger.info("Destroy partition done")
 
 # destroy partition
 def destroy(config, cookies, sys_uuid, vios_uuid_list):
     logger.info("PIM destroy flow")
-
-    destroy_partition(config, cookies, sys_uuid)
-    cleanup_vios(config, cookies, sys_uuid, vios_uuid_list)
-
-    logger.info("Destroy partition done")
+    try:
+        destroy_partition(config, cookies, sys_uuid)
+        cleanup_vios(config, cookies, sys_uuid, vios_uuid_list)
+    except Exception as e:
+        raise e
+    logger.info("destroy flow completed successfully")
     return
 
 def generate_ssh_keys(config):
-    create_dir(keys_path)
-    key_name = f"{keys_path}/{util.get_partition_name(config)}_pim"
-    cmd = f"ssh-keygen -b 4096 -t rsa -m PEM -f {key_name} -q -N \"\""
-    result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
-    if result.returncode != 0:
-        logger.error(f"failed to run ssh-keygen command to generate keypair, error: {result.stderr}")
-        raise Exception(f"failed to run ssh-keygen command to generate keypair, error: {result.stderr}")
+    # Check if keys already exists in 'keys_path'
+    if not check_if_keys_generated(config):
+        create_dir(keys_path)
+        key_name = f"{keys_path}/{util.get_partition_name(config)}_pim"
+        cmd = f"ssh-keygen -b 4096 -t rsa -m PEM -f {key_name} -q -N \"\""
+        result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
+        if result.returncode != 0:
+            logger.error(f"failed to run ssh-keygen command to generate keypair, error: {result.stderr} \n {result.stdout}")
+            raise Exception(f"failed to run ssh-keygen command to generate keypair, error: {result.stderr}")
+        logger.info("SSH keypair generated successfully")
 
-    logger.info("SSH keypair generated successfully")
     config["ssh"]["user-name"] = "pim"
     config["ssh"]["priv-key-file"] = keys_path + "/" + util.get_partition_name(config) + "_pim"
     config["ssh"]["pub-key-file"] = keys_path+ "/" + util.get_partition_name(config) + "_pim.pub"
