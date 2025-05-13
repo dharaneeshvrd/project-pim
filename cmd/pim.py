@@ -378,19 +378,22 @@ def get_vios_with_mediarepo_tag(active_vios_servers):
             logger.debug(f"Media repositories has {free_memory} GB free memory in '{vios_uuid}' VIOS.")
             if free_memory > 3.0:
                 vios_uuid_list.append(vios_uuid)
+            else:
+                logger.error("sufficient memory not available in '{vios_uuid}' VIOS for media repositories.")
     return vios_uuid_list
 
 def calculate_free_space(vios_uuid, media_repos):
+    used_memory = 0.0
+    free_memory = 0.0
     try:
         size_list = media_repos.find_all("Size")
         capacity = float(media_repos.find("RepositorySize").text)
-        used_memory = 0.0
         for size in size_list:
             used_memory += float(size.text)
-        return capacity - used_memory
+        free_memory = capacity - used_memory
     except Exception as e:
-        logger.error(f"failed to calculate free MediaRepositories memory for '{vios_uuid}'. error: {e}")
-    return 0.0
+        logger.error(f"failed to calculate free memory in '{vios_uuid}' VIOS for media repositories. error: {e}")
+    return free_memory
 
 def get_vios_with_physical_storage(config, active_vios_servers):
     required_capacity = int(util.get_required_disk_size(config)) * 1024
