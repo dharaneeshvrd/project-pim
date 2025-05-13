@@ -11,7 +11,7 @@ All dependencies are captured in requirements.txt
 2. paramiko and scp modules for performing scp operation
 3. bs4 (beautifulsoup) and lxml modules for XML parsing
 
-## Install depenencies on IBMi partition
+## Install dependencies on IBMi partition
 
 1. Currently the source code for PIM is internal, needs to be cloned by adding SSH key of the IBMi partition
 2. Add internal github's SSH key to known_hosts file on IBMi partition
@@ -27,15 +27,10 @@ bash install.sh
 
 ## Key in all the PIM configurations related to lpar, AI workload, etc in `config.ini`
 
-## Run PIM lifecycle manager
+## PIM User Role
+The user configured in the config.ini file must have either the default role `hmcsuperadmin` or a custom role that includes the following mandatory permissions.
 
-  ```
-  export PYTHONPATH=.
-  python3 cmd/pim.py [launch/destroy]
-  ```
-
-## PIM Task Role
-Create a new task role with base role as "hmcsuperadmin" and with limited set of permissions to perform pim operations.
+Additionally, the user's session timeout must be set to a minimum of `120 minutes`.
 
 List of permissions required to perform all necessary actions.
 - Managed System
@@ -62,3 +57,10 @@ List of permissions required to perform all necessary actions.
   - Modify HMC Configuration
   - Change HMC File Systems
   - View HMC File Systems
+
+## Run PIM lifecycle manager
+
+  ```
+  export PYTHONPATH=.
+  python3 cmd/pim.py [launch/destroy]
+  ```
