@@ -25,14 +25,10 @@ ssh-keyscan github.ibm.com >> ~/.ssh/known_hosts
 bash install.sh
 ```
 
-## Key in all the PIM configurations related to lpar, AI workload, etc in `config.ini`
-
 ## PIM User Role
-The user configured in the config.ini file must have either the default role `hmcsuperadmin` or a custom role that includes the following mandatory permissions.
+The user configured in the config.ini file must have either the default role `hmcsuperadmin` or mandetories permissions as listed below.
 
-Additionally, the user's session timeout must be set to a minimum of `120 minutes`.
-
-List of permissions required to perform all necessary actions.
+List of permissions required by configured user.
 - Managed System
   - Create Partitions
   - View Managed Systems
@@ -57,6 +53,10 @@ List of permissions required to perform all necessary actions.
   - Modify HMC Configuration
   - Change HMC File Systems
   - View HMC File Systems
+
+Additionally, the user's session timeout must be set to a minimum of `120 minutes`.
+
+## Key in all the PIM configurations related to lpar, AI workload, etc in `config.ini`
 
 ## Run PIM lifecycle manager
 
