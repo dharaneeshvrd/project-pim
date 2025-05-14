@@ -26,7 +26,7 @@ bash install.sh
 ```
 
 ## PIM User Role
-The user configured in the config.ini file must have either the default role `hmcsuperadmin` or mandetories permissions as listed below.
+The user must have either the default role `hmcsuperadmin` or mandetories permissions as listed below.
 
 List of permissions required by configured user.
 - Managed System
