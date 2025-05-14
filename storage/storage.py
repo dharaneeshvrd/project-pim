@@ -33,6 +33,29 @@ def populate_payload(vios_payload, hmc_host, partition_uuid, system_uuid, physic
     payload = str(vios_bs)
     return payload
 
+def check_if_storage_attached(vios, partition_uuid):
+    found = False
+    phys_disk = ""
+    try:
+        soup = BeautifulSoup(vios, 'xml')
+        scsi_mappings = soup.find_all('VirtualSCSIMapping')
+        # Iterate over all SCSI mappings and look for Storage followed by PhysicalVolume XML tags
+        for scsi in scsi_mappings:
+            lpar_link = scsi.find("AssociatedLogicalPartition")
+            if lpar_link is not None and partition_uuid in lpar_link.attrs["href"]:
+                storage = scsi.find("Storage")
+                if storage is not None:
+                    physical_volume = storage.find("PhysicalVolume")
+                    if physical_volume is not None:
+                        logger.info(f"Found storage SCSI mapping for partition '{partition_uuid}' in VIOS")
+                        found = True
+                        phys_disk = physical_volume.find("VolumeName").text
+                        break
+    except Exception as e:
+        logger.error("failed to check if storage SCSI mapping is present in VIOS")
+        raise e
+    return found, phys_disk
+
 def attach_storage(vios_payload, config, cookies, partition_uuid, system_uuid, vios_uuid, physical_vol_name):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/VirtualIOServer/{vios_uuid}"
     hmc_host = util.get_host_address(config)

@@ -156,6 +156,12 @@ def check_job_status(config, cookies, response):
     return False
 
 def activate_partititon(config, cookies, partition_uuid):
+    # Check partition state,don't activate if its in 'running' state
+    lpar_state = check_lpar_status(config, cookies, partition_uuid)
+    if lpar_state == "running":
+        logger.info("Partition already in 'running' state, skipping activation")
+        return
+
     uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}/do/PowerOn"
     url =  "https://" +  util.get_host_address(config) + uri
     lpar_profile_id = get_lpar_profile_id(config, cookies, partition_uuid)

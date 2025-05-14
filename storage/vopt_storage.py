@@ -44,6 +44,21 @@ def populate_payload(config, vios_payload, hmc_host, partition_uuid, system_uuid
 
     return str(vios_bs)
 
+def check_if_scsi_mapping_exist(vios, media_dev_name):
+    soup = BeautifulSoup(vios, 'xml')
+    scsi_mappings = soup.find('VirtualSCSIMappings')
+    b_devs = scsi_mappings.find_all("BackingDeviceName")
+    disk = None
+    for b_dev in b_devs:
+        if b_dev.text == media_dev_name:
+            disk = b_dev
+            break
+
+    if disk != None:
+        logger.info(f"SCSI mapping for media device '{media_dev_name}' found in the VIOS")
+        return True
+    return False
+
 def attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_name):
     uri = f"/rest/api/uom/ManagedSystem/{sys_uuid}/VirtualIOServer/{vios_uuid}"
     hmc_host = util.get_host_address(config)

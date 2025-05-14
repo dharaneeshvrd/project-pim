@@ -283,7 +283,6 @@ def monitor_iso_installation(config, cookies):
     ip = util.get_ip_address(config)
     username = util.get_ssh_username(config)
     ssh_key = util.get_ssh_priv_key(config)
-    command = "sudo journalctl -u getcontainer.service -f 2>&1 | awk '{print} /Installation complete/ {print \"Match found: \" $0; exit 0}'"
 
     for i in range(10):
         scp_port = 22
@@ -299,7 +298,32 @@ def monitor_iso_installation(config, cookies):
             time.sleep(30)
     logger.info("SSH connection to partition is successful")
 
-    stdin, stdout, stderr = client.exec_command(command, get_pty=True)
+    # Re-run scenario: If lpar is in 2nd boot stage, check base_config service logs
+    base_cfg_file_exists = "ls /etc/systemd/system/base_config.service"
+    logger.debug("Second boot: Checking if base_config.service file exists")
+    _, stdout, _ = client.exec_command(base_cfg_file_exists, get_pty=True)
+    if stdout.channel.recv_exit_status() == 0:
+        logger.debug("base_config.service file exists")
+
+        base_cfg_svc_cmd = "sudo journalctl -u base_config.service -f 2>&1 | awk '{print} /base_config.sh run successfully/ {print \"Match found: \" $0; exit 0}'"
+        logger.debug("Second boot: Checking base_config.service logs")
+        _, stdout, _ = client.exec_command(base_cfg_svc_cmd, get_pty=True)
+        while True:
+            out = stdout.readline()
+            logger.info(out)
+            if stdout.channel.exit_status_ready():
+                if stdout.channel.recv_exit_status() == 0:
+                    logger.info("Found 'base_config.sh run successfully' message")
+                    client.close()
+                    return
+                else:
+                    logger.info("Could not find base_config service logs, lpar is maybe in first boot phase")
+                    break
+
+    logger.debug("First boot: Checking getcontainer service logs..")
+    # First privision(boot) scenario
+    get_container_svc_cmd = "sudo journalctl -u getcontainer.service -f 2>&1 | awk '{print} /Installation complete/ {print \"Match found: \" $0; exit 0}'"
+    stdin, stdout, stderr = client.exec_command(get_container_svc_cmd, get_pty=True)
     while True:
         out = stdout.readline()
         logger.info(out)
@@ -565,33 +589,40 @@ def find_vios_with_vopt_mounted(config, cookies, sys_uuid, vios_uuid_list, vopt_
                 return uuid
     return ""
 
-def cleanup_vios(config, cookies, sys_uuid, vios_uuid_list):
-    vopt = util.get_cloud_init_iso(config)
+def cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list):
+    vopt_list = [util.get_bootstrap_iso(config), util.get_cloud_init_iso(config)]
+    storage_cleaned = False
+    for vopt in vopt_list:
+        try:
+            vios_uuid = find_vios_with_vopt_mounted(config, cookies, sys_uuid, vios_uuid_list, vopt)
+            if not vios_uuid:
+                logger.error(f"no matching VIOS found where {vopt} vOPTs mounted")
+                continue
+            vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+
+            # remove SCSI mappings from VIOS
+            found, phys_disk = storage.check_if_storage_attached(vios, partition_uuid)
+            if found and not storage_cleaned:
+                logger.debug(f"Removing SCSI mapping for physical disk '{phys_disk}")
+                remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, phys_disk)
+                storage_cleaned = True
+
+            vios_updated = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+            logger.debug(f"Removing SCSI mapping for vOPT device '{vopt}")
+            remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, vopt)
+            # TODO: delete virtual disk, volumegroup if created by the script during launch
+
+            vios_updated = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+
+            # remove mounted cloud-init vOPT from media repositoy.
+            if vopt == util.get_cloud_init_iso(config):
+                logger.debug(f"Removing SCSI mapping for vOPT device '{vopt}")
+                remove_vopt_device(config, cookies, vios_updated, vopt)
+        except Exception as e:
+            logger.error(f"failed to clean up vios")
+
+def destroy_partition(config, cookies, partition_uuid):
     try:
-        vios_uuid = find_vios_with_vopt_mounted(config, cookies, sys_uuid, vios_uuid_list, vopt)
-        if not vios_uuid:
-            logger.error(f"no matching VIOS found where {vopt} vOPTs mounted")
-            return
-        vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-
-        # remove SCSI mapping from VIOS
-        remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, vopt)
-        # TODO: delete virtual disk, volumegroup if created by the script during launch
-
-        vios_updated = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-
-        # remove mounted virtual optical device(cloud-init) from media repositoy.
-        remove_vopt_device(config, cookies, vios_updated, vopt)
-    except Exception as e:
-        logger.error(f"failed to clean up vios. error: {e}")
-
-def destroy_partition(config, cookies, sys_uuid):
-    try:
-        exists, partition_uuid = partition.check_partition_exists(config, cookies, sys_uuid)
-        if not exists:
-            logger.info(f"Partition named '{util.get_partition_name(config)}-pim' not found.")
-            return
-        
         activation.shutdown_partition(config, cookies, partition_uuid)
         partition.remove_partition(config, cookies, partition_uuid)
     except (PartitionError, PimError) as e:
@@ -602,8 +633,14 @@ def destroy_partition(config, cookies, sys_uuid):
 def destroy(config, cookies, sys_uuid, vios_uuid_list):
     logger.info("PIM destroy flow")
     try:
-        destroy_partition(config, cookies, sys_uuid)
-        cleanup_vios(config, cookies, sys_uuid, vios_uuid_list)
+        exists, partition_uuid = partition.check_partition_exists(config, cookies, sys_uuid)
+        if not exists:
+            logger.info(f"Partition named '{util.get_partition_name(config)}-pim' not found, attempting VIOS cleanup")
+            # in the absence of partition, partition_uuid will be empty
+            cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list)
+            return
+        destroy_partition(config, cookies, partition_uuid)
+        cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list)
     except Exception as e:
         raise e
     logger.info("destroy flow completed successfully")
@@ -627,6 +664,19 @@ def generate_ssh_keys(config):
     return config
 
 def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_storage_list):
+    try:
+        for index, a_vios in enumerate(vios_storage_list):
+            vios_uuid, phy_vol, _ = a_vios
+            vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
+            logger.debug("Attach physical storage to the partition")
+            found, _ = storage.check_if_storage_attached(vios, partition_uuid)
+            if found:
+                logger.info(f"Physical volume '{physical_volume_name}' is already attached to lpar, skipping storage attachment to lpar")
+                return
+    except (PimError, StorageError) as e:
+        logger.error(f"failed to attach '{physical_volume_name}' physical storage in VIOS '{vios_storage_uuid}'")
+        raise e
+
     # Iterating over the vios_storage_list to attach physical volume from VIOS to a partition.
     # If attachment operation fails for current VIOS, next available VIOS in the list will be used as a fallback.
     for index, vios_storage in enumerate(vios_storage_list):
@@ -635,6 +685,11 @@ def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_stor
             updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
             logger.debug("Attach physical storage to the partition")
             
+            found, _ = storage.check_if_storage_attached(updated_vios_payload, partition_uuid)
+            if found:
+                logger.info(f"Physical volume '{physical_volume_name}' is already attached to lpar")
+                return
+
             storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid, physical_volume_name)
             logger.info(f"Attached '{physical_volume_name}' physical volume to the partition from VIOS '{vios_storage_uuid}'")
             break
@@ -644,6 +699,7 @@ def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_stor
                 raise e
             else:
                 logger.info("Attempting to attach physical storage present in next available VIOS")
+    return
 
 def launch(config, cookies, sys_uuid, vios_uuids):
     try:
@@ -664,11 +720,6 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         if len(vios_media_uuid_list) == 0:
             logger.error("failed to find VIOS server for the partition")
             raise StorageError("failed to find VIOS server for the partition")
-
-        vios_storage_list = get_vios_with_physical_storage(config, active_vios_servers)
-        if len(vios_storage_list) == 0:
-            logger.error("failed to find physical volume for the partition")
-            raise StorageError("failed to find physical volume for the partition")
 
         logger.info("5. Setup installation ISOs")
         build_and_download_iso(config)
@@ -698,16 +749,36 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         # Attach bootstrap vOPT
         vopt_bootstrap = util.get_bootstrap_iso(config)
         vopt_cloud_init = util.get_cloud_init_iso(config)
-        if vios_cloudinit_media_uuid == vios_bootstrap_media_uuid:
-            vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_bootstrap_media_uuid, "")
-        else:
-            vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_bootstrap_media_uuid, vopt_bootstrap)
-            vios_payload = get_vios_details(config, cookies, sys_uuid, vios_cloudinit_media_uuid)
-            vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_cloudinit_media_uuid, vopt_cloud_init)
+
+        cloud_init_attached = False
+        b_scsi_exists = vopt.check_if_scsi_mapping_exist(vios_payload, vopt_bootstrap)
+        if not b_scsi_exists:
+            if vios_cloudinit_media_uuid == vios_bootstrap_media_uuid:
+                vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_bootstrap_media_uuid, "")
+                cloud_init_attached = True
+            else:
+                vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_bootstrap_media_uuid, vopt_bootstrap)
+        if not cloud_init_attached:
+            vios_cloudinit_payload = get_vios_details(config, cookies, sys_uuid, vios_cloudinit_media_uuid)
+            c_scsi_exists = vopt.check_if_scsi_mapping_exist(vios_cloudinit_payload, vopt_cloud_init)
+            if not c_scsi_exists:
+                vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_cloudinit_media_uuid, vopt_cloud_init)
+
         logger.info("Bootstrap and cloudinit virtual optical device attached")
         logger.info("---------------------- Attach installation medias done ----------------------")
 
         logger.info("10. Attach storage")
+        # Re-run scenario: Check if physical disk is already attached
+        storage_attached = False
+        for _, a_vios in enumerate(active_vios_servers):
+            logger.debug("Attach physical storage to the partition")
+            found, _ = storage.check_if_storage_attached(a_vios, partition_uuid)
+            if found:
+                logger.info(f"Physical disk is already attached to lpar '{partition_uuid}'")
+                storage_attached = True
+
+        # Enable below code block when virtual disk support is added
+        '''
         use_vdisk = util.use_virtual_disk(config)
         if use_vdisk:
             vios_storage_uuid = vios_storage_list[0][0]
@@ -728,7 +799,13 @@ def launch(config, cookies, sys_uuid, vios_uuids):
                     updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
                     vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid)
                     diskname = util.get_virtual_disk_name(config)
-        else:
+        '''
+
+        if not storage_attached:
+            vios_storage_list = get_vios_with_physical_storage(config, active_vios_servers)
+            if len(vios_storage_list) == 0:
+                logger.error("failed to find physical volume for the partition")
+                raise StorageError("failed to find physical volume for the partition")
             attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_storage_list)
         logger.info("---------------------- Attach storage done ----------------------")
 
