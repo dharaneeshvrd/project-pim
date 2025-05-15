@@ -26,9 +26,9 @@ bash install.sh
 ```
 
 ## PIM User Role
-The user must have either the default role `hmcsuperadmin` or mandetories permissions as listed below.
+The user must have either the default role `hmcsuperadmin` or mandatory task roles listed below.
 
-List of permissions required by configured user.
+List of task roles required by user.
 - Managed System
   - Create Partitions
   - View Managed Systems
