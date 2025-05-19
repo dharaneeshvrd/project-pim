@@ -60,12 +60,6 @@ def get_processor_config(config):
             <MinimumVirtualProcessors kb="CUD" kxe="false">{util.get_shared_min_virt_proc(config)}</MinimumVirtualProcessors>
         </SharedProcessorConfiguration>''' 
 
-def get_bootorder_payload(partition_payload, bootorder):
-    lpar_bs =  BeautifulSoup(partition_payload, 'xml')
-    pending_boot = lpar_bs.find("PendingBootString")
-    pending_boot.append(bootorder)
-    return str(lpar_bs)
-
 def convert_gb_to_mb(value):
     return int(value) * 1024
 
@@ -128,16 +122,19 @@ def get_partition_details(config, cookies, system_uuid, partition_uuid):
     lpar = str(soup.find('LogicalPartition'))
     return lpar
 
-def update_partition(config, cookies, system_uuid, partition_uuid, partition_payload, lun):
+def set_partition_boot_string(config, cookies, system_uuid, partition_uuid, partition_payload, boot_string):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition/{partition_uuid}"
     url =  "https://" +  util.get_host_address(config) + uri
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
-    payload = get_bootorder_payload(partition_payload, lun)
-    response = requests.post(url, headers=headers, cookies=cookies, data=payload, verify=False)
+    payload =  BeautifulSoup(partition_payload, 'xml')
+    pending_boot = payload.find("PendingBootString")
+    pending_boot.append(boot_string)
+    
+    response = requests.post(url, headers=headers, cookies=cookies, data=str(payload), verify=False)
     if response.status_code != 200:
-        logger.error(f"failed to attach virtual storage to the partition, error: {response.text}")
-        raise PartitionError(f"failed to attach virtual storage to the partition, error: {response.text}")
-    logger.info(f"Updated the bootorder for the partition: {partition_uuid}")
+        logger.error(f"failed to update boot order for the partition: '{partition_uuid}', error: {response.text}")
+        raise PartitionError(f"failed to update boot order for the partition: '{partition_uuid}', error: {response.text}")
+    logger.info(f"Updated the boot order for the partition: '{partition_uuid}'")
     return
 
 def remove_partition(config, cookies, partition_uuid):
