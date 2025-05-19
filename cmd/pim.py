@@ -809,6 +809,9 @@ def launch(config, cookies, sys_uuid, vios_uuids):
             attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_storage_list)
         logger.info("---------------------- Attach storage done ----------------------")
 
+        partition_payload = partition.get_partition_details(config, cookies, sys_uuid, partition_uuid)
+        partition.set_partition_boot_string(config, cookies, sys_uuid, partition_uuid, partition_payload, "cd/dvd-all")
+
         logger.info("11. Activate partition")
         activation.activate_partititon(config, cookies, partition_uuid)
         logger.info("---------------------- Partition activation done ----------------------")
