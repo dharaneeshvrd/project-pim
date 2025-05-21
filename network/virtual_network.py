@@ -44,7 +44,7 @@ def get_network_uuid(config, cookies, system_uuid):
         logger.error(f"failed to find virtual network with name '{network_name}'")
         raise NetworkError(f"failed to find virtual network with name '{network_name}'")
     else:
-        logger.info(f"Network UUID for the virtual network {network_name}: {uuid}")
+        logger.debug(f"Network UUID for the virtual network {network_name}: {uuid}")
     return uuid
 
 def get_vlan_details(config, cookies, system_uuid):
@@ -91,7 +91,7 @@ def attach_network(config, cookies, system_uuid, partition_uuid):
 
         # Check if network adapter is already attached to lpar. If not, do attach
         if check_network_adapter(config, cookies, partition_uuid, vlan_id, vswitch_id):
-            logger.info(f"Network '{util.get_vnetwork_name(config)}' is already attached to lpar ")
+            logger.debug(f"Network '{util.get_vnetwork_name(config)}' is already attached to lpar ")
             return
 
         payload = populate_payload(vlan_id, vswitch_id, util.get_vswitch_name(config))

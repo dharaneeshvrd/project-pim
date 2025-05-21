@@ -5,19 +5,28 @@ from urllib.parse import urlparse
 import auth.auth as auth
 import utils.string_util as util
 
-def setup_logging(level):
-    logging.basicConfig(
-        format='%(asctime)s %(levelname)-8s %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        level=level
-    )
+LOG_LEVEL = logging.INFO
+
+def set_log_level(level):
+    global LOG_LEVEL
+    LOG_LEVEL = level
 
 def get_logger(name):
-    return logging.getLogger(name)
+    logger = logging.getLogger(name)
+    logger.setLevel(LOG_LEVEL)
+    logger.propagate = False
 
-def cleanup_and_exit(config, cookies, status):
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(LOG_LEVEL)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)-8s - %(message)s')
+    console_handler.setFormatter(formatter)
+    
+    logger.addHandler(console_handler)
+
+    return logger
+
+def cleanup(config, cookies):
     auth.delete_session(config, cookies)
-    exit(status)
 
 def hash(file):
     sha256 = hashlib.sha256()

@@ -84,10 +84,10 @@ def check_partition_exists(config, cookies, system_uuid):
                 break
 
         if len(uuid) > 0:
-            logger.info(f"UUID of partition '{lpar_name}': {uuid}")
+            logger.debug(f"UUID of partition '{lpar_name}': {uuid}")
             return True, uuid
         else:
-            logger.info(f"no partition available with name '{lpar_name}'")
+            logger.debug(f"no partition available with name '{lpar_name}'")
     except Exception as e:
         raise e
     return False, uuid
@@ -95,8 +95,9 @@ def check_partition_exists(config, cookies, system_uuid):
 def create_partition(config, cookies, system_uuid):
     exists, partition_uuid = check_partition_exists(config, cookies, system_uuid)
     if exists:
+        logger.debug(f"Existing partition found with name '{util.get_partition_name(config)}'")
         return partition_uuid
-    logger.info(f"Creating partition with name '{util.get_partition_name(config)}'")
+    logger.debug(f"Creating partition with name '{util.get_partition_name(config)}'")
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition"
     url = "https://" +  util.get_host_address(config) + uri
     payload = populate_payload(config)
@@ -108,6 +109,7 @@ def create_partition(config, cookies, system_uuid):
 
     soup = BeautifulSoup(response.text, 'xml')
     partition_uuid = soup.find("PartitionUUID")
+    logger.debug("New partition created")
     return partition_uuid.text
 
 def get_partition_details(config, cookies, system_uuid, partition_uuid):
@@ -134,7 +136,7 @@ def set_partition_boot_string(config, cookies, system_uuid, partition_uuid, part
     if response.status_code != 200:
         logger.error(f"failed to update boot order for the partition: '{partition_uuid}', error: {response.text}")
         raise PartitionError(f"failed to update boot order for the partition: '{partition_uuid}', error: {response.text}")
-    logger.info(f"Updated the boot order for the partition: '{partition_uuid}'")
+    logger.debug(f"Updated the boot order for the partition: '{partition_uuid}'")
     return
 
 def remove_partition(config, cookies, partition_uuid):
@@ -145,4 +147,4 @@ def remove_partition(config, cookies, partition_uuid):
     if response.status_code != 204:
         logger.error(f"failed to delete partition, error: {response.text}")
         return
-    logger.info("Partition deleted successfully")
+    logger.debug("Partition deleted successfully")

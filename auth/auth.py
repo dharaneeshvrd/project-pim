@@ -44,5 +44,5 @@ def delete_session(config, cookies):
     if response.status_code != 204:
         logger.error(f"failed to delete session on HMC, error: {response.text}")
         raise AuthError(f"failed to delete session on HMC, error: {response.text}")
-    logger.info("Logged off HMC session successfully")
+    logger.debug("Logged off HMC session successfully")
     return

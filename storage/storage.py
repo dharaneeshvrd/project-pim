@@ -47,7 +47,7 @@ def check_if_storage_attached(vios, partition_uuid):
                 if storage is not None:
                     physical_volume = storage.find("PhysicalVolume")
                     if physical_volume is not None:
-                        logger.info(f"Found storage SCSI mapping for partition '{partition_uuid}' in VIOS")
+                        logger.debug(f"Found storage SCSI mapping for partition '{partition_uuid}' in VIOS")
                         found = True
                         phys_disk = physical_volume.find("VolumeName").text
                         break
