@@ -1,5 +1,4 @@
 import argparse
-import hashlib
 import json
 import logging
 import os
@@ -50,13 +49,6 @@ def get_ssh_client():
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     return client
-
-def hash(file):
-    sha256 = hashlib.sha256()
-    with open(file, 'rb') as f:
-        for chunk in iter(lambda: f.read(128 * sha256.block_size), b''):
-            sha256.update(chunk)
-    return sha256.hexdigest()
 
 def check_if_keys_generated(config):
     priv_key = f"{keys_path}/{util.get_partition_name(config)}_pim"
@@ -182,7 +174,7 @@ def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vio
 
             # Create ISO filepath for bootstrap iso
             iso_file = iso_folder + "/" + iso_file_name
-            iso_checksum = hash(iso_file)
+            iso_checksum = common.hash(iso_file)
             iso_size = os.path.getsize(iso_file)
             file_uuid = create_iso_path(config, cookies, vios_uuid, iso_file_name, iso_checksum, iso_size)
             # transfer ISO file to VIOS media repository
@@ -247,29 +239,62 @@ def generate_cloud_init_iso_file(iso_folder, config):
         logger.error(f"failed to generate cloud-init ISO via mkisofs, error: {e.stderr}")
         raise
 
+def download_bootstrap_checksum(checksum_url, checksum_file_path):
+    logger.info("Downloading bootstrap ISO's checksum file...")
+
+    logger.debug(f"bootstrap iso checksum url: {checksum_url}")
+    try:
+        response = requests.get(checksum_url, stream=True)
+        response.raise_for_status()
+
+        with open(checksum_file_path, "wb") as csum_file:
+            for chunk in response.iter_content(chunk_size=8192):
+                csum_file.write(chunk)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"failed to download '{checksum_file_path}' file, error: {e}")
+        raise
+    return
+
 def download_bootstrap_iso(iso_folder, config):
-    download_url = util.get_bootstrap_iso_download_url(config)
-    iso_file_path = f"{iso_folder}/{util.get_bootstrap_iso(config)}"
-
-    # Check if bootstrap iso is already downloaded locally(on IBMi)
-    if os.path.isfile(iso_file_path):
-        logger.info(f"Bootstrap iso '{iso_file_path}' found, skipping download..")
-        return
-
-    logger.info("Downloading bootstrap ISO file...")
+    iso_url, iso_file_path, checksum_url, checksum_file_path = common.get_iso_url_and_checksum_path(config, iso_folder)
 
     try:
-        response = requests.get(download_url, stream=True)
+        # Check if bootstrap iso is already downloaded locally(on IBMi)
+        if os.path.isfile(iso_file_path):
+            logger.info(f"Bootstrap iso '{iso_file_path}' found, checking integrity of the file")
+            # Check if iso checksum file exists
+            if not os.path.exists(checksum_file_path):
+                # Download checksum file for bootstrap iso
+                download_bootstrap_checksum(checksum_url, checksum_file_path)
+            if not common.verify_checksum(iso_file_path, checksum_file_path):
+                logger.info("Checksum of found boostrap iso did not match, cleaning up iso..")
+                cleanup_iso_artifacts(iso_file_path, checksum_file_path)
+            else:
+                logger.info(f"Bootstrap iso '{iso_file_path}' found, skipping download..")
+                return
+
+        logger.info("Downloading bootstrap ISO file...")
+
+        response = requests.get(iso_url, stream=True)
         response.raise_for_status()
 
         with open(iso_file_path, "wb") as iso_file:
             for chunk in response.iter_content(chunk_size=8192):
                 iso_file.write(chunk)
+
+        # Download checksum file for bootstrap iso
+        download_bootstrap_checksum(checksum_url, checksum_file_path)
+        # Verify bootstrap iso file's checksum
+        if not common.verify_checksum(iso_file_path, checksum_file_path):
+            # re-try attempt
+            logger.error("Checksum of bootstrap iso is not matching against checksumfile download from repository")
+            return
+        logger.info("Integrity of downloaded bootstrap iso has been successfully verified..")
     except requests.exceptions.RequestException as e:
         logger.error(f"failed to download '{util.get_bootstrap_iso(config)}' file, error: {e}")
         raise
-    
     logger.info("Download completed for bootstrap ISO file")
+    return
 
 def create_dir(path):
     try:
@@ -620,6 +645,14 @@ def cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list):
                 remove_vopt_device(config, cookies, vios_updated, vopt)
         except Exception as e:
             logger.error(f"failed to clean up vios")
+
+def cleanup_iso_artifacts(iso_path, checksum_path):
+    if os.path.exists(iso_path):
+        os.remove(iso_path)
+    if os.path.exists(checksum_path):
+        os.remove(checksum_path)
+    logger.debug("ISO artifacts have been deleted successfully")
+    return
 
 def destroy_partition(config, cookies, partition_uuid):
     try:
