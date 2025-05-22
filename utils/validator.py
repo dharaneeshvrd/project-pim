@@ -14,6 +14,29 @@ def validate_config(config):
 
     return all([str_validation, digit_validation, param_value_validation])
 
+def validate_rollback_config(config):
+    params_validators= [
+        validate_ip_addresses,
+        validate_ssh_keys,
+    ]
+
+    if get_ai_app_request(config) == "yes":
+        params_validators.append(validate_ai_app_validator)
+
+    return all ( validator(config) for validator in params_validators)
+
+def validate_upgrade_config(config):
+    params_validators= [
+        validate_ip_addresses,
+        validate_ssh_keys,
+        validate_auth_json,
+    ]
+
+    if get_ai_app_request(config) == "yes":
+        params_validators.append(validate_ai_app_validator)
+
+    return all ( validator(config) for validator in params_validators)
+
 def validate_str_params(config):
     parameter_list = [
         # System parameter validations
@@ -39,9 +62,9 @@ def validate_str_params(config):
     if get_partition_flavor(config) == "custom":
         parameter_list.append((get_sharing_mode, "custom-flavor.cpu.sharing-mode"))
 
-    if get_ai_app_request == "yes":
-        parameter_list.append(get_ai_app_url, "ai.validation.url")
-        parameter_list.append(get_ai_app_method, "ai.validation.method")
+    if get_ai_app_request(config) == "yes":
+        parameter_list.append((get_ai_app_url, "ai.validation.url"))
+        parameter_list.append((get_ai_app_method, "ai.validation.method"))
 
     is_valid = True
     for get_str, param_name in parameter_list:
@@ -114,7 +137,7 @@ def validate_params_value(config):
         if has_dedicated_proc(config):
             params_validators.append(validate_dedicated_desired_proc)
 
-    if get_ai_app_request == "yes":
+    if get_ai_app_request(config) == "yes":
         params_validators.append(validate_ai_app_validator)
 
     return all ( validator(config) for validator in params_validators)

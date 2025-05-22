@@ -87,7 +87,7 @@ def check_partition_exists(config, cookies, system_uuid):
             logger.info(f"UUID of partition '{lpar_name}': {uuid}")
             return True, uuid
         else:
-            logger.error(f"no partition available with name '{lpar_name}'")
+            logger.info(f"no partition available with name '{lpar_name}'")
     except Exception as e:
         raise e
     return False, uuid
