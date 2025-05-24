@@ -2,9 +2,10 @@
 
 ## Containerfile
 ```
-FROM registry.stage.redhat.io/rhel9/rhel-bootc:9.6
+FROM registry.redhat.io/rhel9/rhel-bootc:9.6-1747275992
 ```
-Use bootc base image from officially built rhel container image [here](https://catalog.redhat.com/search?gs&q=bootc) 
+Use bootc base image from officially built rhel container image [here](https://catalog.redhat.com/software/containers/rhel9/rhel-bootc/6605573d4dbfe41c3d839c69?architecture=ppc64le&image=68255270360faaf4e6db2240&container-tabs=gti&gti-tabs=red-hat-login) 
+You need Redhat account to get the credentials to pull the image
 
 ```
 RUN dnf -y install cloud-init && \
