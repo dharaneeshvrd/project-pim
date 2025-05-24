@@ -11,6 +11,7 @@ EnvironmentFile=/etc/pim/env.conf
 [Container]
 Image="$LLM_IMAGE"
 Network=host
+Volume=/var/huggingface:/var/huggingface
 SecurityLabelType=unconfined_t
 Exec="$LLM_ARGS"
 AutoUpdate=registry
