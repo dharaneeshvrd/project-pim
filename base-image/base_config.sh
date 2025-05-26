@@ -19,7 +19,9 @@ cp /tmp/pim/99_custom_network.cfg /etc/cloud/cloud.cfg.d/
 cp /tmp/pim/pim_config.json /etc/pim/
 cp /tmp/pim/auth.json /etc/pim/
 
-echo REGISTRY_AUTH_FILE=/etc/pim/auth.json >> /etc/pim/env.conf
+[ -f /etc/pim/env.conf ] || touch /etc/pim/env.conf
+var_to_add=REGISTRY_AUTH_FILE=/etc/pim/auth.json
+sed -i "/^REGISTRY_AUTH_FILE=.*/d"  /etc/pim/env.conf && echo "$var_to_add" >> /etc/pim/env.conf
 
 echo "base_config.sh run successfully!"
 
