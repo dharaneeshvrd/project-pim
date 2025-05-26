@@ -1,6 +1,6 @@
 import re
 from .string_util import *
-from .common import get_logger
+from .common import *
 import requests
 from network.virtual_network import get_network_uuid
 import json
@@ -8,11 +8,11 @@ import json
 logger = get_logger("validator")
 
 def validate_config(config):
-    str_validation = validate_str_params(config)
-    digit_validation = validate_digit_params(config)
-    param_value_validation = validate_params_value(config)
+    is_mandatory_param_valid = validate_mandatory_params(config)
+    is_digit_param_valid = validate_digit_params(config)
+    is_param_value_valid = validate_params_value(config)
 
-    return all([str_validation, digit_validation, param_value_validation])
+    return all([is_mandatory_param_valid, is_digit_param_valid, is_param_value_valid])
 
 def validate_rollback_config(config):
     params_validators= [
@@ -37,7 +37,7 @@ def validate_upgrade_config(config):
 
     return all ( validator(config) for validator in params_validators)
 
-def validate_str_params(config):
+def validate_mandatory_params(config):
     parameter_list = [
         # System parameter validations
         (get_system_name, "system.name"),
@@ -56,54 +56,53 @@ def validate_str_params(config):
         (get_vnetwork_name, "partition.network.connection.virtual-network-name"),
         (get_ip_address, "partition.network.ip.address"),
         (get_network_gateway, "partition.network.ip.gateway"),
-        (get_network_nameserver, "partition.network.ip.nameserver")
-    ]
+        (get_network_nameserver, "partition.network.ip.nameserver"),
 
-    if get_partition_flavor(config) == "custom":
-        parameter_list.append((get_sharing_mode, "custom-flavor.cpu.sharing-mode"))
+        (get_sharing_mode, f"{get_flavor_name(config)}.cpu.sharing-mode")
+    ]
 
     if get_ai_app_request(config) == "yes":
         parameter_list.append((get_ai_app_url, "ai.validation.url"))
         parameter_list.append((get_ai_app_method, "ai.validation.method"))
 
     is_valid = True
-    for get_str, param_name in parameter_list:
-        if get_str(config) == "":
+    for get_param_value, param_name in parameter_list:
+        if get_param_value(config) == "":
             logger.error(f"validation failed: '{param_name}' must not be empty")
             is_valid = False
 
     return is_valid
 
 def validate_digit_params(config):
+    flavor_name = get_flavor_name(config)
     parameter_list =  [
         (get_network_prefix_length, "partition.network.ip.prefix-length"),
         # Memory validations
         (get_required_disk_size, "partition.storage.size"),
     ]
-    memory_params = []
-    if get_partition_flavor(config) == "custom":
-        memory_params = [
-            (get_desired_memory, "custom-flavor.memory.desired-memory"),
-            (get_max_memory, "custom-flavor.memory.max-memory"),
-            (get_min_memory, "custom-flavor.memory.min-memory")
+    memory_params = [
+        (get_desired_memory, f"{flavor_name}.memory.desired-memory"),
+        (get_max_memory, f"{flavor_name}.memory.max-memory"),
+        (get_min_memory, f"{flavor_name}.memory.min-memory")
+    ]
+    cpu_params = []
+    if has_dedicated_proc(config) == "true":
+        cpu_params = [
+            (get_desired_proc, f"{flavor_name}.cpu.dedicated.desired-proc-unit"),
+            (get_max_proc, f"{flavor_name}.cpu.dedicated.max-proc-unit"),
+            (get_min_proc, f"{flavor_name}.cpu.dedicated.min-proc-unit")
         ]
-        cpu_params = []
-        if has_dedicated_proc(config):
-            cpu_params = [
-                (get_desired_proc, "custom-flavor.cpu.dedicated.desired-proc-unit"),
-                (get_max_proc, "custom-flavor.cpu.dedicated.max-proc-unit"),
-                (get_min_proc, "custom-flavor.cpu.dedicated.min-proc-unit")
-            ]
-        else:
-            cpu_params = [
-                (get_shared_desired_proc, "custom-flavor.cpu.shared.desired-proc-unit"),
-                (get_shared_max_proc, "custom-flavor.cpu.shared.max-proc-unit"),
-                (get_shared_min_proc, "custom-flavor.cpu.shared.min-proc-unit"),
-                (get_shared_desired_virt_proc, "custom-flavor.cpu.shared.desired-virt-proc"),
-                (get_shared_max_virt_proc, "custom-flavor.cpu.shared.max-virt-proc"),
-                (get_shared_min_virt_proc, "custom-flavor.cpu.shared.min-virt-proc")
-            ]
-        parameter_list.extend(cpu_params)
+    else:
+        cpu_params = [
+            (get_shared_desired_proc, f"{flavor_name}.cpu.shared.desired-proc-unit"),
+            (get_shared_max_proc, f"{flavor_name}.cpu.shared.max-proc-unit"),
+            (get_shared_min_proc, f"{flavor_name}.cpu.shared.min-proc-unit"),
+            (get_shared_desired_virt_proc, f"{flavor_name}.cpu.shared.desired-virt-proc"),
+            (get_shared_max_virt_proc, f"{flavor_name}.cpu.shared.max-virt-proc"),
+            (get_shared_min_virt_proc, f"{flavor_name}.cpu.shared.min-virt-proc")
+        ]
+    parameter_list.extend(cpu_params)
+    parameter_list.extend(memory_params)
         
     is_valid = True
     for get_digit, param_name in parameter_list:
@@ -131,11 +130,10 @@ def validate_params_value(config):
         validate_ssh_keys,
         validate_auth_json,
         validate_pim_config_json,
+        validate_cpu_mode
     ]
-    if get_partition_flavor == "custom":
-        params_validators.append(validate_cpu_mode)
-        if has_dedicated_proc(config):
-            params_validators.append(validate_dedicated_desired_proc)
+    if has_dedicated_proc(config):
+        params_validators.append(validate_dedicated_desired_proc)
 
     if get_ai_app_request(config) == "yes":
         params_validators.append(validate_ai_app_validator)
@@ -181,7 +179,9 @@ def validate_partition_name(config):
 
 def validate_partition_flavor(config):
     value = get_partition_flavor(config)
-    possible_values = ["custom", "small", "medium","large"]
+    defined_flavor_list = list_defined_partition_flavor()
+    possible_values = ["custom"]
+    possible_values.extend(defined_flavor_list)
     if value in possible_values:
         return True
     logger.error(f"validation failed: 'partition.flavor' must filled with {possible_values}.")
@@ -192,7 +192,7 @@ def validate_desired_memory(config):
     value = get_desired_memory(config)
     if value.isdigit() and int(value) >= 32:
         return True
-    logger.error("validation failed: 'custom-flavor.memory.desired-memory' must have greater then or equal to 32 GB of memory")
+    logger.error(f"validation failed: '{get_flavor_name(config)}.memory.desired-memory' must have greater then or equal to 32 GB of memory")
     return False
 
 def validate_cpu_mode(config):
@@ -200,14 +200,14 @@ def validate_cpu_mode(config):
     possible_values = [ "dedicated", "shared"]
     if value in possible_values:
         return True
-    logger.error(f"validation failed: 'custom-flavor.cpu.mode' must filled with {possible_values}")
+    logger.error(f"validation failed: '{get_flavor_name(config)}.cpu.mode' must filled with {possible_values}")
 
 # Validating cpu parameter: Minimum requiment for the desired cpu must be greater or equal to 1 
 def validate_dedicated_desired_proc(config):
     value = get_desired_proc(config)
     if value.isdigit() and int(value) >= 1:
         return True
-    logger.error("validation failed: 'custom-flavor.cpu.dedicated.desired-proc-unit' must be greater then or equal to 1 proc-unit")
+    logger.error(f"validation failed: '{get_flavor_name(config)}.cpu.dedicated.desired-proc-unit' must be greater then or equal to 1 proc-unit")
     return False
 
 # A System Name must contain 1-31 characters. The only special characters that are disallowed are: ( ) < > * $ & ? | [ ] ' " `
@@ -305,3 +305,8 @@ def validate_ai_app_validator(config):
         result = False
     
     return result
+
+def get_flavor_name(config):
+     if has_custom_flavor(config):
+        return "custom-flavor"
+     return get_partition_flavor(config)

@@ -26,49 +26,49 @@ def get_cloud_init_iso(config):
 
 # partition related Getters
 def get_desired_memory(config):
-    return config["custom-flavor"]["memory"]["desired-memory"]
+    return config["partition-flavor"]["memory"]["desired-memory"]
 
 def get_max_memory(config):
-    return config["custom-flavor"]["memory"]["max-memory"]
+    return config["partition-flavor"]["memory"]["max-memory"]
 
 def get_min_memory(config):
-    return config["custom-flavor"]["memory"]["min-memory"]
+    return config["partition-flavor"]["memory"]["min-memory"]
 
 def get_desired_proc(config):
-    return config["custom-flavor"]["cpu"]["dedicated"]["desired-proc-unit"]
+    return config["partition-flavor"]["cpu"]["dedicated"]["desired-proc-unit"]
 
 def get_max_proc(config):
-    return config["custom-flavor"]["cpu"]["dedicated"]["max-proc-unit"]
+    return config["partition-flavor"]["cpu"]["dedicated"]["max-proc-unit"]
 
 def get_min_proc(config):
-    return config["custom-flavor"]["cpu"]["dedicated"]["min-proc-unit"]
+    return config["partition-flavor"]["cpu"]["dedicated"]["min-proc-unit"]
 
 def get_shared_desired_proc(config):
-    return config["custom-flavor"]["cpu"]["shared"]["desired-proc-unit"]
+    return config["partition-flavor"]["cpu"]["shared"]["desired-proc-unit"]
 
 def get_shared_max_proc(config):
-    return config["custom-flavor"]["cpu"]["shared"]["max-proc-unit"]
+    return config["partition-flavor"]["cpu"]["shared"]["max-proc-unit"]
 
 def get_shared_min_proc(config):
-    return config["custom-flavor"]["cpu"]["shared"]["min-proc-unit"]
+    return config["partition-flavor"]["cpu"]["shared"]["min-proc-unit"]
 
 def get_shared_desired_virt_proc(config):
-    return config["custom-flavor"]["cpu"]["shared"]["desired-virt-proc"]
+    return config["partition-flavor"]["cpu"]["shared"]["desired-virt-proc"]
 
 def get_shared_max_virt_proc(config):
-    return config["custom-flavor"]["cpu"]["shared"]["max-virt-proc"]
+    return config["partition-flavor"]["cpu"]["shared"]["max-virt-proc"]
 
 def get_shared_min_virt_proc(config):
-    return config["custom-flavor"]["cpu"]["shared"]["min-virt-proc"]
+    return config["partition-flavor"]["cpu"]["shared"]["min-virt-proc"]
 
 def has_dedicated_proc(config):
-    return  "true" if config["custom-flavor"]["cpu"]["mode"] == "dedicated" else "false"
+    return  "true" if config["partition-flavor"]["cpu"]["mode"] == "dedicated" else "false"
 
 def get_cpu_mode(config):
-    return config["custom-flavor"]["cpu"]["mode"]
+    return config["partition-flavor"]["cpu"]["mode"]
 
 def get_sharing_mode(config):
-    return config["custom-flavor"]["cpu"]["sharing-mode"]
+    return config["partition-flavor"]["cpu"]["sharing-mode"]
 
 def get_partition_type(config):
     return "AIX/Linux"
@@ -78,6 +78,9 @@ def get_partition_name(config):
 
 def get_partition_flavor(config):
     return config["partition"]["flavor"]
+
+def has_custom_flavor(config):
+    return config["partition"]["flavor"] == "custom"
 
 # Network config Getters
 def get_vswitch_name(config):

@@ -1,15 +1,26 @@
 import logging
 import hashlib
+import os
+
 from urllib.parse import urlparse
+from configobj import ConfigObj
 
 import auth.auth as auth
 import utils.string_util as util
 
 LOG_LEVEL = logging.INFO
+PARTITION_FLAVOR_DIR = f"{os.getcwd()}/partition-flavor"
 
 def set_log_level(level):
     global LOG_LEVEL
     LOG_LEVEL = level
+
+def setup_logging(level):
+    logging.basicConfig(
+        format='%(asctime)s %(levelname)-8s %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        level=level
+    )
 
 def get_logger(name):
     logger = logging.getLogger(name)
@@ -57,3 +68,25 @@ def get_iso_url_and_checksum_path(config, iso_folder):
     checksum_url = iso_url.replace(iso_file, checksum_file)
     checksum_file_path = f"{iso_folder}/{checksum_file}"
     return iso_url, iso_file_path, checksum_url, checksum_file_path
+
+def load_partition_flavor(flavor_name):
+    try:
+        flavor_list = list_defined_partition_flavor()
+        file_name = f"{flavor_name}.ini"
+        if flavor_name in flavor_list:
+            config = ConfigObj(f"{PARTITION_FLAVOR_DIR}/{file_name}")
+            return config
+        raise Exception(f"partition flavor with name '{flavor_name}' is undefined")
+    except Exception as e:
+        raise e
+
+def list_defined_partition_flavor():
+    flavor_list = []
+    try:
+        config_list = os.listdir(PARTITION_FLAVOR_DIR)
+        for file in config_list:
+            name = file.split(".")[0]
+            flavor_list.append(name)
+    except Exception as e:
+        raise e
+    return flavor_list

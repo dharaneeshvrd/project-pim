@@ -41,6 +41,12 @@ def initialize():
     config_file = "config.ini"
     try:
         config = ConfigObj(config_file)
+        if util.has_custom_flavor(config):
+            config["partition-flavor"] = config["custom-flavor"]
+        else:
+            flavor_name = util.get_partition_flavor(config)
+            config["partition-flavor"] = common.load_partition_flavor(flavor_name)
+            
     except Exception as e:
         logger.error(f"failed to parse config.ini, error: {e}")
         raise e
