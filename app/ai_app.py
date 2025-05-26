@@ -5,19 +5,14 @@ import utils.string_util as util
 import utils.common as common
 from .ai_app_exception import AiAppError
 
-logger = common.get_logger("AI-app")
 
 def check_app(config):
     try:
         headers = json.loads(util.get_ai_app_headers(config)) if util.get_ai_app_headers(config) != "" else None
         response = requests.request(util.get_ai_app_method(config), util.get_ai_app_url(config), data=util.get_ai_app_payload(config), headers=headers)
         if response.status_code >= 200 and response.status_code < 300:
-            logger.info(f"AI application validation request succeeded, response: {response.text}")
-            return True
+            return True, response.text
     except Exception as e:
-        logger.error(f"AI application validation request errored, error: {e}")
-        return False
+        return False, f"AI application validation request errored, error: {e}, will retry..."
     
-    logger.error(f"AI application validation request didn't succeed yet, response: '{response.text}', code: '{response.status_code}', will retry...")
-    return False
-    
+    return False, f"AI application validation request didn't succeed yet, response: '{response.text}', code: '{response.status_code}', will retry..."

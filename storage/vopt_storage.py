@@ -55,7 +55,7 @@ def check_if_scsi_mapping_exist(vios, media_dev_name):
             break
 
     if disk != None:
-        logger.info(f"SCSI mapping for media device '{media_dev_name}' found in the VIOS")
+        logger.debug(f"SCSI mapping for media device '{media_dev_name}' found in the VIOS")
         return True
     return False
 

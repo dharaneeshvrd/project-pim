@@ -142,7 +142,7 @@ def check_job_status(config, cookies, response):
     soup = BeautifulSoup(response, 'xml')
     job_id = soup.find("JobID").text
     if soup.find("Status").text == "COMPLETED_OK":
-        logger.info("Partition activated successfully.")
+        logger.debug("Partition activated successfully.")
         return
     else:
         # poll for job status to be COMPLETRED_OK 3 times.
@@ -159,7 +159,7 @@ def activate_partititon(config, cookies, partition_uuid):
     # Check partition state,don't activate if its in 'running' state
     lpar_state = check_lpar_status(config, cookies, partition_uuid)
     if lpar_state == "running":
-        logger.info("Partition already in 'running' state, skipping activation")
+        logger.debug("Partition already in 'running' state, skipping activation")
         return
 
     uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}/do/PowerOn"
@@ -177,7 +177,7 @@ def activate_partititon(config, cookies, partition_uuid):
     if not status:
         logger.error(f"failed to activate partition, activate job returned false")
         raise PartitionError(f"failed to activate partition, activate job returned false")
-    logger.info("Partition activated successfully.")
+    logger.debug("Partition activated successfully.")
     return
 
 def check_lpar_status(config, cookies, partition_uuid):
@@ -198,7 +198,7 @@ def check_lpar_status(config, cookies, partition_uuid):
 def shutdown_partition(config, cookies, partition_uuid):
     lpar_state = check_lpar_status(config, cookies, partition_uuid)
     if lpar_state == "not activated":
-        logger.info("Partition already in 'not activated' state, skipping shutdown")
+        logger.debug("Partition already in 'not activated' state, skipping shutdown")
         return
 
     uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}/do/PowerOff"
@@ -214,5 +214,4 @@ def shutdown_partition(config, cookies, partition_uuid):
     if not status:
         logger.error(f"failed to shutdown partition, shutdown job returned false")
         return
-    logger.info("Partition shutdown successfully.")
     return

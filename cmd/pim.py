@@ -94,7 +94,6 @@ def uploadfile(config, cookies, filehandle, file_uuid):
     url = "https://" + util.get_host_address(config) + uri
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/octet-stream", "Accept": "application/vnd.ibm.powervm.web+xml"}
 
-    logger.debug(f"Uploading file '{filehandle}'")
     def readfile(f, chunksize):
         while True:
             d = f.read(chunksize)
@@ -135,12 +134,12 @@ def is_iso_uploaded(config, cookies, iso_file_name,  sys_uuid, vios_uuid_list):
             vopt_media = media_repos.find_all("VirtualOpticalMedia")
             for vopt in vopt_media:
                 if  vopt.find(lambda tag: tag.name == "MediaName" and tag.text == iso_file_name):
-                    logger.info(f"Found ISO file '{iso_file_name}' in media repositories")
+                    logger.debug(f"Found ISO file '{iso_file_name}' in media repositories")
                     return True, vios_uuid
 
     except Exception as e:
         raise e
-    logger.info(f"ISO file '{iso_file_name}' was not found in the media repositories")
+    logger.debug(f"ISO file '{iso_file_name}' was not found in the media repositories")
     return False, ""
 
 def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vios_uuid_list):
@@ -150,7 +149,7 @@ def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vio
         if uploaded:
             return vios_uuid
 
-    logger.info(f"Uploading ISO file '{iso_file_name} to VIOS media repository")
+    logger.debug(f"Uploading ISO file '{iso_file_name} to VIOS media repository")
     # Iterating over the vios_uuid_list to upload the ISO to the media repository for a VIOS
     # If upload operation fails for current VIOS, next available VIOS in the list will be used as a fallback.
     file_uuid = ""
@@ -162,7 +161,7 @@ def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vio
                 if exists:
                     lpar_state = activation.check_lpar_status(config, cookies, lpar_uuid)
                     if lpar_state == "running":
-                        logger.info(f"Partition already in 'running' state, skipping reupload of cloud-init ISO '{iso_file_name}'")
+                        logger.debug(f"Partition already in 'running' state, skipping reupload of cloud-init ISO '{iso_file_name}'")
                         return vios_uuid
 
                     vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
@@ -181,7 +180,7 @@ def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vio
             # transfer ISO file to VIOS media repository
             with open(iso_file, 'rb') as f:
                 uploadfile(config, cookies, f, file_uuid)
-                logger.info(f"'{iso_file_name}' ISO file upload completed!!")
+                logger.debug(f"'{iso_file_name}' ISO file upload completed!!")
             
             # remove iso files from VIOS
             remove_iso_file(config, cookies, iso_file, file_uuid)
@@ -193,7 +192,7 @@ def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vio
             if index == len(vios_uuid_list)-1:
                 raise e
             else:
-                logger.info("Upload of ISO file will be attempted on next available VIOS")
+                logger.debug("Upload of ISO file will be attempted on next available VIOS")
     return
 
 def build_and_download_iso(config):
@@ -228,10 +227,10 @@ def generate_cloud_init_iso_config(config):
     auth_json = config["ai"]["auth-json"]
     auth_config_file = open(cloud_init_config_path + "/auth.json", "w")
     auth_config_file.write(auth_json)
-    logger.info("Generated config files for the cloud-init ISO")
+    logger.debug("Generated config files for the cloud-init ISO")
 
 def generate_cloud_init_iso_file(iso_folder, config):
-    logger.info("Generating cloud-init ISO file")
+    logger.debug("Generating cloud-init ISO file")
     cloud_init_image_name = util.get_cloud_init_iso(config)
     generate_cmd = f"mkisofs -l -o {iso_folder}/{cloud_init_image_name} ./cloud-init-iso/config"
     
@@ -241,7 +240,7 @@ def generate_cloud_init_iso_file(iso_folder, config):
         raise
 
 def download_bootstrap_checksum(checksum_url, checksum_file_path):
-    logger.info("Downloading bootstrap ISO's checksum file...")
+    logger.debug("Downloading bootstrap ISO's checksum file...")
 
     logger.debug(f"bootstrap iso checksum url: {checksum_url}")
     try:
@@ -262,19 +261,19 @@ def download_bootstrap_iso(iso_folder, config):
     try:
         # Check if bootstrap iso is already downloaded locally(on IBMi)
         if os.path.isfile(iso_file_path):
-            logger.info(f"Bootstrap iso '{iso_file_path}' found, checking integrity of the file")
+            logger.debug(f"Bootstrap iso '{iso_file_path}' found, checking integrity of the file")
             # Check if iso checksum file exists
             if not os.path.exists(checksum_file_path):
                 # Download checksum file for bootstrap iso
                 download_bootstrap_checksum(checksum_url, checksum_file_path)
             if not common.verify_checksum(iso_file_path, checksum_file_path):
-                logger.info("Checksum of found boostrap iso did not match, cleaning up iso..")
+                logger.debug("Checksum of found boostrap iso did not match, cleaning up iso..")
                 cleanup_iso_artifacts(iso_file_path, checksum_file_path)
             else:
-                logger.info(f"Bootstrap iso '{iso_file_path}' found, skipping download..")
+                logger.debug(f"Integrity is matching, skipping bootstrap iso download..")
                 return
 
-        logger.info("Downloading bootstrap ISO file...")
+        logger.debug("Downloading bootstrap ISO file...")
 
         response = requests.get(iso_url, stream=True)
         response.raise_for_status()
@@ -290,11 +289,11 @@ def download_bootstrap_iso(iso_folder, config):
             # re-try attempt
             logger.error("Checksum of bootstrap iso is not matching against checksumfile download from repository")
             return
-        logger.info("Integrity of downloaded bootstrap iso has been successfully verified..")
+        logger.debug("Integrity of downloaded bootstrap iso has been successfully verified..")
     except requests.exceptions.RequestException as e:
         logger.error(f"failed to download '{util.get_bootstrap_iso(config)}' file, error: {e}")
         raise
-    logger.info("Download completed for bootstrap ISO file")
+    logger.debug("Download completed for bootstrap ISO file")
     return
 
 def create_dir(path):
@@ -320,9 +319,8 @@ def ssh_to_partition(config):
             if i == 9:
                 logger.error(f"failed to establish SSH connection to partition after 10 retries, error: {e}")
                 raise paramiko.SSHException(f"failed to establish SSH connection to partition after 10 retries, error: {e}")
-            logger.info("SSH to partition failed, retrying..")
+            logger.debug("Not able to SSH to the partition yet, retrying..")
             time.sleep(30)
-    logger.info("SSH connection to partition is successful")
     return client
 
 def monitor_bootstrap_boot(config):
@@ -333,24 +331,24 @@ def monitor_bootstrap_boot(config):
         get_container_svc_exists = "ls /usr/lib/systemd/system/getcontainer.service"
         _, stdout, _ = ssh_client.exec_command(get_container_svc_exists, get_pty=True)
         if stdout.channel.recv_exit_status() == 0:
-            logger.info("getcontainer.service exists") 
+            logger.debug("getcontainer.service exists") 
 
             get_container_svc_cmd = "sudo journalctl -u getcontainer.service -f 2>&1 | awk '{print} /Installation complete/ {print \"Match found: \" $0; exit 0}'"
             _, stdout, stderr = ssh_client.exec_command(get_container_svc_cmd, get_pty=True)
             while True:
                 out = stdout.readline()
-                logger.info(out)
+                logger.debug(out)
                 if stdout.channel.exit_status_ready():
                     if stdout.channel.recv_exit_status() == 0:
-                        logger.info("Received ISO Installation complete message")
+                        logger.debug("Received ISO Installation complete message")
                         # Sleep is required to give time for reboot to happen to boot from the disk
                         time.sleep(10)
                         break
                     else:
-                        logger.info("Could not find bootstrap ISO installation complete message\n. \
-                        In case logs from bootstrap boot appears, please look at the errors if appear on the console and take appropriate resolution!!\n")
+                        logger.error("Could not find bootstrap ISO installation complete message\n. \
+                        please look at the errors if appear on the partition console and take appropriate action!!\n")
         else:
-            logger.info("Could not find 'getcontainer.service', will look for 'base_config.service' in PIM boot since it could be a re-run and bootstrap might have already finished")
+            logger.debug("Could not find 'getcontainer.service', will look for 'base_config.service' in PIM boot since it could be a re-run and bootstrap might have already finished")
             ssh_client.close()
     except Exception as e:
         logger.error(f"failed to monitor bootstrap boot, error: {e}")
@@ -360,24 +358,24 @@ def monitor_bootstrap_boot(config):
 
 def monitor_pim_boot(config):
     # Re-run scenario: If lpar is in 2nd boot stage, check base_config service logs
-    logger.info("PIM boot: Checking base_config.service")
+    logger.debug("PIM boot: Checking base_config.service")
     try:
         ssh_client = ssh_to_partition(config)    
 
         base_config_svc_exists = "ls /etc/systemd/system/base_config.service"
         _, stdout, _ = ssh_client.exec_command(base_config_svc_exists, get_pty=True)
         if stdout.channel.recv_exit_status() == 0:
-            logger.info("base_config.service exists")
+            logger.debug("base_config.service exists")
 
-            logger.info("Checking base_config.service logs")
+            logger.debug("Checking base_config.service logs")
             base_cfg_svc_cmd = "sudo journalctl -u base_config.service -f 2>&1 | awk '{print} /base_config.sh run successfully/ {print \"Match found: \" $0; exit 0}'"
             _, stdout, _ = ssh_client.exec_command(base_cfg_svc_cmd, get_pty=True)
             while True:
                 out = stdout.readline()
-                logger.info(out)
+                logger.debug(out)
                 if stdout.channel.exit_status_ready():
                     if stdout.channel.recv_exit_status() == 0:
-                        logger.info("Found 'base_config.sh run successfully' message")
+                        logger.debug("Found 'base_config.sh run successfully' message")
                         ssh_client.close()
                         return
         else:
@@ -412,8 +410,7 @@ def get_system_uuid(config, cookies):
     if "" == uuid:
         logger.error(f"no system available with name '{sys_name}'")
         raise PimError(f"no system available with name '{sys_name}'")
-    else:
-        logger.info(f"UUID for the system '{sys_name}': '{uuid}'")
+
     return uuid
 
 def get_vios_uuid_list(config, cookies, system_uuid):
@@ -434,8 +431,7 @@ def get_vios_uuid_list(config, cookies, system_uuid):
     if len(uuids) == 0:
         logger.error(f"no VIOS available for '{sys_name}'")
         raise PimError(f"no VIOS available for '{sys_name}'")
-    else:
-        logger.debug(f"VIOS UUID(s) for system {sys_name}: {uuids}")
+
     return uuids
 
 def get_vios_details(config, cookies, system_uuid, vios_uuid):
@@ -544,7 +540,7 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, disk_name):
             break
     
     if disk == None:
-        logger.error(f"no SCSI mapping available for '{disk_name}'")
+        logger.info(f"no SCSI mapping available for '{disk_name}' to remove")
         return
     scsi1 = disk.parent.parent
     scsi1.decompose()
@@ -561,7 +557,7 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, disk_name):
         logger.error(f"failed to update VIOS with removed '{disk_name}' mappings, error: {response.text}")
         return
 
-    logger.info(f"Successfully removed SCSI mappings for '{disk_name}'")
+    logger.debug(f"Successfully removed SCSI mappings for '{disk_name}'")
     return
 
 def get_media_repositories(config, cookies, vios):
@@ -590,7 +586,7 @@ def get_media_repositories(config, cookies, vios):
     except Exception as e:
         logger.error(f"failed to get media repositories, error: {e}")
         raise e
-    logger.info("Obtained media repositories from VIOS successfully")
+    logger.debug("Obtained media repositories from VIOS successfully")
     return vg_url, vol_group, media_repos
 
 def remove_vopt_device(config, cookies, vios, vopt_name):
@@ -610,7 +606,7 @@ def remove_vopt_device(config, cookies, vios, vopt_name):
                 break
         
         if not found:
-            logger.info("vOPT device '{vopt_name}' is not present in media repository")
+            logger.debug("vOPT device '{vopt_name}' is not present in media repository")
             return
 
         headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; type=VolumeGroup"}
@@ -620,7 +616,7 @@ def remove_vopt_device(config, cookies, vios, vopt_name):
             logger.error(f"failed to update volume group after deleting vOPT device from media repository, error: {response.text}")
             return
 
-        logger.info(f"Virtual optical media '{vopt_name}' has been deleted successfully")
+        logger.debug(f"Virtual optical media '{vopt_name}' has been deleted successfully")
     except Exception as e:
         raise e
     return
@@ -646,7 +642,7 @@ def cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list):
         for vopt in vopt_list:
             vios_uuid = find_vios_with_vopt_mounted(config, cookies, sys_uuid, vios_uuid_list, vopt)
             if not vios_uuid:
-                logger.error(f"no matching VIOS found where {vopt} vOPTs mounted")
+                logger.info(f"no matching VIOS found where {vopt} vOPTs mounted")
                 continue
             vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
 
@@ -690,31 +686,6 @@ def cleanup_iso_artifacts(iso_path, checksum_path):
     logger.debug("ISO artifacts have been deleted successfully")
     return
 
-def destroy_partition(config, cookies, partition_uuid):
-    try:
-        activation.shutdown_partition(config, cookies, partition_uuid)
-        partition.remove_partition(config, cookies, partition_uuid)
-    except (PartitionError, PimError) as e:
-        logger.error(f"failed to destroy partition. error: {e}")
-    logger.info("Destroy partition done")
-
-# destroy partition
-def destroy(config, cookies, sys_uuid, vios_uuid_list):
-    try:
-        exists, partition_uuid = partition.check_partition_exists(config, cookies, sys_uuid)
-        if not exists:
-            logger.info(f"Partition named '{util.get_partition_name(config)}-pim' not found, attempting VIOS cleanup")
-            # in the absence of partition, partition_uuid will be empty
-            cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list)
-            return
-        activation.shutdown_partition(config, cookies, partition_uuid)
-        cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list)
-        partition.remove_partition(config, cookies, partition_uuid)
-    except Exception as e:
-        raise e
-    logger.info("destroy flow completed successfully")
-    return
-
 def generate_ssh_keys(config):
     # Check if keys already exists in 'keys_path'
     if not check_if_keys_generated(config):
@@ -725,7 +696,7 @@ def generate_ssh_keys(config):
         if result.returncode != 0:
             logger.error(f"failed to run ssh-keygen command to generate keypair, error: {result.stderr} \n {result.stdout}")
             raise Exception(f"failed to run ssh-keygen command to generate keypair, error: {result.stderr}")
-        logger.info("SSH keypair generated successfully")
+        logger.debug("SSH keypair generated successfully")
 
     config["ssh"]["user-name"] = "pim"
     config["ssh"]["priv-key-file"] = keys_path + "/" + util.get_partition_name(config) + "_pim"
@@ -739,10 +710,9 @@ def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_stor
         for index, a_vios in enumerate(vios_storage_list):
             vios_uuid, physical_volume_name, _ = a_vios
             vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-            logger.debug("Attach physical storage to the partition")
             found, _ = storage.check_if_storage_attached(vios, partition_uuid)
             if found:
-                logger.info(f"Physical volume is already attached to lpar, skipping storage attachment to lpar")
+                logger.debug(f"Physical volume is already attached to lpar, skipping storage attachment to lpar")
                 return
     except (PimError, StorageError) as e:
         logger.error(f"failed to attach '{physical_volume_name}' physical storage in VIOS '{vios_uuid}'")
@@ -758,32 +728,80 @@ def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_stor
             
             found, _ = storage.check_if_storage_attached(updated_vios_payload, partition_uuid)
             if found:
-                logger.info(f"Physical volume '{physical_volume_name}' is already attached to lpar")
+                logger.debug(f"Physical volume '{physical_volume_name}' is already attached to lpar")
                 return
 
             storage.attach_storage(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid, physical_volume_name)
-            logger.info(f"Attached '{physical_volume_name}' physical volume to the partition from VIOS '{vios_storage_uuid}'")
+            logger.debug(f"Attached '{physical_volume_name}' physical volume to the partition from VIOS '{vios_storage_uuid}'")
             break
         except (PimError, StorageError) as e:
             logger.error(f"failed to attach '{physical_volume_name}' physical storage in VIOS '{vios_storage_uuid}'")
             if index == len(vios_storage_list) - 1:
                 raise e
             else:
-                logger.info("Attempting to attach physical storage present in next available VIOS")
+                logger.debug("Attempting to attach physical storage present in next available VIOS")
+    return
+
+def monitor_pim(config):
+    monitor_pim_boot(config)
+    logger.info("Partition booted with PIM image")
+
+    # No need to validate the AI application deployed via PIM flow if 'ai.validation.request' set to no, can complete the workflow
+    if util.get_ai_app_request(config) == "no":
+        logger.info("Skipping AI application validation since 'ai.validation.request' set to False")
+
+    # Validate the AI application deployed via PIM partition with the request details provided in 'ai.validation'
+    logger.info("Validate AI application launched via PIM")
+    logger.debug(f"Validation request details\n Method: {util.get_ai_app_method(config)}\n URL: {util.get_ai_app_url(config)}\n Payload: {util.get_ai_app_payload(config)}")
+    err = ""
+    for i in range(50):
+        up, msg = app.check_app(config)
+        if not up:
+            logger.debug(f"AI application is still not up and running, message: {msg} retrying..")
+            time.sleep(30)
+            continue
+        else:
+            logger.info(f"AI application is up and running, Response: {msg}")
+            return
+    logger.error(f"failed to bring up AI application from PIM image, error: {msg}")
+    raise AiAppError(f"failed to bring up AI application from PIM image, error: {msg}")
+
+# destroy partition
+def destroy(config, cookies, sys_uuid, vios_uuid_list):
+    try:
+        exists, partition_uuid = partition.check_partition_exists(config, cookies, sys_uuid)
+        if not exists:
+            logger.debug(f"Partition named '{util.get_partition_name(config)}-pim' not found, attempting VIOS cleanup")
+            # in the absence of partition, partition_uuid will be empty
+            cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list)
+            return
+        logger.debug("Shutting down the partition")
+        activation.shutdown_partition(config, cookies, partition_uuid)
+        logger.info("Partition shut down")
+
+        logger.debug("Detaching installation medias and physical disk from the partition")
+        cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list)
+        logger.info("Detached installation medias and physical disk from the partition")
+
+        logger.debug("Destroying the partition")
+        partition.remove_partition(config, cookies, partition_uuid)
+        logger.info("Partition destroyed")
+    except Exception as e:
+        raise e
     return
 
 def rollback(config):
     try:
         ssh_client = ssh_to_partition(config)
 
-        bootc_upgrade_cmd = "sudo bootc rollback"
-        _, stdout, stderr = ssh_client.exec_command(bootc_upgrade_cmd, get_pty=True)
+        bootc_rollback_cmd = "sudo bootc rollback"
+        _, stdout, stderr = ssh_client.exec_command(bootc_rollback_cmd, get_pty=True)
         if stdout.channel.recv_exit_status() != 0:
             logger.error(f"failed to rollback, error: {stdout.readlines()}, {stderr.readlines()}")
         else:
             logger.info("Rollback succeeded")
 
-        logger.info("Reboot to apply the rollback")
+        logger.debug("Reboot to apply the rollback")
         _, stdout, stderr = ssh_client.exec_command("sudo reboot", get_pty=True)
         if stdout.channel.recv_exit_status() != 0:
             logger.error(f"failed to reboot, error: {stdout.readlines()}, {stderr.readlines()}")         
@@ -795,7 +813,7 @@ def upgrade(config):
     try:
         ssh_client = ssh_to_partition(config)
 
-        logger.info("Updating auth.json with the latest one provided")
+        logger.debug("Updating auth.json with the latest one provided")
         auth_json = util.get_auth_json(config)
         sftp_client = ssh_client.open_sftp()
         with sftp_client.open("/tmp/auth.json", 'w')  as f:
@@ -808,18 +826,19 @@ def upgrade(config):
             raise Exception(f"failed to load auth.json in {bootc_auth_json}, error: {stdout.readlines()}, {stderr.readlines()}")
         
         upgraded = False
-        logger.info("Upgrading to the latest image")
         bootc_upgrade_cmd = "sudo bootc upgrade --apply"
         _, stdout, _ = ssh_client.exec_command(bootc_upgrade_cmd, get_pty=True)
         while True:
             out = stdout.readline()
-            logger.info(out)
+            logger.debug(out)
             if "Rebooting system" in out:
                 upgraded = True
             if stdout.channel.exit_status_ready():
                 break
+            time.sleep(1)
+
         if upgraded:
-            logger.info("Upgrade available and successfully applied the latest PIM image")
+            logger.info("Upgrade was available and successfully applied the latest PIM image")
         else:
             logger.info("Seems no upgrade available to apply")
     except Exception as e:
@@ -827,29 +846,6 @@ def upgrade(config):
         raise Exception(f"failed to upgrade PIM partition, error: {e}")
 
     return upgraded
-
-def monitor_pim(config):
-    monitor_pim_boot(config)
-
-    # No need to validate the AI application deployed via PIM flow if 'ai.validation.request' set to no, can complete the workflow
-    if util.get_ai_app_request(config) == "no":
-        logger.info("PIM image installed onto disk and rebooted, application should be available in few mins")
-        logger.info("---------------------- PIM workflow complete ----------------------")
-
-    # Validate the AI application deployed via PIM partition with the request details provided in 'ai.validation'
-    logger.info("13. Check for AI app to be running")
-    for i in range(50):
-        up = app.check_app(config)
-        if not up:
-            logger.info("AI application is still not up and running, retrying..")
-            time.sleep(10)
-            continue
-        else:
-            logger.info("AI application is up and running")
-            logger.info("---------------------- PIM workflow complete ----------------------")
-            return
-    logger.error("failed to bring up AI application from PIM image")
-    raise AiAppError("failed to bring up AI application from PIM image")
 
 def launch(config, cookies, sys_uuid, vios_uuids):
     try:
@@ -871,29 +867,27 @@ def launch(config, cookies, sys_uuid, vios_uuids):
             logger.error("failed to find VIOS server for the partition")
             raise StorageError("failed to find VIOS server for the partition")
 
-        logger.info("5. Setup installation ISOs")
+        logger.debug("Downloading(bootstrap) & building(cloud-init) installation ISOs")
         build_and_download_iso(config)
-        logger.info("---------------------- Setup installation ISOs done ----------------------")
+        logger.info("Downloaded & built installation ISOs")
         
-        logger.info("6. Transfer ISO files to VIOS media repository")
+        logger.debug("Loading installation ISOs to VIOS media repository")
         vios_bootstrap_media_uuid = upload_iso_to_media_repository(config, cookies, util.get_bootstrap_iso(config), sys_uuid, vios_media_uuid_list)
-        logger.info(f"a. Selecting '{vios_bootstrap_media_uuid}' VIOS to mount bootstrap vOPT")
+        logger.debug(f"a. Selecting '{vios_bootstrap_media_uuid}' VIOS to mount bootstrap vOPT")
         vios_cloudinit_media_uuid = upload_iso_to_media_repository(config, cookies, util.get_cloud_init_iso(config), sys_uuid, vios_media_uuid_list)
-        logger.info(f"b. Selecting '{vios_cloudinit_media_uuid}' VIOS to mount cloudinit vOPT")
-        
-        logger.info("---------------------- Transfer ISOs done ----------------------")
+        logger.debug(f"b. Selecting '{vios_cloudinit_media_uuid}' VIOS to mount cloudinit vOPT")
+        logger.info("Installation ISOs loaded to VIOS")
 
-        logger.info("7. Create Partition on the target host")
+        logger.debug("7. Setup Partition on the target host")
         partition_uuid = partition.create_partition(config, cookies, sys_uuid)
+        logger.info("Partition setup completed")
+        logger.debug(f"Partition's UUID: {partition_uuid}")
 
-        logger.debug(f"Partition created successfully. partition UUID: {partition_uuid}")
-        logger.info("---------------------- Create partition done ----------------------")
-
-        logger.info("8. Attach Network to the partition")
+        logger.debug("Setup network to the partition")
         virtual_network.attach_network(config, cookies, sys_uuid, partition_uuid)
-        logger.info("---------------------- Attach network done ----------------------")
+        logger.info("Network setup completed")
 
-        logger.info("9. Attach installation medias to the partition")
+        logger.debug("Setup PIM installation ISOs")
         vios_payload = get_vios_details(config, cookies, sys_uuid, vios_bootstrap_media_uuid)
 
         # Attach bootstrap vOPT
@@ -912,19 +906,17 @@ def launch(config, cookies, sys_uuid, vios_uuids):
             vios_cloudinit_payload = get_vios_details(config, cookies, sys_uuid, vios_cloudinit_media_uuid)
             c_scsi_exists = vopt.check_if_scsi_mapping_exist(vios_cloudinit_payload, vopt_cloud_init)
             if not c_scsi_exists:
-                vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_cloudinit_media_uuid, vopt_cloud_init)
+                vopt.attach_vopt(vios_cloudinit_payload, config, cookies, partition_uuid, sys_uuid, vios_cloudinit_media_uuid, vopt_cloud_init)
 
-        logger.info("Bootstrap and cloudinit virtual optical device attached")
-        logger.info("---------------------- Attach installation medias done ----------------------")
+        logger.info("PIM installation ISOs setup completed")
 
-        logger.info("10. Attach storage")
+        logger.debug("Setup storage")
         # Re-run scenario: Check if physical disk is already attached
         storage_attached = False
         for vios_id in active_vios_servers:
-            logger.debug("Attach physical storage to the partition")
             found, _ = storage.check_if_storage_attached(active_vios_servers[vios_id], partition_uuid)
             if found:
-                logger.info(f"Physical disk is already attached to lpar '{partition_uuid}'")
+                logger.debug(f"Physical disk is already attached to lpar '{partition_uuid}'")
                 storage_attached = True
 
         # Enable below code block when virtual disk support is added
@@ -957,94 +949,77 @@ def launch(config, cookies, sys_uuid, vios_uuids):
                 logger.error("failed to find physical volume for the partition")
                 raise StorageError("failed to find physical volume for the partition")
             attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_storage_list)
-        logger.info("---------------------- Attach storage done ----------------------")
+        logger.info("Storage setup completed")
 
         partition_payload = partition.get_partition_details(config, cookies, sys_uuid, partition_uuid)
         partition.set_partition_boot_string(config, cookies, sys_uuid, partition_uuid, partition_payload, "cd/dvd-all")
 
-        logger.info("11. Activate partition")
+        logger.debug("Activate partition")
         activation.activate_partititon(config, cookies, partition_uuid)
-        logger.info("---------------------- Partition activation done ----------------------")
+        logger.info("Partition activated")
 
+        logger.info("Monitoring boot process, this will take a while")
         monitor_bootstrap_boot(config)
         monitor_pim(config)
     except (AiAppError, AuthError, NetworkError, PartitionError, StorageError, PimError, paramiko.SSHException, Exception) as e:
         raise e
 
-def start_manager():
+def start_manager(args):
     try:
         cookies = None
-        parser = argparse.ArgumentParser(description="PIM lifecycle manager")
-        parser.add_argument("action", choices=["launch", "upgrade", "rollback", "destroy"] , help="Does launch, upgrade, rollback and destroy PIM partition.")
-        parser.add_argument("--debug", action='store_true', help='Enable debug logging level')
-        args = parser.parse_args()
-
-        if args.debug:
-            common.setup_logging(logging.DEBUG)
-        else:
-            common.setup_logging(logging.INFO)
-        
-        logger.info("Starting PIM lifecycle manager")
         config = initialize()
 
         command = None
         if args.action == "launch":
-            logger.info("Launch PIM partition")
+            logger.info("Launching PIM partition")
             command = launch
         elif args.action == "destroy":
-            logger.info("Destroy PIM partition")
+            logger.info("Destroying PIM partition")
             command = destroy
    
         if args.action == "upgrade":
-            logger.info("Upgrade PIM partition")
+            logger.info("Upgrading PIM partition")
             
-            logger.info("1. Validate configuration")
+            logger.debug("Validating configuration")
             validator.validate_upgrade_config(config)
-            logger.info("---------------------- Validate configuration Done ----------------------")
+            logger.debug("Configuration validated")
 
-            logger.info("2. Upgrade to the latest PIM image")
+            logger.debug("Upgrade to the latest PIM image")
             if not upgrade(config):
                 return
-            logger.info("---------------------- Upgrade Done ----------------------")
             
-            logger.info("3. Check for AI app to be running")
+            logger.debug("Monitor booting")
             monitor_pim(config)
-            logger.info("---------------------- PIM workflow complete ----------------------")
-
             return
 
         if args.action == "rollback":
             logger.info("Rollback PIM partition")
 
-            logger.info("1. Validate configuration")
+            logger.debug("Validate configuration")
             validator.validate_rollback_config(config)
-            logger.info("---------------------- Validate configuration Done ----------------------")
+            logger.debug("Configuration validated")
 
-            logger.info("2. Rollback to the previous PIM image")
+            logger.debug("Rollback to the previous PIM image")
             rollback(config)
-            logger.info("---------------------- Rollback Done ----------------------")
 
-            logger.info("3. Check for AI app to be running")
+            logger.debug("Monitor booting")
             monitor_pim(config)
-            logger.info("---------------------- PIM workflow complete ----------------------")
             return
 
-        logger.info("1. Validate configuration")
+        logger.debug("Validate configuration")
         if not validator.validate_config(config):
             return
-        logger.info("---------------------- Validate configuration Done ----------------------")
+        logger.debug("Configuration validated")
 
-        logger.info("2. Authenticate with HMC host")
+        logger.debug("Authenticate with HMC host")
         session_token, cookies = auth.authenticate_hmc(config)
-        logger.info("---------------------- Authenticate to HMC done ----------------------")
+        logger.debug("Authenticated with HMC")
 
         config["session"] = {"x-api-key": session_token}
 
-        logger.info("3. Get System UUID for target host")
         sys_uuid = get_system_uuid(config, cookies)
-        logger.info("---------------------- Get System UUID done ----------------------")
+        logger.debug(f"System UUID: {sys_uuid}")
 
-        logger.info("4. Select VIOS for target host")
         if not validator.validate_networks(config, cookies, sys_uuid):
             return
 
@@ -1055,8 +1030,18 @@ def start_manager():
         logger.error(f"encountered an error: {e}")
     finally:
         if cookies:
-            common.cleanup_and_exit(config, cookies, 0)
+            common.cleanup(config, cookies)
+        logger.info("End of PIM command!!!")
 
+parser = argparse.ArgumentParser(description="PIM lifecycle manager")
+parser.add_argument("action", choices=["launch", "upgrade", "rollback", "destroy"] , help="Does launch, upgrade, rollback and destroy PIM partition")
+parser.add_argument("--debug", action='store_true', help='Enable debug logging level')
+args = parser.parse_args()
+
+if args.debug:
+    common.set_log_level(logging.DEBUG)
+else:
+    common.set_log_level(logging.INFO)
 logger = common.get_logger("pim-manager")
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-start_manager()
+start_manager(args)
