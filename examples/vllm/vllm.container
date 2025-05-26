@@ -7,6 +7,7 @@ After=llm_config.service
 Restart=on-failure
 RestartSec=60
 EnvironmentFile=/etc/pim/env.conf
+EnvironmentFile=/etc/pim/llm.conf
 
 [Container]
 Image="$LLM_IMAGE"
@@ -14,6 +15,7 @@ Network=host
 Volume=/var/huggingface:/var/huggingface
 SecurityLabelType=unconfined_t
 Exec="$LLM_ARGS"
+EnvironmentFile=/etc/pim/llm.conf
 AutoUpdate=registry
 
 [Install]
