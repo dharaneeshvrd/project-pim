@@ -16,11 +16,11 @@ COPY usr/ /usr/
 Install cloud-init to configure AI image and PIM partition's network and user
 
 ```
-COPY get_pimconfig.sh /usr/bin/
-COPY pimconfig.service /etc/systemd/system
+COPY base_config.sh /usr/bin/
+COPY base_config.service /etc/systemd/system
 
-RUN systemctl unmask pimconfig.service
-RUN systemctl enable pimconfig.service
+RUN systemctl unmask base_config.service
+RUN systemctl enable base_config.service
 ```
 Systemd service to setup pimconfig like copying cloud init config and pim config files to respective directory
 
@@ -29,12 +29,8 @@ Systemd service to setup pimconfig like copying cloud init config and pim config
 Run the build in a RHEL machine with proper subscription activated. `podman build` will use the build machine's host subscription to install pkgs in PIM image.
 
 ```
-podman build --security-opt label=type:unconfined_t  --cap-add=all   --device /dev/fuse -t localhost/pim-bootc .
+podman build -t localhost/pim-base .
 
-podman tag localhost/pim-bootc na.artifactory.swg-devops.com/aionpower/pim:9.6
-podman push na.artifactory.swg-devops.com/aionpower/pim:9.6
-
+podman tag localhost/pim-base na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/base
+podman push na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/base
 ```
-
-## Usage
-Once its built, it can be used in [config.ini](../../config.ini) `ai.workload-image` field to use it in the automation to bringup the PIM partition
