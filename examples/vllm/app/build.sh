@@ -4,7 +4,7 @@ stream=$1
 
 if [[ ${stream} == "" || ${stream} == "--help" || ${stream} == "-h" ]]; then
 	echo "./build.sh <stream>"
-	echo "stream - release, main - mention from which stream you want to build your vLLM image"
+	echo "stream - mention from which stream you want to build your vLLM image. Options: release, main"
 	echo "In case of 'release' stream, you can pass release version after stream like this" 
 	echo "./build.sh release 0.8.5.post1"
 	exit
