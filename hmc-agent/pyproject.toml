@@ -8,7 +8,7 @@ dependencies = [
     "colorama>=0.4.6",
     "mcp[cli]>=1.6.0",
     "smolagents[litellm,mcp]>=1.13.0",
-    "requests"
+    "requests",
     "bs4",
     "lxml"
 ]
