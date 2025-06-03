@@ -47,3 +47,17 @@ def get_hmc_version(ip, session_key, cookies):
     min_ver = version_info.find("Minor").text
     serv_pack_name = version_info.find("ServicePackName").text
     return major_ver, min_ver, serv_pack_name
+
+def list_all_systems(ip, session_key, cookies):
+    uri = f"rest/api/uom/ManagedSystem/quick/All"
+    url =  "https://" + ip + uri
+    headers = {"x-api-key": session_key}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        print("failed to get hmc version")
+        return
+    list_of_systems = response.json()
+    list_of_sys_names = []
+    for system in list_of_systems:
+        list_of_sys_names.append(system["SystemName"])
+    return list_of_sys_names
