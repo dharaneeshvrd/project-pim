@@ -19,5 +19,5 @@ server_parameters = StdioServerParameters(
 # Run the agent using the MCP tools 
 with ToolCollection.from_mcp(server_parameters, trust_remote_code=True) as tool_collection:
     agent = ToolCallingAgent(tools=[*tool_collection.tools], model=model)
-    agent.run("What was EBITDA for IBM?")
+    agent.run('What is HMC version for "9.114.98.90"')
     
