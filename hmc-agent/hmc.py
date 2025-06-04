@@ -5,9 +5,6 @@ CONTENT_TYPE = "application/vnd.ibm.powervm.web+xml; type=LogonRequest"
 ACCEPT = "application/vnd.ibm.powervm.web+xml; type=LogonResponse"
 URI = "/rest/api/web/Logon"
 
-HMC_USERNAME = ""
-HMC_PASSWORD = ""
-
 def populate_payload(username, password):
     return f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <LogonRequest xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" schemaVersion="V1_1_0">
@@ -19,10 +16,10 @@ def populate_payload(username, password):
 </LogonRequest>
 '''
 
-def authenticate_hmc(ip):
+def authenticate_hmc(hmc_creds: dict):
     # Populate Authentication payload
-    payload = populate_payload(HMC_USERNAME, HMC_PASSWORD)
-    url = "https://" + ip + URI
+    payload = populate_payload(hmc_creds["hmc_username"], hmc_creds["hmc_password"])
+    url = "https://" + hmc_creds["hmc_ip"] + URI
     headers = {"Content-Type": CONTENT_TYPE, "Accept": ACCEPT}
     response = requests.put(url, headers=headers, data=payload, verify=False)
     if response.status_code != 200:
@@ -61,3 +58,26 @@ def list_all_systems(ip, session_key, cookies):
     for system in list_of_systems:
         list_of_sys_names.append(system["SystemName"])
     return list_of_sys_names
+
+def get_logical_partitions(ip, session_key, cookies):
+    uri = f"/rest/api/uom/LogicalPartition/quick/All"
+    url = f"https://{ip}{uri}"
+    headers = {"x-api-key": session_key}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    print(f"status: {response.status_code}")
+    if response.status_code != 200:
+        print("failed to get logical partitions")
+        return []
+    partitions = response.json()
+    vm_list = []
+    for lpar in partitions:
+        name = lpar["PartitionName"] 
+        lpar_id = lpar["PartitionID"]
+        state = lpar["PartitionState"]
+        vm_list.append({
+            "name": name,
+            "id": lpar_id,
+            "state": state
+        })
+
+    return vm_list

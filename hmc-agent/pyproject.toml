@@ -10,6 +10,8 @@ dependencies = [
     "smolagents[litellm,mcp]>=1.13.0",
     "requests",
     "bs4",
-    "lxml"
+    "lxml",
+    "tabulate",
+    "six"
 ]
 
