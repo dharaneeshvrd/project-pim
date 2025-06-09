@@ -1,6 +1,6 @@
-**Contributor License Agreement (CLA) for Power Access Cloud**
+**Contributor License Agreement (CLA) for Power Interface Microservice**
 
-This Contribution License Agreement ("Agreement") is made and entered into between the Power Access Cloud project (the "Project"), hosted on GitHub, and you (the "Contributor").
+This Contribution License Agreement ("Agreement") is made and entered into between the Power Interface Microservice project (the "Project"), hosted on GitHub, and you (the "Contributor").
 
 **1. Contributions**
 
