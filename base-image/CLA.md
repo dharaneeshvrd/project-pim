@@ -1,6 +1,6 @@
-**Contributor License Agreement (CLA) for Inference Microservice**
+**Contributor License Agreement (CLA) for Power Inference Microservice**
 
-This Contribution License Agreement ("Agreement") is made and entered into between the Inference Microservice project (the "Project"), hosted on GitHub, and you (the "Contributor").
+This Contribution License Agreement ("Agreement") is made and entered into between the Power Inference Microservice project (the "Project"), hosted on GitHub, and you (the "Contributor").
 
 **1. Contributions**
 
