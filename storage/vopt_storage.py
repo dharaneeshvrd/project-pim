@@ -44,20 +44,23 @@ def populate_payload(config, vios_payload, hmc_host, partition_uuid, system_uuid
 
     return str(vios_bs)
 
-def check_if_scsi_mapping_exist(vios, media_dev_name):
-    soup = BeautifulSoup(vios, 'xml')
-    scsi_mappings = soup.find('VirtualSCSIMappings')
-    b_devs = scsi_mappings.find_all("BackingDeviceName")
-    disk = None
-    for b_dev in b_devs:
-        if b_dev.text == media_dev_name:
-            disk = b_dev
-            break
-
-    if disk != None:
-        logger.debug(f"SCSI mapping for media device '{media_dev_name}' found in the VIOS")
-        return True
-    return False
+def check_if_scsi_mapping_exist(partition_uuid, vios, media_dev_name):
+    found = False
+    try:
+        soup = BeautifulSoup(vios, 'xml')
+        scsi_mappings = soup.find_all('VirtualSCSIMapping')
+        # Iterate over all SCSI mappings and look for Storage followed by PhysicalVolume XML tags
+        for scsi in scsi_mappings:
+            lpar_link = scsi.find("AssociatedLogicalPartition")
+            if lpar_link is not None and partition_uuid in lpar_link.attrs["href"]:
+                b_dev = scsi.find("BackingDeviceName")
+                if b_dev is not None and b_dev.text == media_dev_name:
+                    found = True
+                    break
+    except Exception as e:
+        logger.error("failed to check if storage SCSI mapping is present in VIOS")
+        raise e
+    return found
 
 def attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uuid, vopt_name):
     uri = f"/rest/api/uom/ManagedSystem/{sys_uuid}/VirtualIOServer/{vios_uuid}"
@@ -68,6 +71,6 @@ def attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_uu
     response = requests.post(url, headers=headers, cookies=cookies, data=payload, verify=False)
 
     if response.status_code != 200:
-        logger.error(f"failed to attach virtual storage to the partition, error: {response.text}")
-        raise StorageError(f"failed to attach virtual storage to the partition, error: {response.text}")
+        logger.error(f"failed to attach vOPT device to the partition, error: {response.text}")
+        raise StorageError(f"failed to attach vOPT device to the partition, error: {response.text}")
     return

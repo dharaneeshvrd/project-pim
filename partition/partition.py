@@ -11,7 +11,8 @@ logger = common.get_logger("partition")
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"
 
 def populate_payload(config):
-    partition_name = util.get_partition_name(config) + "-pim"
+    lpar_name_hash = common.string_hash(util.get_partition_name(config).lower())
+    partition_name = util.get_partition_name(config).lower() + "-" + lpar_name_hash[:16]
     return f'''
 <LogicalPartition:LogicalPartition xmlns:LogicalPartition="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_8_0">
     <CurrentProfileSync>On</CurrentProfileSync>
@@ -73,27 +74,35 @@ def get_all_partitions(config, cookies, system_uuid):
         raise PartitionError(f"failed to get partition list, error: {response.text}")
     return response.json()
 
+# Checks if partition exists, returns exists and if partition is created by PIM
 def check_partition_exists(config, cookies, system_uuid):
     uuid = ""
+    created_by_pim = False
     try:
         partitions = get_all_partitions(config, cookies, system_uuid)
-        lpar_name = util.get_partition_name(config) + "-pim"
+        lpar_name = util.get_partition_name(config).lower()
+        lpar_name_hash = common.string_hash(lpar_name)
+        pim_lpar_name = lpar_name + "-" + lpar_name_hash[:16]
         for partition in partitions:
-            if partition["PartitionName"] == lpar_name:
+            # Check if either partion name with pim suffix(created by PIM) or just partition name(not created by PIM)
+            if partition["PartitionName"] == lpar_name or partition["PartitionName"] == pim_lpar_name:
                 uuid = partition["UUID"]
+                if partition["PartitionName"] == pim_lpar_name:
+                    created_by_pim = True
                 break
 
         if len(uuid) > 0:
             logger.debug(f"UUID of partition '{lpar_name}': {uuid}")
-            return True, uuid
+            return True, created_by_pim, uuid
         else:
             logger.debug(f"no partition available with name '{lpar_name}'")
     except Exception as e:
         raise e
-    return False, uuid
+    return False, created_by_pim, uuid
 
+# Suffix '-pim' is used to distinguish between existing partition and newly provisioned partition by PIM
 def create_partition(config, cookies, system_uuid):
-    exists, partition_uuid = check_partition_exists(config, cookies, system_uuid)
+    exists, _, partition_uuid = check_partition_exists(config, cookies, system_uuid)
     if exists:
         logger.debug(f"Existing partition found with name '{util.get_partition_name(config)}'")
         return partition_uuid

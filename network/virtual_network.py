@@ -8,6 +8,7 @@ from .network_exception import NetworkError
 logger = common.get_logger("virtual-network")
 
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=ClientNetworkAdapter"
+DEFAULT_NW_SLOT = 3
 
 # Note: The VirtualSlotNumber tag is set to 3, which corresponds to the value in the 99_custom_network.cfg file.
 #       Any changes to this value must also be updated in the configuration file.
@@ -18,7 +19,7 @@ def populate_payload(vlanid, vswitchid, vswitchname):
         <Atom>
         </Atom>
     </Metadata>
-    <VirtualSlotNumber kxe="false" kb="COD">3</VirtualSlotNumber>
+    <VirtualSlotNumber kxe="false" kb="COD">{DEFAULT_NW_SLOT}</VirtualSlotNumber>
     <PortVLANID kb="CUR" kxe="false">{vlanid}</PortVLANID>
     <VirtualSwitchID kxe="false" kb="ROR">{vswitchid}</VirtualSwitchID>
     <VirtualSwitchName ksv="V1_12_0" kb="ROR" kxe="false">{vswitchname}</VirtualSwitchName>
@@ -67,22 +68,24 @@ def check_network_adapter(config, cookies, partition_uuid, vlan_id, vswitch_id):
     uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}/ClientNetworkAdapter"
     url =  "https://" +  util.get_host_address(config) + uri
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": CONTENT_TYPE}
+    slot_num = -1
     try:
         response = requests.get(url, headers=headers, cookies=cookies, verify=False)
         if response.status_code == 204:
             logger.debug("No network is attached to lpar '{}' yet")
-            return False
+            return False, slot_num
         elif response.status_code == 200:
             soup = BeautifulSoup(response.text, 'xml')
             if soup.find("PortVLANID").text == vlan_id and soup.find("VirtualSwitchID").text == vswitch_id :
                 logger.debug(f"Found network with VLAN '{vlan_id}' and Switch '{vswitch_id}' attached to lpar.")
-                return True
+                slot_num = soup.find("VirtualSlotNumber").text
+                return True, slot_num
         else:
             raise NetworkError(f"failed to check if virtual network is attached to the partition, error: {response.text}")
     except Exception as e:
         logger.error("failed to check if virtual network is attached to the partition, error: {e}")
         raise e
-    return False
+    return False, slot_num
 
 def attach_network(config, cookies, system_uuid, partition_uuid):
     try:
@@ -90,9 +93,10 @@ def attach_network(config, cookies, system_uuid, partition_uuid):
         vlan_id, vswitch_id = get_vlan_details(config, cookies, system_uuid)
 
         # Check if network adapter is already attached to lpar. If not, do attach
-        if check_network_adapter(config, cookies, partition_uuid, vlan_id, vswitch_id):
+        attached, slot_num = check_network_adapter(config, cookies, partition_uuid, vlan_id, vswitch_id)
+        if attached:
             logger.debug(f"Network '{util.get_vnetwork_name(config)}' is already attached to lpar ")
-            return
+            return slot_num
 
         payload = populate_payload(vlan_id, vswitch_id, util.get_vswitch_name(config))
 
@@ -105,4 +109,4 @@ def attach_network(config, cookies, system_uuid, partition_uuid):
             raise NetworkError(f"failed to attach virtual network to the partition, error: {response.text}")
     except Exception as e:
         raise e
-    return
+    return DEFAULT_NW_SLOT

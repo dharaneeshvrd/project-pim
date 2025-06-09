@@ -163,7 +163,7 @@ def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vio
         try:
             # Re-run scenario: If lpar is already activated but launch flow failed during monitoring or app_check stage in previous run. Skip reupload of cloudinit iso
             if "_pimc" in iso_file_name:
-                exists, lpar_uuid = partition.check_partition_exists(config, cookies, sys_uuid)
+                exists, _, lpar_uuid = partition.check_partition_exists(config, cookies, sys_uuid)
                 if exists:
                     lpar_state = activation.check_lpar_status(config, cookies, lpar_uuid)
                     if lpar_state == "running":
@@ -180,7 +180,7 @@ def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vio
 
             # Create ISO filepath for bootstrap iso
             iso_file = iso_folder + "/" + iso_file_name
-            iso_checksum = common.hash(iso_file)
+            iso_checksum = common.file_checksum(iso_file)
             iso_size = os.path.getsize(iso_file)
             file_uuid = create_iso_path(config, cookies, vios_uuid, iso_file_name, iso_checksum, iso_size)
             # transfer ISO file to VIOS media repository
@@ -201,14 +201,16 @@ def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vio
                 logger.debug("Upload of ISO file will be attempted on next available VIOS")
     return
 
-def build_and_download_iso(config):
+def build_and_download_iso(config, slot_num):
     iso_folder = "iso"
-    create_dir(iso_folder)
-    generate_cloud_init_iso_config(config)
+    common.create_dir(iso_folder)
+    generate_cloud_init_iso_config(config, slot_num)
     generate_cloud_init_iso_file(iso_folder, config)
     download_bootstrap_iso(iso_folder, config)
     
-def generate_cloud_init_iso_config(config):
+def generate_cloud_init_iso_config(config, slot_num):
+    # Populate config object with slot_num
+    config["partition"]["network"]["slot_num"] = slot_num
     file_loader = FileSystemLoader('cloud-init-iso/templates')
     env = Environment(loader=file_loader)
     
@@ -216,7 +218,7 @@ def generate_cloud_init_iso_config(config):
     network_config_output = network_config_template.render(config=config)
     
     cloud_init_config_path = "cloud-init-iso/config"
-    create_dir(cloud_init_config_path)
+    common.create_dir(cloud_init_config_path)
 
     pim_config_json = config["ai"]["pim-config-json"] if config["ai"]["pim-config-json"] != "" else "{}"
     pim_config_json = json.loads(pim_config_json)
@@ -302,13 +304,6 @@ def download_bootstrap_iso(iso_folder, config):
     logger.debug("Download completed for bootstrap ISO file")
     return
 
-def create_dir(path):
-    try:
-        if not os.path.isdir(path):
-            os.mkdir(path)
-    except OSError as e:
-        logger.error(f"failed to create '{path}' directory, error: {e}")
-        raise
 
 def ssh_to_partition(config):
     ip = util.get_ip_address(config)
@@ -695,8 +690,8 @@ def cleanup_iso_artifacts(iso_path, checksum_path):
 def generate_ssh_keys(config):
     # Check if keys already exists in 'keys_path'
     if not check_if_keys_generated(config):
-        create_dir(keys_path)
-        key_name = f"{keys_path}/{util.get_partition_name(config)}_pim"
+        common.create_dir(keys_path)
+        key_name = f"{keys_path}/{util.get_partition_name(config).lower()}_pim"
         cmd = f"ssh-keygen -b 4096 -t rsa -m PEM -f {key_name} -q -N \"\""
         result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
         if result.returncode != 0:
@@ -705,8 +700,8 @@ def generate_ssh_keys(config):
         logger.debug("SSH keypair generated successfully")
 
     config["ssh"]["user-name"] = "pim"
-    config["ssh"]["priv-key-file"] = keys_path + "/" + util.get_partition_name(config) + "_pim"
-    config["ssh"]["pub-key-file"] = keys_path+ "/" + util.get_partition_name(config) + "_pim.pub"
+    config["ssh"]["priv-key-file"] = keys_path + "/" + util.get_partition_name(config).lower() + "_pim"
+    config["ssh"]["pub-key-file"] = keys_path + "/" + util.get_partition_name(config).lower() + "_pim.pub"
     return config
 
 def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_storage_list):
@@ -775,9 +770,9 @@ def monitor_pim(config):
 # destroy partition
 def destroy(config, cookies, sys_uuid, vios_uuid_list):
     try:
-        exists, partition_uuid = partition.check_partition_exists(config, cookies, sys_uuid)
+        exists, created_by_pim, partition_uuid = partition.check_partition_exists(config, cookies, sys_uuid)
         if not exists:
-            logger.debug(f"Partition named '{util.get_partition_name(config)}-pim' not found, attempting VIOS cleanup")
+            logger.debug(f"Partition named '{util.get_partition_name(config).lower()}-pim' not found, attempting VIOS cleanup")
             # in the absence of partition, partition_uuid will be empty
             cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list)
             return
@@ -789,9 +784,10 @@ def destroy(config, cookies, sys_uuid, vios_uuid_list):
         cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list)
         logger.info("Detached installation medias and physical disk from the partition")
 
-        logger.debug("Destroying the partition")
-        partition.remove_partition(config, cookies, partition_uuid)
-        logger.info("Partition destroyed")
+        if created_by_pim:
+            logger.debug("Destroying the partition")
+            partition.remove_partition(config, cookies, partition_uuid)
+            logger.info("Partition destroyed")
     except Exception as e:
         raise e
     return
@@ -873,8 +869,17 @@ def launch(config, cookies, sys_uuid, vios_uuids):
             logger.error("failed to find VIOS server for the partition")
             raise StorageError("failed to find VIOS server for the partition")
 
+        logger.debug("Setup Partition on the target host")
+        partition_uuid = partition.create_partition(config, cookies, sys_uuid)
+        logger.info("Partition setup completed")
+        logger.debug(f"Partition's UUID: {partition_uuid}")
+
+        logger.debug("Setup network to the partition")
+        slot_num = virtual_network.attach_network(config, cookies, sys_uuid, partition_uuid)
+        logger.info("Network setup completed")
+
         logger.debug("Downloading(bootstrap) & building(cloud-init) installation ISOs")
-        build_and_download_iso(config)
+        build_and_download_iso(config, slot_num)
         logger.info("Downloaded & built installation ISOs")
         
         logger.debug("Loading installation ISOs to VIOS media repository")
@@ -884,15 +889,6 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         logger.debug(f"b. Selecting '{vios_cloudinit_media_uuid}' VIOS to mount cloudinit vOPT")
         logger.info("Installation ISOs loaded to VIOS")
 
-        logger.debug("7. Setup Partition on the target host")
-        partition_uuid = partition.create_partition(config, cookies, sys_uuid)
-        logger.info("Partition setup completed")
-        logger.debug(f"Partition's UUID: {partition_uuid}")
-
-        logger.debug("Setup network to the partition")
-        virtual_network.attach_network(config, cookies, sys_uuid, partition_uuid)
-        logger.info("Network setup completed")
-
         logger.debug("Setup PIM installation ISOs")
         vios_payload = get_vios_details(config, cookies, sys_uuid, vios_bootstrap_media_uuid)
 
@@ -901,7 +897,7 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         vopt_cloud_init = util.get_cloud_init_iso(config)
 
         cloud_init_attached = False
-        b_scsi_exists = vopt.check_if_scsi_mapping_exist(vios_payload, vopt_bootstrap)
+        b_scsi_exists = vopt.check_if_scsi_mapping_exist(partition_uuid, vios_payload, vopt_bootstrap)
         if not b_scsi_exists:
             if vios_cloudinit_media_uuid == vios_bootstrap_media_uuid:
                 vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_bootstrap_media_uuid, "")
@@ -910,7 +906,7 @@ def launch(config, cookies, sys_uuid, vios_uuids):
                 vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_bootstrap_media_uuid, vopt_bootstrap)
         if not cloud_init_attached:
             vios_cloudinit_payload = get_vios_details(config, cookies, sys_uuid, vios_cloudinit_media_uuid)
-            c_scsi_exists = vopt.check_if_scsi_mapping_exist(vios_cloudinit_payload, vopt_cloud_init)
+            c_scsi_exists = vopt.check_if_scsi_mapping_exist(partition_uuid, vios_cloudinit_payload, vopt_cloud_init)
             if not c_scsi_exists:
                 vopt.attach_vopt(vios_cloudinit_payload, config, cookies, partition_uuid, sys_uuid, vios_cloudinit_media_uuid, vopt_cloud_init)
 
@@ -919,10 +915,15 @@ def launch(config, cookies, sys_uuid, vios_uuids):
         logger.debug("Setup storage")
         # Re-run scenario: Check if physical disk is already attached
         storage_attached = False
-        for vios_id in active_vios_servers:
-            found, _ = storage.check_if_storage_attached(active_vios_servers[vios_id], partition_uuid)
-            if found:
+        for _, a_vios in active_vios_servers.items():
+            logger.debug("Attach physical storage to the partition")
+            physical_disk_found, _ = storage.check_if_storage_attached(a_vios, partition_uuid)
+            vfc_disk_found, _ = storage.check_if_vfc_disk_attached(a_vios, partition_uuid)
+            if physical_disk_found:
                 logger.debug(f"Physical disk is already attached to lpar '{partition_uuid}'")
+                storage_attached = True
+            if vfc_disk_found:
+                logger.debug(f"SAN storage(VFC) disk is already attached to lpar '{partition_uuid}'")
                 storage_attached = True
 
         # Enable below code block when virtual disk support is added

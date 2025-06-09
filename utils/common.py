@@ -1,5 +1,5 @@
-import logging
 import hashlib
+import logging
 import os
 
 from urllib.parse import urlparse
@@ -39,12 +39,24 @@ def get_logger(name):
 def cleanup(config, cookies):
     auth.delete_session(config, cookies)
 
-def hash(file):
+def create_dir(path):
+    try:
+        if not os.path.isdir(path):
+            os.mkdir(path)
+    except OSError as e:
+        logger.error(f"failed to create '{path}' directory, error: {e}")
+        raise
+
+
+def file_checksum(file):
     sha256 = hashlib.sha256()
     with open(file, 'rb') as f:
         for chunk in iter(lambda: f.read(128 * sha256.block_size), b''):
             sha256.update(chunk)
     return sha256.hexdigest()
+
+def string_hash(str):
+    return hashlib.sha256(str.encode('utf-8')).hexdigest()
 
 def readfile(filename):
     f = open(filename, "r")
@@ -52,7 +64,7 @@ def readfile(filename):
     return data
 
 def verify_checksum(file, checksum_file):
-    file_sha256 = hash(file)
+    file_sha256 = file_checksum(file)
     data = readfile(checksum_file)
     csum = data.split(' ')[0]
     if csum == file_sha256:
@@ -90,3 +102,5 @@ def list_defined_partition_flavor():
     except Exception as e:
         raise e
     return flavor_list
+
+logger = get_logger("common-utils")
