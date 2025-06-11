@@ -1,8 +1,9 @@
 import requests
-from bs4 import BeautifulSoup
 
-import utils.string_util as util
+from bs4 import BeautifulSoup
 import utils.common as common
+import utils.string_util as util
+
 from .auth_exception import AuthError
 
 CONTENT_TYPE = "application/vnd.ibm.powervm.web+xml; type=LogonRequest"

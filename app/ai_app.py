@@ -2,8 +2,6 @@ import json
 import requests
 
 import utils.string_util as util
-import utils.common as common
-from .ai_app_exception import AiAppError
 
 
 def check_app(config):
