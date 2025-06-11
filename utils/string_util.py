@@ -1,5 +1,6 @@
 import hashlib
 
+
 def get_system_name(config):
     return config["system"]["name"]
 

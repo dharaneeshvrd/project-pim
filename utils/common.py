@@ -1,19 +1,23 @@
 import hashlib
 import logging
 import os
+import subprocess
+import paramiko
+import time
 
-from urllib.parse import urlparse
 from configobj import ConfigObj
-
-import auth.auth as auth
+from urllib.parse import urlparse
 import utils.string_util as util
 
 LOG_LEVEL = logging.INFO
 PARTITION_FLAVOR_DIR = f"{os.getcwd()}/partition-flavor"
+keys_path = os.getcwd() + "/keys"
+
 
 def set_log_level(level):
     global LOG_LEVEL
     LOG_LEVEL = level
+
 
 def setup_logging(level):
     logging.basicConfig(
@@ -22,6 +26,7 @@ def setup_logging(level):
         level=level
     )
 
+
 def get_logger(name):
     logger = logging.getLogger(name)
     logger.setLevel(LOG_LEVEL)
@@ -29,15 +34,14 @@ def get_logger(name):
 
     console_handler = logging.StreamHandler()
     console_handler.setLevel(LOG_LEVEL)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)-8s - %(message)s')
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)-8s - %(message)s')
     console_handler.setFormatter(formatter)
-    
+
     logger.addHandler(console_handler)
 
     return logger
 
-def cleanup(config, cookies):
-    auth.delete_session(config, cookies)
 
 def create_dir(path):
     try:
@@ -55,13 +59,16 @@ def file_checksum(file):
             sha256.update(chunk)
     return sha256.hexdigest()
 
+
 def string_hash(str):
     return hashlib.sha256(str.encode('utf-8')).hexdigest()
+
 
 def readfile(filename):
     f = open(filename, "r")
     data = f.read()
     return data
+
 
 def verify_checksum(file, checksum_file):
     file_sha256 = file_checksum(file)
@@ -70,6 +77,7 @@ def verify_checksum(file, checksum_file):
     if csum == file_sha256:
         return True
     return False
+
 
 def get_iso_url_and_checksum_path(config, iso_folder):
     iso_url = util.get_bootstrap_iso_download_url(config)
@@ -81,6 +89,7 @@ def get_iso_url_and_checksum_path(config, iso_folder):
     checksum_file_path = f"{iso_folder}/{checksum_file}"
     return iso_url, iso_file_path, checksum_url, checksum_file_path
 
+
 def load_partition_flavor(flavor_name):
     try:
         flavor_list = list_defined_partition_flavor()
@@ -88,9 +97,11 @@ def load_partition_flavor(flavor_name):
         if flavor_name in flavor_list:
             config = ConfigObj(f"{PARTITION_FLAVOR_DIR}/{file_name}")
             return config
-        raise Exception(f"partition flavor with name '{flavor_name}' is undefined")
+        raise Exception(
+            f"partition flavor with name '{flavor_name}' is undefined")
     except Exception as e:
         raise e
+
 
 def list_defined_partition_flavor():
     flavor_list = []
@@ -103,4 +114,91 @@ def list_defined_partition_flavor():
         raise e
     return flavor_list
 
+
 logger = get_logger("common-utils")
+
+
+def get_ssh_client():
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    return client
+
+
+def ssh_to_partition(config):
+    ip = util.get_ip_address(config)
+    username = util.get_ssh_username(config)
+    ssh_key = util.get_ssh_priv_key(config)
+    for i in range(10):
+        scp_port = 22
+        client = get_ssh_client()
+        try:
+            client.connect(ip, scp_port, username,
+                           key_filename=ssh_key, timeout=10)
+            break
+        except Exception as e:
+            if i == 9:
+                logger.error(
+                    f"failed to establish SSH connection to partition after 10 retries, error: {e}")
+                raise paramiko.SSHException(
+                    f"failed to establish SSH connection to partition after 10 retries, error: {e}")
+            logger.debug("Not able to SSH to the partition yet, retrying..")
+            time.sleep(10)
+    return client
+
+
+def create_dir(path):
+    try:
+        if not os.path.isdir(path):
+            os.mkdir(path)
+    except OSError as e:
+        logger.error(f"failed to create '{path}' directory, error: {e}")
+        raise
+
+
+def initialize_config():
+    config_file = "config.ini"
+    try:
+        config = ConfigObj(config_file)
+        if util.has_custom_flavor(config):
+            config["partition-flavor"] = config["custom-flavor"]
+        else:
+            flavor_name = util.get_partition_flavor(config)
+            config["partition-flavor"] = load_partition_flavor(flavor_name)
+    except Exception as e:
+        logger.error(f"failed to parse config.ini, error: {e}")
+        raise e
+    return config
+
+
+def check_if_keys_generated(config):
+    priv_key = f"{keys_path}/{util.get_partition_name(config)}_pim"
+    pub_key = f"{keys_path}/{util.get_partition_name(config)}_pim.pub"
+    if os.path.isfile(priv_key) and os.path.isfile(pub_key):
+        return True
+    return False
+
+
+def load_ssh_config(config):
+    config["ssh"]["user-name"] = "pim"
+    config["ssh"]["priv-key-file"] = keys_path + "/" + \
+        util.get_partition_name(config).lower() + "_pim"
+    config["ssh"]["pub-key-file"] = keys_path + "/" + \
+        util.get_partition_name(config).lower() + "_pim.pub"
+    return config
+
+
+def generate_ssh_keys(config):
+    create_dir(keys_path)
+    key_name = f"{keys_path}/{util.get_partition_name(config).lower()}_pim"
+    cmd = f"ssh-keygen -b 4096 -t rsa -m PEM -f {key_name} -q -N \"\""
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, shell=True)
+    if result.returncode != 0:
+        logger.error(
+            f"failed to run ssh-keygen command to generate keypair, error: {result.stderr} \n {result.stdout}")
+        raise Exception(
+            f"failed to run ssh-keygen command to generate keypair, error: {result.stderr}")
+    logger.debug("SSH keypair generated successfully")
+
+
+logger = get_logger("utility")

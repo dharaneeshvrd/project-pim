@@ -1,8 +1,9 @@
 import requests
 from bs4 import BeautifulSoup
 
-import utils.string_util as util
 import utils.common as common
+import utils.string_util as util
+
 from .storage_exception import StorageError
 
 logger = common.get_logger("storage")

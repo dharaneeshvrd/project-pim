@@ -1,9 +1,11 @@
-import re
-from .string_util import *
-from .common import *
-import requests
-from network.virtual_network import get_network_uuid
 import json
+import re
+import requests
+
+from network.virtual_network import get_network_uuid
+
+from .common import *
+from .string_util import *
 
 logger = get_logger("validator")
 

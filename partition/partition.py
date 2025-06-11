@@ -1,13 +1,14 @@
 import requests
+
 from bs4 import BeautifulSoup
 
-from .activation import check_lpar_status
-from .partition_exception import PartitionError
-import utils.string_util as util
 import utils.common as common
+import utils.string_util as util
+
+from .partition_exception import PartitionError
+
 
 logger = common.get_logger("partition")
-
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"
 
 def populate_payload(config):
@@ -84,7 +85,7 @@ def check_partition_exists(config, cookies, system_uuid):
         lpar_name_hash = common.string_hash(lpar_name)
         pim_lpar_name = lpar_name + "-" + lpar_name_hash[:16]
         for partition in partitions:
-            # Check if either partion name with pim suffix(created by PIM) or just partition name(not created by PIM)
+            # Check if either partition name with pim suffix(created by PIM) or just partition name(not created by PIM)
             if partition["PartitionName"] == lpar_name or partition["PartitionName"] == pim_lpar_name:
                 uuid = partition["UUID"]
                 if partition["PartitionName"] == pim_lpar_name:

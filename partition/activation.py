@@ -1,12 +1,14 @@
 import requests
 import time
+
 from bs4 import BeautifulSoup
 
-import utils.string_util as util
 import utils.common as common
+import utils.string_util as util
+
 from .partition_exception import PartitionError
 
-logger = common.get_logger("partition")
+logger = common.get_logger("activation")
 
 CONTENT_TYPE = "application/vnd.ibm.powervm.web+xml; Type=JobRequest"
 
