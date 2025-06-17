@@ -52,6 +52,7 @@ List of task roles required by user.
 - HMC Console
   - Modify HMC Configuration
   - Change HMC File Systems
+  - View HMC Configuration
   - View HMC File Systems
 
 Additionally, the user's session timeout must be set to a minimum of `120 minutes`.
