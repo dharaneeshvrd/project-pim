@@ -11,9 +11,12 @@ from .partition_exception import PartitionError
 logger = common.get_logger("partition")
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"
 
+
 def populate_payload(config):
-    lpar_name_hash = common.string_hash(util.get_partition_name(config).lower())
-    partition_name = util.get_partition_name(config).lower() + "-" + lpar_name_hash[:16]
+    lpar_name_hash = common.string_hash(
+        util.get_partition_name(config).lower())
+    partition_name = util.get_partition_name(
+        config).lower() + "-" + lpar_name_hash[:16]
     return f'''
 <LogicalPartition:LogicalPartition xmlns:LogicalPartition="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_8_0">
     <CurrentProfileSync>On</CurrentProfileSync>
@@ -26,56 +29,127 @@ def populate_payload(config):
         <MinimumMemory kb="CUD" kxe="false">{convert_gb_to_mb(util.get_min_memory(config))}</MinimumMemory>
     </PartitionMemoryConfiguration>
     <PartitionName kxe="false" kb="CUR">{partition_name}</PartitionName>
-    <PartitionProcessorConfiguration kb="CUD" kxe="false" schemaVersion="V1_8_0">
-        <Metadata>
-            <Atom/>
-        </Metadata>
-        {get_processor_config(config)}
-        <SharingMode kxe="false" kb="CUD">{util.get_sharing_mode(config)}</SharingMode>
-    </PartitionProcessorConfiguration>
+    {get_processor_config(config)}
     <PartitionType kxe="false" kb="COD">{util.get_partition_type(config)}</PartitionType>
 </LogicalPartition:LogicalPartition>
 '''
 
+
 def get_processor_config(config):
     if util.has_dedicated_proc(config) == "true":
-        return f'''<DedicatedProcessorConfiguration kb="CUD" kxe="false" schemaVersion="V1_8_0">
+        return f'''<PartitionProcessorConfiguration kb="CUD" kxe="false" schemaVersion="V1_8_0">
             <Metadata>
                 <Atom/>
             </Metadata>
-            <DesiredProcessors kb="CUD" kxe="false">{util.get_desired_proc(config)}</DesiredProcessors>
-            <MaximumProcessors kxe="false" kb="CUD">{util.get_max_proc(config)}</MaximumProcessors>
-            <MinimumProcessors kb="CUD" kxe="false">{util.get_min_proc(config)}</MinimumProcessors>
-        </DedicatedProcessorConfiguration>
-        <HasDedicatedProcessors kxe="false" kb="CUD">{util.has_dedicated_proc(config)}</HasDedicatedProcessors>'''
+            <DedicatedProcessorConfiguration kb="CUD" kxe="false" schemaVersion="V1_8_0">
+                <Metadata>
+                    <Atom/>
+                </Metadata>
+                <DesiredProcessors kb="CUD" kxe="false">{util.get_desired_proc(config)}</DesiredProcessors>
+                <MaximumProcessors kxe="false" kb="CUD">{util.get_max_proc(config)}</MaximumProcessors>
+                <MinimumProcessors kb="CUD" kxe="false">{util.get_min_proc(config)}</MinimumProcessors>
+            </DedicatedProcessorConfiguration>
+            <HasDedicatedProcessors kxe="false" kb="CUD">{util.has_dedicated_proc(config)}</HasDedicatedProcessors>
+            <SharingMode kxe="false" kb="CUD">{util.get_sharing_mode(config)}</SharingMode>
+        </PartitionProcessorConfiguration>
+        '''
 
-    return f'''<HasDedicatedProcessors kxe="false" kb="CUD">{util.has_dedicated_proc(config)}</HasDedicatedProcessors>
-        <SharedProcessorConfiguration kb="CUD" kxe="false" schemaVersion="V1_0">
+    return f'''<PartitionProcessorConfiguration kb="CUD" kxe="false" schemaVersion="V1_8_0">
             <Metadata>
-                <Atom />
+                <Atom/>
             </Metadata>
-            <DesiredProcessingUnits kb="CUD" kxe="false">{util.get_shared_desired_proc(config)}</DesiredProcessingUnits>
-            <DesiredVirtualProcessors kb="CUD" kxe="false">{util.get_shared_desired_virt_proc(config)}</DesiredVirtualProcessors>
-            <MaximumProcessingUnits kb="CUD" kxe="false">{util.get_shared_max_proc(config)}</MaximumProcessingUnits>
-            <MaximumVirtualProcessors kb="CUD" kxe="false">{util.get_shared_max_virt_proc(config)}</MaximumVirtualProcessors>
-            <MinimumProcessingUnits kb="CUD" kxe="false">{util.get_shared_min_proc(config)}</MinimumProcessingUnits>
-            <MinimumVirtualProcessors kb="CUD" kxe="false">{util.get_shared_min_virt_proc(config)}</MinimumVirtualProcessors>
-        </SharedProcessorConfiguration>''' 
+            <HasDedicatedProcessors kxe="false" kb="CUD">{util.has_dedicated_proc(config)}</HasDedicatedProcessors>
+            <SharedProcessorConfiguration kb="CUD" kxe="false" schemaVersion="V1_0">
+                <Metadata>
+                    <Atom />
+                </Metadata>
+                <DesiredProcessingUnits kb="CUD" kxe="false">{util.get_shared_desired_proc(config)}</DesiredProcessingUnits>
+                <DesiredVirtualProcessors kb="CUD" kxe="false">{util.get_shared_desired_virt_proc(config)}</DesiredVirtualProcessors>
+                <MaximumProcessingUnits kb="CUD" kxe="false">{util.get_shared_max_proc(config)}</MaximumProcessingUnits>
+                <MaximumVirtualProcessors kb="CUD" kxe="false">{util.get_shared_max_virt_proc(config)}</MaximumVirtualProcessors>
+                <MinimumProcessingUnits kb="CUD" kxe="false">{util.get_shared_min_proc(config)}</MinimumProcessingUnits>
+                <MinimumVirtualProcessors kb="CUD" kxe="false">{util.get_shared_min_virt_proc(config)}</MinimumVirtualProcessors>
+            </SharedProcessorConfiguration>
+            <SharingMode kxe="false" kb="CUD">{util.get_sharing_mode(config)}</SharingMode>
+        </PartitionProcessorConfiguration>
+        '''
+
+
+def get_lpar_update_payload(config, curr_lpar_payload):
+    lpar_payload = None
+    try:
+        curr_lpar = BeautifulSoup(curr_lpar_payload, 'xml')
+        lpar_mem_config = curr_lpar.find("PartitionMemoryConfiguration")
+        min_memory = lpar_mem_config.find("MinimumMemory")
+        max_memory = lpar_mem_config.find("MaximumMemory")
+        desired_memory = lpar_mem_config.find("DesiredMemory")
+        if min_memory is None or max_memory is None or desired_memory is None:
+            logger.error(
+                "XML parsing error: Unable to find memory configs from partition payload")
+            raise Exception(
+                "XML parsing error: Unable to find memory configs from partition payload")
+        min_memory.string.replace_with(
+            str(convert_gb_to_mb(util.get_min_memory(config))))
+        max_memory.string.replace_with(
+            str(convert_gb_to_mb(util.get_max_memory(config))))
+        desired_memory.string.replace_with(
+            str(convert_gb_to_mb(util.get_desired_memory(config))))
+
+        lpar_cpu_config = curr_lpar.find("PartitionProcessorConfiguration")
+        paritition_name = curr_lpar.find("PartitionName")
+        if util.has_dedicated_proc(config) == "true":
+            logger.debug("update-compute: dedicated proc mode")
+            desired_proc = lpar_cpu_config.find("DesiredProcessors")
+            min_proc = lpar_cpu_config.find("MinimumProcessors")
+            max_proc = lpar_cpu_config.find("MaximumProcessors")
+            if desired_proc is None or min_proc is None or max_proc is None:
+                logger.error(
+                    "XML parsing error: Unable to find processor configs from partition payload")
+                raise Exception(
+                    "XML parsing error: Unable to find processor configs from partition payload")
+            desired_proc.string.replace_with(util.get_desired_proc(config))
+            min_proc.string.replace_with(util.get_min_proc(config))
+            max_proc.string.replace_with(util.get_max_proc(config))
+        else:
+            # Switch from dedicated to shared processor config
+            logger.debug("update-compute: shared proc mode")
+            if lpar_cpu_config is None:
+                logger.error(
+                    "XML parsing error: Unable to find processor configs from partition payload")
+                raise Exception(
+                    "XML parsing error: Unable to find processor configs from partition payload")
+            lpar_cpu_config.decompose()
+            logger.debug("get new shared processor config")
+            new_proc_config = BeautifulSoup(
+                get_processor_config(config), 'xml')
+            paritition_name.insert_after(new_proc_config)
+        lpar_payload = curr_lpar
+    except Exception as e:
+        logger.error(
+            "Exception while getting partition cpu or memory configurations")
+        raise e
+    return lpar_payload
+
 
 def convert_gb_to_mb(value):
     return int(value) * 1024
 
+
 def get_all_partitions(config, cookies, system_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition/quick/All"
-    url = "https://" +  util.get_host_address(config) + uri
+    url = "https://" + util.get_host_address(config) + uri
     headers = {"x-api-key": util.get_session_key(config)}
-    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    response = requests.get(url, headers=headers,
+                            cookies=cookies, verify=False)
     if response.status_code != 200:
         logger.error(f"failed to get partition list, error: {response.text}")
-        raise PartitionError(f"failed to get partition list, error: {response.text}")
+        raise PartitionError(
+            f"failed to get partition list, error: {response.text}")
     return response.json()
 
 # Checks if partition exists, returns exists and if partition is created by PIM
+
+
 def check_partition_exists(config, cookies, system_uuid):
     uuid = ""
     created_by_pim = False
@@ -102,58 +176,112 @@ def check_partition_exists(config, cookies, system_uuid):
     return False, created_by_pim, uuid
 
 # Suffix '-pim' is used to distinguish between existing partition and newly provisioned partition by PIM
+
+
 def create_partition(config, cookies, system_uuid):
-    exists, _, partition_uuid = check_partition_exists(config, cookies, system_uuid)
+    exists, _, partition_uuid = check_partition_exists(
+        config, cookies, system_uuid)
     if exists:
-        logger.debug(f"Existing partition found with name '{util.get_partition_name(config)}'")
+        logger.debug(
+            f"Existing partition found with name '{util.get_partition_name(config)}'")
         return partition_uuid
-    logger.debug(f"Creating partition with name '{util.get_partition_name(config)}'")
+    logger.debug(
+        f"Creating partition with name '{util.get_partition_name(config)}'")
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition"
-    url = "https://" +  util.get_host_address(config) + uri
+    url = "https://" + util.get_host_address(config) + uri
     payload = populate_payload(config)
-    headers = {"x-api-key": util.get_session_key(config), "Content-Type": CONTENT_TYPE}
-    response = requests.put(url, headers=headers, data=payload, cookies=cookies, verify=False)
+    headers = {"x-api-key": util.get_session_key(config),
+               "Content-Type": CONTENT_TYPE}
+    response = requests.put(url, headers=headers,
+                            data=payload, cookies=cookies, verify=False)
     if response.status_code != 200:
         logger.error(f"failed to create partition, error: {response.text}")
-        raise PartitionError(f"failed to create partition, error: {response.text}")
+        raise PartitionError(
+            f"failed to create partition, error: {response.text}")
 
     soup = BeautifulSoup(response.text, 'xml')
     partition_uuid = soup.find("PartitionUUID")
     logger.debug("New partition created")
     return partition_uuid.text
 
+
 def get_partition_details(config, cookies, system_uuid, partition_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition/{partition_uuid}"
-    url =  "https://" +  util.get_host_address(config) + uri
-    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
-    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    url = "https://" + util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config),
+               "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
+    response = requests.get(url, headers=headers,
+                            cookies=cookies, verify=False)
     if response.status_code != 200:
-        logger.error(f"failed to get partition details, error: {response.text}")
-        raise PartitionError(f"failed to get partition details, error: {response.text}")
+        logger.error(
+            f"failed to get partition details, error: {response.text}")
+        raise PartitionError(
+            f"failed to get partition details, error: {response.text}")
     soup = BeautifulSoup(response.text, 'xml')
     lpar = str(soup.find('LogicalPartition'))
     return lpar
 
+
+def edit_lpar_compute(config, cookies, system_uuid, partition_uuid):
+    try:
+        partition_payload = get_partition_details(
+            config, cookies, system_uuid, partition_uuid)
+        updated_lpar_payload = get_lpar_update_payload(
+            config, partition_payload)
+        if updated_lpar_payload is None:
+            logger.error(
+                f"failed to get updated lpar compute payload, error: {response.text}")
+            raise PartitionError(
+                f"failed to get updated lpar compute payload, error: {response.text}")
+
+        logger.debug(
+            f"New compute flavor: {util.get_partition_flavor(config)}")
+        uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}"
+        url = "https://" + util.get_host_address(config) + uri
+        headers = {"x-api-key": util.get_session_key(config),
+                   "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
+        response = requests.post(url, headers=headers, cookies=cookies, data=str(
+            updated_lpar_payload), verify=False)
+        if response.status_code != 200:
+            logger.error(
+                f"failed to edit lpar compute, error: {response.text}")
+            raise PartitionError(
+                f"failed to edit lpar compute, error: {response.text}")
+    except Exception as e:
+        raise e
+    logger.debug(
+        f"lpar compute for parition: {partition_uuid} is updated successfully")
+    return
+
+
 def set_partition_boot_string(config, cookies, system_uuid, partition_uuid, partition_payload, boot_string):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition/{partition_uuid}"
-    url =  "https://" +  util.get_host_address(config) + uri
-    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
-    payload =  BeautifulSoup(partition_payload, 'xml')
+    url = "https://" + util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config),
+               "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
+    payload = BeautifulSoup(partition_payload, 'xml')
     pending_boot = payload.find("PendingBootString")
     pending_boot.append(boot_string)
-    
-    response = requests.post(url, headers=headers, cookies=cookies, data=str(payload), verify=False)
+
+    response = requests.post(url, headers=headers,
+                             cookies=cookies, data=str(payload), verify=False)
     if response.status_code != 200:
-        logger.error(f"failed to update boot order for the partition: '{partition_uuid}', error: {response.text}")
-        raise PartitionError(f"failed to update boot order for the partition: '{partition_uuid}', error: {response.text}")
-    logger.debug(f"Updated the boot order for the partition: '{partition_uuid}'")
+        logger.error(
+            f"failed to update boot order for the partition: '{partition_uuid}', error: {response.text}")
+        raise PartitionError(
+            f"failed to update boot order for the partition: '{partition_uuid}', error: {response.text}")
+    logger.debug(
+        f"Updated the boot order for the partition: '{partition_uuid}'")
     return
+
 
 def remove_partition(config, cookies, partition_uuid):
     uri = f"/rest/api/uom/LogicalPartition/{partition_uuid}"
-    url = "https://" +  util.get_host_address(config) + uri
-    headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
-    response = requests.delete(url, headers=headers, cookies=cookies, verify=False)
+    url = "https://" + util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config),
+               "Content-Type": "application/vnd.ibm.powervm.uom+xml; Type=LogicalPartition"}
+    response = requests.delete(
+        url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 204:
         logger.error(f"failed to delete partition, error: {response.text}")
         return

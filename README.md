@@ -62,5 +62,5 @@ Additionally, the user's session timeout must be set to a minimum of `120 minute
 
   ```
   export PYTHONPATH=.
-  python3 cmd/pim.py [launch/destroy]
+  python3 cmd/pim.py [launch/upgrade/rollback/update-compute/destroy]
   ```

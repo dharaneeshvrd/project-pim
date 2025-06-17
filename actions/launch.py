@@ -68,6 +68,9 @@ def launch_action(config, cookies, sys_uuid, vios_uuids):
         logger.info("Partition setup completed")
         logger.debug(f"Partition's UUID: {partition_uuid}")
 
+        # Existing partition case: Shutdown the partition if its in active state
+        activation.shutdown_partition(config, cookies, partition_uuid)
+
         logger.debug("Setup network to the partition")
         slot_num = virtual_network.attach_network(
             config, cookies, sys_uuid, partition_uuid)
