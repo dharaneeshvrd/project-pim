@@ -101,7 +101,7 @@ def launch_action(config, cookies, sys_uuid, vios_uuids):
         vopt_cloud_init = util.get_cloud_init_iso(config)
 
         cloud_init_attached = False
-        b_scsi_exists = vopt.check_if_scsi_mapping_exist(
+        b_scsi_exists, _, _ = action_util.check_if_scsi_mapping_exist(
             partition_uuid, vios_payload, vopt_bootstrap)
         if not b_scsi_exists:
             if vios_cloudinit_media_uuid == vios_bootstrap_media_uuid:
@@ -114,7 +114,7 @@ def launch_action(config, cookies, sys_uuid, vios_uuids):
         if not cloud_init_attached:
             vios_cloudinit_payload = vios_operation.get_vios_details(
                 config, cookies, sys_uuid, vios_cloudinit_media_uuid)
-            c_scsi_exists = vopt.check_if_scsi_mapping_exist(
+            c_scsi_exists, _, _ = action_util.check_if_scsi_mapping_exist(
                 partition_uuid, vios_cloudinit_payload, vopt_cloud_init)
             if not c_scsi_exists:
                 vopt.attach_vopt(vios_cloudinit_payload, config, cookies, partition_uuid,

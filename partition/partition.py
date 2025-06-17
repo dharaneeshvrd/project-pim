@@ -147,6 +147,7 @@ def get_all_partitions(config, cookies, system_uuid):
             f"failed to get partition list, error: {response.text}")
     return response.json()
 
+
 # Checks if partition exists, returns exists and if partition is created by PIM
 
 
@@ -174,8 +175,6 @@ def check_partition_exists(config, cookies, system_uuid):
     except Exception as e:
         raise e
     return False, created_by_pim, uuid
-
-# Suffix '-pim' is used to distinguish between existing partition and newly provisioned partition by PIM
 
 
 def create_partition(config, cookies, system_uuid):

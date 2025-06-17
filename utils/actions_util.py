@@ -79,22 +79,35 @@ def remove_vopt_device(config, cookies, vios, vopt_name):
         raise e
     return
 
+def check_if_scsi_mapping_exist(partition_uuid, vios, media_dev_name):
+    found = False
+    vscsi = None
+    soup = None
+    try:
+        soup = BeautifulSoup(vios, 'xml')
+        scsi_mappings = soup.find_all('VirtualSCSIMapping')
+        # Iterate over all SCSI mappings and look for Storage followed by PhysicalVolume XML tags
+        for scsi in scsi_mappings:
+            lpar_link = scsi.find("AssociatedLogicalPartition")
+            if lpar_link is not None and partition_uuid in lpar_link.attrs["href"]:
+                b_dev = scsi.find("BackingDeviceName")
+                if b_dev is not None and b_dev.text == media_dev_name:
+                    found = True
+                    vscsi = scsi
+                    break
+    except Exception as e:
+        logger.error("failed to check if storage SCSI mapping is present in VIOS")
+        raise e
+    return found, vscsi, soup
 
-def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, disk_name):
-    soup = BeautifulSoup(vios, "xml")
-    scsi_mappings = soup.find("VirtualSCSIMappings")
-    b_devs = scsi_mappings.find_all("BackingDeviceName")
-    disk = None
-    for b_dev in b_devs:
-        if b_dev.text == disk_name:
-            disk = b_dev
-            break
 
-    if disk is None:
+def remove_scsi_mappings(config, cookies, sys_uuid, partition_uuid, vios_uuid, vios, disk_name):
+    found, vscsi, vios = check_if_scsi_mapping_exist(partition_uuid, vios, disk_name)
+    if not found:
         logger.info(f"no SCSI mapping available for '{disk_name}' to remove")
         return
-    scsi1 = disk.parent.parent
-    scsi1.decompose()
+    vscsi.decompose()
+    updated_vios = str(vios)
 
     logger.debug(
         f"Payload prepared to remove '{disk_name}' SCSI mappings from VIOS payload")
@@ -105,7 +118,7 @@ def remove_scsi_mappings(config, cookies, sys_uuid, vios_uuid, vios, disk_name):
     headers = {
         "x-api-key": util.get_session_key(config), "Content-Type": storage.CONTENT_TYPE}
     response = requests.post(url, headers=headers,
-                             cookies=cookies, data=str(soup), verify=False)
+                             cookies=cookies, data=updated_vios, verify=False)
 
     if response.status_code != 200:
         logger.error(

@@ -199,7 +199,7 @@ def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vio
 
                     # remove SCSI mapping from VIOS
                     action_util.remove_scsi_mappings(
-                        config, cookies, sys_uuid, vios_uuid, vios, iso_file_name)
+                        config, cookies, sys_uuid, lpar_uuid, vios_uuid, vios, iso_file_name)
 
                     # Delete existing cloud-init vOPT with same name if already loaded in VIOS media repository
                     action_util.remove_vopt_device(

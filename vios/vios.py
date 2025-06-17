@@ -155,7 +155,7 @@ def cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list):
     try:
         for vopt in vopt_list:
             vios_uuid = find_vios_with_vopt_mounted(
-                config, cookies, sys_uuid, vios_uuid_list, vopt)
+                config, cookies, sys_uuid, partition_uuid, vios_uuid_list, vopt)
             if not vios_uuid:
                 logger.info(
                     f"no matching VIOS found where {vopt} vOPTs mounted")
@@ -169,13 +169,13 @@ def cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list):
                 logger.debug(
                     f"Removing SCSI mapping for physical disk '{phys_disk}'")
                 action_util.remove_scsi_mappings(
-                    config, cookies, sys_uuid, vios_uuid, vios, phys_disk)
+                    config, cookies, sys_uuid, partition_uuid, vios_uuid, vios, phys_disk)
                 storage_cleaned = True
 
             vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
             logger.debug(f"Removing SCSI mapping for vOPT device '{vopt}'")
             action_util.remove_scsi_mappings(
-                config, cookies, sys_uuid, vios_uuid, vios, vopt)
+                config, cookies, sys_uuid, partition_uuid, vios_uuid, vios, vopt)
             # TODO: delete virtual disk, volumegroup if created by the script during launch
 
             vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
@@ -198,20 +198,15 @@ def cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list):
                         logger.debug(
                             f"Removing SCSI mapping for physical disk '{phys_disk}'")
                         action_util.remove_scsi_mappings(
-                            config, cookies, sys_uuid, vios_uuid, vios, phys_disk)
+                            config, cookies, sys_uuid, partition_uuid, vios_uuid, vios, phys_disk)
     except Exception as e:
         logger.error(f"failed to clean up vios, error: {e}")
 
 
-def find_vios_with_vopt_mounted(config, cookies, sys_uuid, vios_uuid_list, vopt_name):
+def find_vios_with_vopt_mounted(config, cookies, sys_uuid, partition_uuid, vios_uuid_list, vopt_name):
     for uuid in vios_uuid_list:
         vios = get_vios_details(config, cookies, sys_uuid, uuid)
-        soup = BeautifulSoup(vios, "xml")
-        media_repo_tag = soup.find("MediaRepositories")
-        vopts = media_repo_tag.find_all("VirtualOpticalMedia")
-
-        for vopt in vopts:
-            media_name = vopt.find("MediaName")
-            if media_name.text == vopt_name:
-                return uuid
+        found, _, _ = action_util.check_if_scsi_mapping_exist(partition_uuid, vios, vopt_name)
+        if found:
+            return uuid
     return ""
