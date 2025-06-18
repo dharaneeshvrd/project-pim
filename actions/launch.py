@@ -16,7 +16,6 @@ import utils.common as common
 import utils.iso_util as iso_util
 import utils.monitor_util as monitor_util
 import utils.string_util as util
-import utils.validator as validator
 from vios.vios_exception import VIOSError
 import vios.vios as vios_operation
 
@@ -31,12 +30,6 @@ def launch():
         config = common.initialize_config()
         # Invoking initialize_action to perform common actions like validation, authentication etc.
         is_config_valid, cookies, sys_uuid, vios_uuid_list = action_util.initialize_action(config)
-
-        # Verify host configuration before launching
-        if not validator.validate_host_config(config, cookies, sys_uuid):
-            logger.error("host configuration is not matching PIM expectations")
-            raise Exception("host configuration is not matching PIM expectations")
-
         if is_config_valid:
             launch_action(config, cookies, sys_uuid, vios_uuid_list)
     except Exception as e:
