@@ -27,11 +27,14 @@ def upgrade():
     except Exception as e:
         logger.error(f"encountered an error: {e}")
     finally:
-        logger.info("End of PIM command!!!")
+        logger.info("Upgrading PIM partition completed")
 
 
 def upgrade_action(config):
     try:
+        if not util.get_ssh_priv_key(config) or not util.get_ssh_pub_key(config):
+            config = common.load_ssh_keys(config)
+
         ssh_client = common.ssh_to_partition(config)
 
         logger.debug("Updating auth.json with the latest one provided")
@@ -48,21 +51,34 @@ def upgrade_action(config):
                 f"failed to load auth.json in {bootc_auth_json}, error: {stdout.readlines()}, {stderr.readlines()}")
 
         upgraded = False
-        bootc_upgrade_cmd = "sudo bootc upgrade --apply"
+        bootc_upgrade_cmd = "sudo bootc upgrade"
         _, stdout, _ = ssh_client.exec_command(bootc_upgrade_cmd, get_pty=True)
+        upgrade_stdout = ""
         while True:
             out = stdout.readline()
-            logger.debug(out)
-            if "Rebooting system" in out:
-                upgraded = True
+            upgrade_stdout += out + "\n"
+            logger.debug(f"{out}")
             if stdout.channel.exit_status_ready():
                 break
-            time.sleep(1)
-
-        if upgraded:
+        if "No update available" in upgrade_stdout:  
+            logger.info("No upgrade available, PIM image is at latest level.")
+            return
+        
+        if "Queued for next boot" in upgrade_stdout:
             logger.info("Successfully upgraded the PIM image to latest level")
         else:
-            logger.info("No upgrade available, PIM image is at latest level.")
+            raise Exception("unsusccessful upgrade command execution")
+
+        # Need to do linux reboot instead of HMC reboot
+        reboot_cmd = "sudo reboot"
+        _, stdout, _ = ssh_client.exec_command(reboot_cmd, get_pty=True)
+        if stdout.channel.recv_exit_status() == 0:
+            logger.debug("Partition rebooted to apply the upgrade")
+        else:
+            raise Exception(f"failed to reboot the partition, error: {stdout.readlines()}")
+        
+        logger.info("Monitoring boot process, this will take a while")
+        monitor_util.monitor_pim(config)
     except Exception as e:
         logger.error(f"failed to upgrade PIM partition, error: {e}")
         raise Exception(f"failed to upgrade PIM partition, error: {e}")

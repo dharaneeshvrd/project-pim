@@ -6,7 +6,7 @@ import utils.string_util as util
 
 from .storage_exception import StorageError
 
-logger = common.get_logger("storage")
+logger = common.get_logger("vopt_storage")
 
 CONTENT_TYPE = "application/vnd.ibm.powervm.uom+xml; Type=VirtualIOServer"
 

@@ -22,7 +22,7 @@ def update_compute():
     finally:
         if cookies:
             action_util.cleanup(config, cookies)
-        logger.info("End of PIM command!!!")
+        logger.info("Updating PIM partition's compute completed")
 
 
 def update_compute_action(config, cookies, sys_uuid):

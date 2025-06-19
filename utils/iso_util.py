@@ -15,18 +15,15 @@ import vios.vios as vios_operation
 from .string_util import *
 
 logger = common.get_logger("ISO")
-iso_folder = os.getcwd() + "/iso"
 
 
-def build_and_download_iso(config, slot_num):
-    iso_folder = "iso"
-    common.create_dir(iso_folder)
-    generate_cloud_init_iso_config(config, slot_num)
-    generate_cloud_init_iso_file(iso_folder, config)
-    download_bootstrap_iso(iso_folder, config)
+def build_and_download_iso(config, slot_num, iso_dir, config_dir):
+    common.create_dir(iso_dir)
+    generate_cloud_init_iso_config(config, slot_num, config_dir)
+    generate_cloud_init_iso_file(iso_dir, config, config_dir)
+    download_bootstrap_iso(iso_dir, config)
 
-
-def generate_cloud_init_iso_config(config, slot_num):
+def generate_cloud_init_iso_config(config, slot_num, config_dir):
     # Populate config object with slot_num
     config["partition"]["network"]["slot_num"] = slot_num
     file_loader = FileSystemLoader('cloud-init-iso/templates')
@@ -35,8 +32,7 @@ def generate_cloud_init_iso_config(config, slot_num):
     network_config_template = env.get_template('99_custom_network.cfg')
     network_config_output = network_config_template.render(config=config)
 
-    cloud_init_config_path = "cloud-init-iso/config"
-    common.create_dir(cloud_init_config_path)
+    common.create_dir(config_dir)
 
     pim_config_json = config["ai"]["pim-config-json"] if config["ai"]["pim-config-json"] != "" else "{}"
     pim_config_json = json.loads(pim_config_json)
@@ -44,23 +40,23 @@ def generate_cloud_init_iso_config(config, slot_num):
     # 'workloadImage' is being used inside the bootstrap iso to write the bootc image into disk, in case of modification of this field name, needs same modification in bootstrap.iso too.
     pim_config_json["workloadImage"] = get_workload_image(config)
 
-    pim_config_file = open(cloud_init_config_path + "/pim_config.json", "w")
+    pim_config_file = open(config_dir + "/pim_config.json", "w")
     pim_config_file.write(json.dumps(pim_config_json))
 
     network_config_file = open(
-        cloud_init_config_path + "/99_custom_network.cfg", "w")
+        config_dir + "/99_custom_network.cfg", "w")
     network_config_file.write(network_config_output)
 
     auth_json = config["ai"]["auth-json"]
-    auth_config_file = open(cloud_init_config_path + "/auth.json", "w")
+    auth_config_file = open(config_dir + "/auth.json", "w")
     auth_config_file.write(auth_json)
     logger.debug("Generated config files for the cloud-init ISO")
 
 
-def generate_cloud_init_iso_file(iso_folder, config):
+def generate_cloud_init_iso_file(iso_dir, config, config_dir):
     logger.debug("Generating cloud-init ISO file")
     cloud_init_image_name = get_cloud_init_iso(config)
-    generate_cmd = f"mkisofs -l -o {iso_folder}/{cloud_init_image_name} ./cloud-init-iso/config"
+    generate_cmd = f"mkisofs -l -o {iso_dir}/{cloud_init_image_name} {config_dir}"
 
     try:
         subprocess.run(generate_cmd.split(), check=True, capture_output=True)
@@ -70,9 +66,9 @@ def generate_cloud_init_iso_file(iso_folder, config):
         raise
 
 
-def download_bootstrap_iso(iso_folder, config):
+def download_bootstrap_iso(iso_dir, config):
     iso_url, iso_file_path, checksum_url, checksum_file_path = common.get_iso_url_and_checksum_path(
-        config, iso_folder)
+        config, iso_dir)
 
     try:
         # Check if bootstrap iso is already downloaded locally(on IBMi)
@@ -167,7 +163,7 @@ def remove_iso_file(config, cookies, filename, file_uuid):
     return
 
 
-def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vios_uuid_list):
+def upload_iso_to_media_repository(config, cookies, iso_dir, iso_file_name, sys_uuid, vios_uuid_list):
     # Check if bootstrap ISO file is already uploaded to any of the available VIOS
     if "_pimb" in iso_file_name:
         uploaded, vios_uuid = is_iso_uploaded(
@@ -176,7 +172,7 @@ def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vio
             return vios_uuid
 
     logger.debug(
-        f"Uploading ISO file '{iso_file_name} to VIOS media repository")
+        f"Uploading ISO file '{iso_dir}/{iso_file_name} to VIOS media repository")
     # Iterating over the vios_uuid_list to upload the ISO to the media repository for a VIOS
     # If upload operation fails for current VIOS, next available VIOS in the list will be used as a fallback.
     file_uuid = ""
@@ -206,7 +202,7 @@ def upload_iso_to_media_repository(config, cookies, iso_file_name, sys_uuid, vio
                         config, cookies, vios, iso_file_name)
 
             # Create ISO filepath for bootstrap iso
-            iso_file = iso_folder + "/" + iso_file_name
+            iso_file = iso_dir + "/" + iso_file_name
             iso_checksum = common.file_checksum(iso_file)
             iso_size = os.path.getsize(iso_file)
             file_uuid = create_iso_path(
