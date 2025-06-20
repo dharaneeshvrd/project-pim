@@ -1,3 +1,4 @@
+import filecmp
 import hashlib
 import logging
 import os
@@ -12,20 +13,13 @@ import utils.string_util as util
 LOG_LEVEL = logging.INFO
 PARTITION_FLAVOR_DIR = f"{os.getcwd()}/partition-flavor"
 keys_path = os.getcwd() + "/keys"
-
+iso_dir = os.getcwd() + "/iso"
+cloud_init_config_dir =  os.getcwd() + "/cloud-init-iso/config"
+cloud_init_update_config_dir =  os.getcwd() + "/cloud-init-iso/update-config"
 
 def set_log_level(level):
     global LOG_LEVEL
     LOG_LEVEL = level
-
-
-def setup_logging(level):
-    logging.basicConfig(
-        format='%(asctime)s %(levelname)-8s %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        level=level
-    )
-
 
 def get_logger(name):
     logger = logging.getLogger(name)
@@ -80,14 +74,14 @@ def verify_checksum(file, checksum_file):
     return False
 
 
-def get_iso_url_and_checksum_path(config, iso_folder):
+def get_iso_url_and_checksum_path(config, iso_dir):
     iso_url = util.get_bootstrap_iso_download_url(config)
-    iso_file_path = f"{iso_folder}/{util.get_bootstrap_iso(config)}"
+    iso_file_path = f"{iso_dir}/{util.get_bootstrap_iso(config)}"
     url_path = urlparse(iso_url).path
     iso_file = url_path.split('/')[-1]
     checksum_file = iso_file.replace('.iso', '.checksum')
     checksum_url = iso_url.replace(iso_file, checksum_file)
-    checksum_file_path = f"{iso_folder}/{checksum_file}"
+    checksum_file_path = f"{iso_dir}/{checksum_file}"
     return iso_url, iso_file_path, checksum_url, checksum_file_path
 
 
@@ -201,5 +195,17 @@ def generate_ssh_keys(config):
             f"failed to run ssh-keygen command to generate keypair, error: {result.stderr}")
     logger.debug("SSH keypair generated successfully")
 
+# Compares dir1 & dir2 and returns True if there is a difference(either new files introduced in dir2 or changes in file contents between the two dirs)
+def compare_dir(dir1, dir2):
+    dir_comp = filecmp.dircmp(dir1, dir2)
+    if len(dir_comp.right_only) > 0 or len(dir_comp.diff_files) > 0:
+        return True
+    return False
+
+def load_ssh_keys(config):
+    if not check_if_keys_generated(config):
+        generate_ssh_keys(config)
+    config = load_ssh_config(config)
+    return config
 
 logger = get_logger("utility")

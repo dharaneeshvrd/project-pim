@@ -73,7 +73,7 @@ def check_network_adapter(config, cookies, partition_uuid, vlan_id, vswitch_id):
     try:
         response = requests.get(url, headers=headers, cookies=cookies, verify=False)
         if response.status_code == 204:
-            logger.debug("No network is attached to lpar '{}' yet")
+            logger.debug(f"No network is attached to lpar '{partition_uuid}' yet")
             return False, slot_num
         elif response.status_code == 200:
             soup = BeautifulSoup(response.text, 'xml')
@@ -84,7 +84,7 @@ def check_network_adapter(config, cookies, partition_uuid, vlan_id, vswitch_id):
         else:
             raise NetworkError(f"failed to check if virtual network is attached to the partition, error: {response.text}")
     except Exception as e:
-        logger.error("failed to check if virtual network is attached to the partition, error: {e}")
+        logger.error(f"failed to check if virtual network is attached to the partition, error: {e}")
         raise e
     return False, slot_num
 

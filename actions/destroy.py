@@ -23,7 +23,7 @@ def destroy():
     finally:
         if cookies:
             action_util.cleanup(config, cookies)
-        logger.info("End of PIM command!!!")
+        logger.info("Destroying PIM partition completed")
 
 
 # destroy partition

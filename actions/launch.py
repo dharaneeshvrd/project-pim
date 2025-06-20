@@ -19,9 +19,7 @@ import utils.string_util as util
 from vios.vios_exception import VIOSError
 import vios.vios as vios_operation
 
-
 logger = common.get_logger("pim-launch")
-
 
 def launch():
     cookies = None
@@ -37,14 +35,13 @@ def launch():
     finally:
         if cookies:
             action_util.cleanup(config, cookies)
-        logger.info("End of PIM command!!!")
-
+        logger.info("Launching PIM partition completed")
 
 def launch_action(config, cookies, sys_uuid, vios_uuids):
     try:
         # Check if SSH key pair is configured, if empty generate key pair
         if not util.get_ssh_priv_key(config) or not util.get_ssh_pub_key(config):
-            config = load_ssh_keys(config)
+            config = common.load_ssh_keys(config)
 
         # Populate configobj with public key content to get populated in cloud-init config
         config["ssh"]["pub-key"] = common.readfile(
@@ -78,16 +75,16 @@ def launch_action(config, cookies, sys_uuid, vios_uuids):
 
         logger.debug(
             "Downloading(bootstrap) & building(cloud-init) installation ISOs")
-        iso_util.build_and_download_iso(config, slot_num)
+        iso_util.build_and_download_iso(config, slot_num, common.iso_dir, common.cloud_init_config_dir)
         logger.info("Downloaded & built installation ISOs")
 
         logger.debug("Loading installation ISOs to VIOS media repository")
         vios_bootstrap_media_uuid = iso_util.upload_iso_to_media_repository(
-            config, cookies, util.get_bootstrap_iso(config), sys_uuid, vios_media_uuid_list)
+            config, cookies, common.iso_dir, util.get_bootstrap_iso(config), sys_uuid, vios_media_uuid_list)
         logger.debug(
             f"a. Selecting '{vios_bootstrap_media_uuid}' VIOS to mount bootstrap vOPT")
         vios_cloudinit_media_uuid = iso_util.upload_iso_to_media_repository(
-            config, cookies, util.get_cloud_init_iso(config), sys_uuid, vios_media_uuid_list)
+            config, cookies, common.iso_dir, util.get_cloud_init_iso(config), sys_uuid, vios_media_uuid_list)
         logger.debug(
             f"b. Selecting '{vios_cloudinit_media_uuid}' VIOS to mount cloudinit vOPT")
         logger.info("Installation ISOs loaded to VIOS")
@@ -125,8 +122,8 @@ def launch_action(config, cookies, sys_uuid, vios_uuids):
         logger.debug("Setup storage")
         # Re-run scenario: Check if physical disk is already attached
         storage_attached = False
-        for _, a_vios in active_vios_servers.items():
-            logger.debug("Attach physical storage to the partition")
+        for a_vios_uuid, a_vios in active_vios_servers.items():
+            logger.debug(f"Checking for existing physical disk attachment in VIOS '{a_vios_uuid}'")
             physical_disk_found, _ = storage.check_if_storage_attached(
                 a_vios, partition_uuid)
             vfc_disk_found, _ = storage.check_if_vfc_disk_attached(
@@ -191,10 +188,3 @@ def launch_action(config, cookies, sys_uuid, vios_uuids):
     except (AiAppError, AuthError, NetworkError, PartitionError, StorageError, VIOSError, paramiko.SSHException, Exception) as e:
         raise e
 
-
-def load_ssh_keys(config):
-    # Check if keys already exists in 'keys_path'
-    if not common.check_if_keys_generated(config):
-        common.generate_ssh_keys(config)
-    config = common.load_ssh_config(config)
-    return config

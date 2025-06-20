@@ -12,7 +12,6 @@ import storage.storage as storage
 
 logger = common.get_logger("action-util")
 
-
 def initialize_action(config):
     logger.debug("Validate configuration")
     if not validator.validate_config(config):
@@ -40,7 +39,6 @@ def initialize_action(config):
 def cleanup(config, cookies):
     auth.delete_session(config, cookies)
 
-
 def remove_vopt_device(config, cookies, vios, vopt_name):
     try:
         vg_url, vol_group, media_repos = iso_util.get_media_repositories(
@@ -59,8 +57,7 @@ def remove_vopt_device(config, cookies, vios, vopt_name):
                 break
 
         if not found:
-            logger.debug(
-                "vOPT device '{vopt_name}' is not present in media repository")
+            logger.debug(f"vOPT device '{vopt_name}' is not present in media repository")
             return
 
         headers = {"x-api-key": util.get_session_key(

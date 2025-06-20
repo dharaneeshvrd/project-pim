@@ -1,6 +1,7 @@
 import utils.common as common
 import utils.validator as validator
 import utils.monitor_util as monitor_util
+import utils.string_util as util
 
 logger = common.get_logger("pim-rollback")
 
@@ -24,11 +25,13 @@ def rollback():
     except Exception as e:
         logger.error(f"encountered an error: {e}")
     finally:
-        logger.info("End of PIM command!!!")
+        logger.info("Rollback PIM partition completed")
 
 
 def rollback_action(config):
     try:
+        if not util.get_ssh_priv_key(config) or not util.get_ssh_pub_key(config):
+            config = common.load_ssh_keys(config)
         ssh_client = common.ssh_to_partition(config)
 
         bootc_rollback_cmd = "sudo bootc rollback"
