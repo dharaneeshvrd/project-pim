@@ -15,9 +15,11 @@ def upgrade():
         logger.info("Upgrading PIM partition")
 
         logger.debug("Validating configuration")
-        validator.validate_upgrade_config(config)
+        is_config_valid = validator.validate_upgrade_config(config)
         logger.debug("Configuration validated")
-
+        if not is_config_valid:
+            return
+        
         logger.debug("Upgrade to the latest PIM image")
         if not upgrade_action(config):
             return
