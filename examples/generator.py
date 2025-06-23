@@ -11,20 +11,21 @@ def create_dir(path):
         raise
 
 
-def generate_app_dir(app_name):
-    create_dir(app_name)
-    create_dir(f"./{app_name}/app")
+def create_file(path, data):
+    with open(path, "w") as f:
+        f.write(data)
+        f.close()
 
 
 def generate_container_file(app_name, image):
-    data = f'''FROM {image}
+    file_content = f'''FROM {image}
 
-COPY entity.container /usr/share/containers/systemd'''
-    create_file(f"{app_name}/Containerfile", data)
+COPY {app_name}.container /usr/share/containers/systemd'''
+    create_file(f"{app_name}/Containerfile", file_content)
 
 
 def generate_app_container_file(app_name, image):
-    data = f'''Description=
+    service = f'''Description=
 Requires=
 After=
 
@@ -41,24 +42,21 @@ AutoUpdate=registry
 
 [Install]
 WantedBy=multi-user.target default.target'''
-    create_file(f"{app_name}/{app_name}.container", data)
-
-
-def create_file(path, data):
-    with open(path, "w") as f:
-        f.write(data)
-        f.close()
+    create_file(f"{app_name}/{app_name}.container", service)
 
 
 def genarete_app_template(app_name, image):
     try:
-        generate_app_dir(app_name)
+        create_dir(app_name)
         generate_container_file(app_name, image)
         generate_app_container_file(app_name, image)
         create_file(f"{app_name}/README.md", "")
-        create_file(f"{app_name}/app/README.md", "")
     except Exception as e:
         print("failed to  create template. Err: ", e)
+
+def log_instructions():
+    print("Please follow below steps.")
+    
 
 
 def main():
