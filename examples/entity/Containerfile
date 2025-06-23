@@ -1,3 +1,0 @@
-FROM na.factory/image
-
-COPY entity.container /usr/share/containers/systemd
