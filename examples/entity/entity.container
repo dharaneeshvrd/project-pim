@@ -1,0 +1,17 @@
+Description=
+Requires=
+After=
+
+[Service]
+Restart=on-failure
+RestartSec=60
+EnvironmentFile=/etc/pim/env.conf
+
+[Container]
+Image=na.factory/image
+Network=host
+SecurityLabelType=unconfined_t
+AutoUpdate=registry
+
+[Install]
+WantedBy=multi-user.target default.target

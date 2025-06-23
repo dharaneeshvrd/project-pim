@@ -51,12 +51,24 @@ def genarete_app_template(app_name, image):
         generate_container_file(app_name, image)
         generate_app_container_file(app_name, image)
         create_file(f"{app_name}/README.md", "")
+        print(f"Successfully generated structure for the '{app_name}' application.\n")
     except Exception as e:
         print("failed to  create template. Err: ", e)
 
-def log_instructions():
-    print("Please follow below steps.")
-    
+def log_instructions(app_name):
+    print("Follow the steps below to set up your new application image:\n")
+
+    print(f"1. Update '{app_name}/{app_name}.container' with the appropriate values.")
+    print(f"2. Document the new app description and usage in the '{app_name}/README.md' file.")
+    print(f"3. Create a new directory with name 'app' inside {app_name} directory.")
+    print(f"4. Add a 'Containerfile' to the {app_name}/app directory.")
+    print("5. Fill the 'Containerfile' with the necessary instructions to build the app image.")
+    print("6. Add necessary files to the app directory as per the application's requirements.")
+    print(f"7. Build the '{app_name}/app/Containerfile image and push it to your registry.")
+    print(f"8. Update '{app_name}/{app_name}.container' to set 'container.Image' with the new image name generated in above step.")
+    print(f"9. Build the image from '{app_name}/{app_name}/Containerfile' and push it to the registry.\n")
+
+    print("Application image is ready for use.")
 
 
 def main():
@@ -69,6 +81,7 @@ def main():
 
     args = parser.parse_args()
     genarete_app_template(args.app, args.image)
+    log_instructions(args.app)
 
 
 if __name__ == "__main__":
