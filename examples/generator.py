@@ -77,7 +77,7 @@ def main():
     parser.add_argument('--app', type=str, required=True,
                         help='Specify name of the application')
     parser.add_argument('--image', type=str, required=True,
-                        help='Specify image which will be used in app')
+                        help='Specify base bootc image which will be used in app')
 
     args = parser.parse_args()
     genarete_app_template(args.app, args.image)

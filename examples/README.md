@@ -32,5 +32,5 @@ python3.9 generator.py --app <app-name> --image <image-name>
 ***Parameters***
 
 - `--app` - Name of the application
-- `--image` - Base image to be used for the application
+- `--image` - Base bootc image to be used for the application
 |
