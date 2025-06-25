@@ -1,0 +1,8 @@
+FROM na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/vllm
+
+COPY email-ner-config.sh /usr/bin
+COPY email-ner-config.service /etc/systemd/system
+RUN systemctl unmask email-ner-config.service
+RUN systemctl enable email-ner-config.service
+
+COPY email-ner.container /usr/share/containers/systemd
