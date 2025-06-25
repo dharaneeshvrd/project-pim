@@ -1,3 +1,4 @@
+import os
 import requests
 from bs4 import BeautifulSoup
 
@@ -15,26 +16,40 @@ def populate_payload(username, password):
     <Password kb="CUR" kxe="false">{password}</Password>
 </LogonRequest>
 '''
+session_key = None
+cookies = None
 
-def authenticate_hmc(hmc_creds: dict):
+def authenticate_hmc():
+    global session_key
+    global cookies
+
+    if session_key != None and cookies != None:
+        return
+    
     # Populate Authentication payload
-    payload = populate_payload(hmc_creds["hmc_username"], hmc_creds["hmc_password"])
-    url = "https://" + hmc_creds["hmc_ip"] + URI
+    payload = populate_payload(os.getenv("HMC_USERNAME"), os.getenv("HMC_PASSWORD"))
+    url = "https://" + os.getenv("HMC_IP") + URI
     headers = {"Content-Type": CONTENT_TYPE, "Accept": ACCEPT}
     response = requests.put(url, headers=headers, data=payload, verify=False)
     if response.status_code != 200:
         raise Exception(f"failed to authenticate HMC, error: {response.text}")
 
     soup = BeautifulSoup(response.text, 'xml')
-    session_key = soup.find("X-API-Session")
-    return session_key.text, response.cookies
+    session = soup.find("X-API-Session")
+    session_key = session.text
+    cookies = response.cookies
 
-def get_hmc_version(ip, session_key, cookies):
+def delete_session():
+    url = "https://" + os.getenv("HMC_IP") + "/rest/api/web/Logon"
+    headers = {"x-api-key": session_key}
+    requests.delete(url, cookies=cookies, headers=headers, verify=False)
+    return
+
+def get_hmc_version():
     uri = f"/rest/api/uom/ManagementConsole"
-    url =  "https://" + ip + uri
+    url =  "https://" + os.getenv("HMC_IP") + uri
     headers = {"x-api-key": session_key}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
-    print(f"status: {response.status_code}")
     if response.status_code != 200:
         print("failed to get hmc version")
         return
@@ -45,9 +60,9 @@ def get_hmc_version(ip, session_key, cookies):
     serv_pack_name = version_info.find("ServicePackName").text
     return major_ver, min_ver, serv_pack_name
 
-def list_all_systems(ip, session_key, cookies):
-    uri = f"rest/api/uom/ManagedSystem/quick/All"
-    url =  "https://" + ip + uri
+def list_all_systems():
+    uri = f"/rest/api/uom/ManagedSystem/quick/All"
+    url =  "https://" + os.getenv("HMC_IP") + uri
     headers = {"x-api-key": session_key}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
@@ -59,12 +74,11 @@ def list_all_systems(ip, session_key, cookies):
         list_of_sys_names.append(system["SystemName"])
     return list_of_sys_names
 
-def get_logical_partitions(ip, session_key, cookies):
+def get_logical_partitions():
     uri = f"/rest/api/uom/LogicalPartition/quick/All"
-    url = f"https://{ip}{uri}"
+    url = f"https://{os.getenv("HMC_IP")}{uri}"
     headers = {"x-api-key": session_key}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
-    print(f"status: {response.status_code}")
     if response.status_code != 200:
         print("failed to get logical partitions")
         return []
