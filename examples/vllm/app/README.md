@@ -4,6 +4,7 @@ Run `./build.sh` in a P10 Linux machine to build https://github.com/vllm-project
 
 ### Prerequisite
 - Podman
+- Git
 
 ### Build
 ```

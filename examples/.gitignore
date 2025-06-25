@@ -1,3 +1,5 @@
 wheels
 
+vllm/app/nohup.out
+vllm/app/vllm/
 email-ner/app/spyre/
