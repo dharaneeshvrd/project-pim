@@ -17,7 +17,14 @@ server_parameters = StdioServerParameters(
     env={"HMC_IP": os.getenv("HMC_IP"), "HMC_USERNAME": os.getenv("HMC_USERNAME"), "HMC_PASSWORD": os.getenv("HMC_PASSWORD")},
 )
 
-# Run the agent using the MCP tools 
-with ToolCollection.from_mcp(server_parameters, trust_remote_code=True) as tool_collection:
-    agent = ToolCallingAgent(tools=[*tool_collection.tools], model=model)
-    agent.run(sys.argv[1])
+
+while True:
+    user_input = input("\nYou: ")
+    if user_input.lower() == "exit":
+        print("Ending chat session...")
+        break
+    
+    with ToolCollection.from_mcp(server_parameters, trust_remote_code=True) as tool_collection:
+        agent = ToolCallingAgent(tools=[*tool_collection.tools], model=model)
+        response = agent.run(user_input)
+        print(f"\nAgent: {response}")

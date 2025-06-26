@@ -24,9 +24,9 @@ def get_hmc_version() -> str:
 
 @mcp.tool()
 def list_all_systems() -> str:
-    """This tool returns all power systems managed by the given HMC.
+    """This tool returns all power systems managed by HMC.
     Returns:
-        str:"list of power systems"
+        str:"list of power system names"
     """
     hmc.authenticate_hmc()
     systems = hmc.list_all_systems()
@@ -36,7 +36,7 @@ def list_all_systems() -> str:
 
 @mcp.tool()
 def get_logical_partitions() -> str:
-    """This tool returns the logical partitions HMC.
+    """This tool returns the logical partitions created in HMC.
     Returns:
         str: "Logical Partition Name: <name>, ID: <id>, State: <state>"
     """
