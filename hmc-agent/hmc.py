@@ -1,3 +1,4 @@
+import json
 import os
 import requests
 from bs4 import BeautifulSoup
@@ -74,15 +75,7 @@ def list_all_systems():
         list_of_sys_names.append(system["SystemName"])
     return list_of_sys_names
 
-def get_logical_partitions():
-    uri = f"/rest/api/uom/LogicalPartition/quick/All"
-    url = f"https://{os.getenv("HMC_IP")}{uri}"
-    headers = {"x-api-key": session_key}
-    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
-    if response.status_code != 200:
-        print("failed to get logical partitions")
-        return []
-    partitions = response.json()
+def compose_parititon_data(partitions):
     vm_list = []
     for lpar in partitions:
         name = lpar["PartitionName"] 
@@ -93,5 +86,74 @@ def get_logical_partitions():
             "id": lpar_id,
             "state": state
         })
+        return vm_list
 
-    return vm_list
+def get_logical_partitions():
+    print("inside get_logical_partitions ")
+    uri = f"/rest/api/uom/LogicalPartition/quick/All"
+    url = f"https://{os.getenv("HMC_IP")}/{uri}"
+    headers = {"x-api-key": session_key}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        print("failed to get logical partitions")
+        return []
+    partitions = response.json()
+    return compose_parititon_data(partitions)
+
+def paritition_status(lpar_name):
+    partitions = get_logical_partitions()
+    lpar_status = {}
+    for partition in partitions:
+        if lpar_name == partition["PartitionName"]:
+            lpar_status["PartitionStatus"] = partition["PartitionState"]
+    return json.dumps(lpar_status)
+
+def get_system_uuid(sys_name):
+    uri = "/rest/api/uom/ManagedSystem/quick/All"
+    url = f"https://{os.getenv("HMC_IP")}/{uri}"
+    headers = {"x-api-key": session_key}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.statget_system_uuidus_code != 200:
+        print(f"failed to get system UUID, error: {response.text}")
+        return ""
+    systems = response.json()
+    uuid = ""
+
+    for system in systems:
+        if system["SystemName"] == sys_name:
+            uuid = system["UUID"]
+            break
+
+    return uuid
+
+def get_compute_usage(sys_uuid):
+    uri = f"/rest/api/uom/ManagedSystem/{sys_uuid}"
+    url = f"https://{os.getenv("HMC_IP")}/{uri}"
+    headers = {"x-api-key": session_key}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        print(f"failed to get system compute details: {response.text}")
+        return ""
+    compute_usage = {"Processor": {}, "Memory": {}}
+    soup = BeautifulSoup(response.text, 'xml')
+    processor = soup.find("AssociatedSystemProcessorConfiguration")
+    curr_proc = processor.find("ConfigurableSystemProcessorUnits").text
+    avail_proc = processor.find("CurrentAvailableSystemProcessorUnits").text
+    installed_proc = processor.find("InstalledSystemProcessorUnits").text
+
+    compute_usage["Processor"]["ConfigurableSystemProcessorUnits"] = curr_proc
+    compute_usage["Processor"]["CurrentAvailableSystemProcessorUnits"] = avail_proc
+    compute_usage["Processor"]["InstalledSystemProcessorUnits"] = installed_proc
+
+    memory = soup.find("AssociatedSystemMemoryConfiguration")
+    config_memory = memory.find("ConfigurableSystemMemory").text
+    curr_system_memory = memory.find("CurrentAvailableSystemMemory").text
+    installed_system_memory = memory.find("InstalledSystemMemory").text
+    partition_assigned_memory = memory.find("CurrentAssignedMemoryToPartitions").text
+
+    compute_usage["Memory"]["ConfigurableSystemMemory"] = config_memory
+    compute_usage["Memory"]["CurrentAvailableSystemMemory"] = curr_system_memory
+    compute_usage["Memory"]["InstalledSystemMemory"] = installed_system_memory
+    compute_usage["Memory"]["CurrentAssignedMemoryToPartitions"] = partition_assigned_memory
+
+    return json.dumps(compute_usage)

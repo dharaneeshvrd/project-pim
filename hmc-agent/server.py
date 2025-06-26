@@ -58,6 +58,28 @@ def get_logical_partitions() -> str:
     hmc.delete_session()
     return tabulate(result, headers=headers, tablefmt="grid")
     
+@mcp.tool()
+def partition_status(partition_name) -> str:
+    """
+    This tool returns the status of given parititon
+    Returns:
+        str: PartitionState: <current parititon's status>
+    """
+    # Get lpar UUID from partition name
+    print("tool: get partition state")
+    state = hmc.paritition_status(partition_name)
+    hmc.delete_session()
+    return str(f"Current status of partition: \n{state}")
+
+@mcp.tool()
+def get_compute_usage(system_name) -> str:
+    """
+    This tool returns current usage of given system's cpu and memory.
+    """
+    sys_uuid = hmc.get_system_uuid(system_name)
+    compute_details = hmc.get_compute_usage(sys_uuid)
+    hmc.delete_session()
+    return str(f"Compute usage details: \n{compute_details}")
 
 # Kick off MCP server
 if __name__ == "__main__":

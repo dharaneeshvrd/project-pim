@@ -8,7 +8,7 @@ from mcp import StdioServerParameters
 # Specify Ollama LLM via LiteLLM
 model = LiteLLMModel(
         model_id=os.getenv("OLLAMA_MODEL"),
-        num_ctx=8192) 
+        num_ctx=8192)
 
 # Outline STDIO stuff to get to MCP Tools
 server_parameters = StdioServerParameters(
