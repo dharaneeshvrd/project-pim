@@ -3,7 +3,7 @@ import json
 import app.ai_app as app
 import partition.activation as activation
 import partition.partition as partition
-import utils.actions_util as action_util
+import utils.command_util as command_util
 import utils.common as common
 import utils.string_util as util
 
@@ -14,18 +14,18 @@ def status():
     try:
         logger.info("PIM partition's status")
         config = common.initialize_config()
-        # Invoking initialize_action to perform common actions like validation, authentication etc.
-        is_config_valid, cookies, sys_uuid, _ = action_util.initialize_action(
+        # Invoking initialize_command to perform common actions like validation, authentication etc.
+        is_config_valid, cookies, sys_uuid, _ = command_util.initialize_command(
             config)
         if is_config_valid:
-            status_action(config, cookies, sys_uuid)
+            _status(config, cookies, sys_uuid)
     except Exception as e:
         logger.error(f"encountered an error: {e}")
     finally:
         if cookies:
-            action_util.cleanup(config, cookies)
+            command_util.cleanup(config, cookies)
 
-def status_action(config, cookies, sys_uuid):
+def _status(config, cookies, sys_uuid):
     try:
         logger.debug("Checking partition exists")
         exists, _, partition_uuid = partition.check_partition_exists(config, cookies, sys_uuid)
@@ -37,9 +37,10 @@ def status_action(config, cookies, sys_uuid):
         if lpar_state != "running":
             logger.error(f"Partition '{util.get_partition_name(config)}' not in running state")
             return
-        logger.info("PIM partition is in running state")  
+        logger.info(f"PIM partition '{util.get_partition_name(config)}' is in running state")  
 
         if not util.get_ssh_priv_key(config) or not util.get_ssh_pub_key(config):
+            logger.debug("Load SSH keys generated during launch to config")
             config = common.load_ssh_keys(config)
 
         ssh_client = common.ssh_to_partition(config)

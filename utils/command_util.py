@@ -10,9 +10,9 @@ import utils.iso_util as iso_util
 import vios.vios as vios_operation
 import storage.storage as storage
 
-logger = common.get_logger("action-util")
+logger = common.get_logger("command-util")
 
-def initialize_action(config):
+def initialize_command(config):
     logger.debug("Validate configuration")
     if not validator.validate_config(config):
         return False, "", "", []
@@ -101,7 +101,7 @@ def check_if_scsi_mapping_exist(partition_uuid, vios, media_dev_name):
 def remove_scsi_mappings(config, cookies, sys_uuid, partition_uuid, vios_uuid, vios, disk_name):
     found, vscsi, vios = check_if_scsi_mapping_exist(partition_uuid, vios, disk_name)
     if not found:
-        logger.info(f"no SCSI mapping available for '{disk_name}' to remove")
+        logger.debug(f"no SCSI mapping available for '{disk_name}' to remove")
         return
     vscsi.decompose()
     updated_vios = str(vios)

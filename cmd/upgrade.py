@@ -1,5 +1,3 @@
-import time
-
 import utils.common as common
 import utils.monitor_util as monitor_util
 import utils.string_util as util
@@ -21,7 +19,7 @@ def upgrade():
             return
         
         logger.debug("Upgrade to the latest PIM image")
-        if not upgrade_action(config):
+        if not _upgrade(config):
             return
 
         logger.debug("Monitor booting")
@@ -32,14 +30,15 @@ def upgrade():
         logger.info("Upgrading PIM partition completed")
 
 
-def upgrade_action(config):
+def _upgrade(config):
     try:
         if not util.get_ssh_priv_key(config) or not util.get_ssh_pub_key(config):
+            logger.debug("Load SSH keys generated during launch to config")
             config = common.load_ssh_keys(config)
 
         ssh_client = common.ssh_to_partition(config)
 
-        logger.debug("Updating auth.json with the latest one provided")
+        logger.info(f"Updating PIM partition's '{bootc_auth_json}' with the latest one provided")
         auth_json = util.get_auth_json(config)
         sftp_client = ssh_client.open_sftp()
         with sftp_client.open("/tmp/auth.json", 'w') as f:
@@ -75,7 +74,7 @@ def upgrade_action(config):
         reboot_cmd = "sudo reboot"
         _, stdout, _ = ssh_client.exec_command(reboot_cmd, get_pty=True)
         if stdout.channel.recv_exit_status() == 0:
-            logger.debug("Partition rebooted to apply the upgrade")
+            logger.info("Partition rebooted to apply the upgrade")
         else:
             raise Exception(f"failed to reboot the partition, error: {stdout.readlines()}")
         

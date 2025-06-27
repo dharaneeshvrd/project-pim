@@ -5,7 +5,7 @@ import partition.activation as activation
 import partition.partition as partition
 import utils.monitor_util as monitor_util
 import storage.vopt_storage as vopt
-import utils.actions_util as action_util
+import utils.command_util as command_util
 import utils.common as common
 import utils.iso_util as iso_util
 import utils.string_util as util
@@ -19,19 +19,19 @@ def update_config():
     try:
         logger.info("Updating PIM partition's config")
         config = common.initialize_config()
-        # Invoking initialize_action to perform common actions like validation, authentication etc.
-        is_config_valid, cookies, sys_uuid, vios_uuid_list = action_util.initialize_action(
+        # Invoking initialize_command to perform common actions like validation, authentication etc.
+        is_config_valid, cookies, sys_uuid, vios_uuid_list = command_util.initialize_command(
             config)
         if is_config_valid:
-            update_config_action(config, cookies, sys_uuid, vios_uuid_list)
+            _update_config(config, cookies, sys_uuid, vios_uuid_list)
     except Exception as e:
         logger.error(f"encountered an error: {e}")
     finally:
         if cookies:
-            action_util.cleanup(config, cookies)
+            command_util.cleanup(config, cookies)
         logger.info("Updating PIM partition's config completed")
 
-def update_config_action(config, cookies, sys_uuid, vios_uuid_list):
+def _update_config(config, cookies, sys_uuid, vios_uuid_list):
     try:
         logger.debug("Checking partition exists")
         exists, _, partition_uuid = partition.check_partition_exists(config, cookies, sys_uuid)
@@ -55,21 +55,21 @@ def update_config_action(config, cookies, sys_uuid, vios_uuid_list):
         logger.info("Detected config change, updating")
         iso_util.generate_cloud_init_iso_file(common.cloud_init_update_config_dir, config, common.cloud_init_update_config_dir)
 
-        logger.debug("Shutting down the partition")
+        logger.info("Shutting down the partition")
         activation.shutdown_partition(config, cookies, partition_uuid)
         logger.info("Partition shut down to attach the new config")
 
         cloud_init_iso = util.get_cloud_init_iso(config)
-        logger.debug("Uploading the cloud init")
+        logger.info("Uploading the new cloud init with the config changes")
         vios_cloudinit_media_uuid = iso_util.upload_iso_to_media_repository(config, cookies, common.cloud_init_update_config_dir, cloud_init_iso, sys_uuid, vios_uuid_list)
         logger.debug("Cloud init uploaded")
         
-        logger.debug("Attaching the cloud init to the partiiton")
+        logger.info("Attaching the cloud init to the partiiton")
         vios_payload = vios.get_vios_details(config, cookies, sys_uuid, vios_cloudinit_media_uuid)
         vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_cloudinit_media_uuid, cloud_init_iso)
         logger.info("New cloud init config attached to the partiiton")
 
-        logger.debug("Activating the partition")
+        logger.info("Activating the partition")
         activation.activate_partititon(config, cookies, partition_uuid)
         logger.info("Partition activated")
 

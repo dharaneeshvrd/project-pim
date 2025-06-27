@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 import storage.storage as storage
 import utils.common as common
-import utils.actions_util as action_util
+import utils.command_util as command_util
 import utils.string_util as util
 
 from .vios_exception import VIOSError
@@ -79,7 +79,7 @@ def get_vios_with_mediarepo_tag(active_vios_servers):
         if media_repos:
             free_memory = calculate_free_space(vios_uuid, media_repos)
             logger.debug(
-                f"Media repositories has {free_memory} GB free memory in '{vios_uuid}' VIOS.")
+                f"Media repositories have {free_memory} GB free memory in '{vios_uuid}' VIOS.")
             if free_memory > 3.0:
                 vios_uuid_list.append(vios_uuid)
             else:
@@ -166,15 +166,15 @@ def cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list):
             found, phys_disk = storage.check_if_storage_attached(
                 vios, partition_uuid)
             if found and not storage_cleaned:
-                logger.debug(
+                logger.info(
                     f"Removing SCSI mapping for physical disk '{phys_disk}'")
-                action_util.remove_scsi_mappings(
+                command_util.remove_scsi_mappings(
                     config, cookies, sys_uuid, partition_uuid, vios_uuid, vios, phys_disk)
                 storage_cleaned = True
 
             vios = get_vios_details(config, cookies, sys_uuid, vios_uuid)
-            logger.debug(f"Removing SCSI mapping for vOPT device '{vopt}'")
-            action_util.remove_scsi_mappings(
+            logger.info(f"Removing SCSI mapping for vOPT device '{vopt}'")
+            command_util.remove_scsi_mappings(
                 config, cookies, sys_uuid, partition_uuid, vios_uuid, vios, vopt)
             # TODO: delete virtual disk, volumegroup if created by the script during launch
 
@@ -182,8 +182,8 @@ def cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list):
 
             # remove mounted cloud-init vOPT from media repositoy.
             if vopt == util.get_cloud_init_iso(config):
-                logger.debug(f"Removing vOPT device '{vopt}'")
-                action_util.remove_vopt_device(config, cookies, vios, vopt)
+                logger.info(f"Removing vOPT device '{vopt}'")
+                command_util.remove_vopt_device(config, cookies, vios, vopt)
             processed_vios_list.append(vios_uuid)
 
         # If storage and any of the vOPT not using same VIOS, need to cleanup with a different VIOS
@@ -197,7 +197,7 @@ def cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list):
                     if found:
                         logger.debug(
                             f"Removing SCSI mapping for physical disk '{phys_disk}'")
-                        action_util.remove_scsi_mappings(
+                        command_util.remove_scsi_mappings(
                             config, cookies, sys_uuid, partition_uuid, vios_uuid, vios, phys_disk)
     except Exception as e:
         logger.error(f"failed to clean up vios, error: {e}")
@@ -206,7 +206,7 @@ def cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list):
 def find_vios_with_vopt_mounted(config, cookies, sys_uuid, partition_uuid, vios_uuid_list, vopt_name):
     for uuid in vios_uuid_list:
         vios = get_vios_details(config, cookies, sys_uuid, uuid)
-        found, _, _ = action_util.check_if_scsi_mapping_exist(partition_uuid, vios, vopt_name)
+        found, _, _ = command_util.check_if_scsi_mapping_exist(partition_uuid, vios, vopt_name)
         if found:
             return uuid
     return ""

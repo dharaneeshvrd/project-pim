@@ -9,7 +9,7 @@ from jinja2 import Environment, FileSystemLoader
 import partition.activation as activation
 import partition.partition as partition
 import utils.common as common
-import utils.actions_util as action_util
+import utils.command_util as command_util
 import vios.vios as vios_operation
 
 from .string_util import *
@@ -194,11 +194,11 @@ def upload_iso_to_media_repository(config, cookies, iso_dir, iso_file_name, sys_
                         config, cookies, sys_uuid, vios_uuid)
 
                     # remove SCSI mapping from VIOS
-                    action_util.remove_scsi_mappings(
+                    command_util.remove_scsi_mappings(
                         config, cookies, sys_uuid, lpar_uuid, vios_uuid, vios, iso_file_name)
 
                     # Delete existing cloud-init vOPT with same name if already loaded in VIOS media repository
-                    action_util.remove_vopt_device(
+                    command_util.remove_vopt_device(
                         config, cookies, vios, iso_file_name)
 
             # Create ISO filepath for bootstrap iso

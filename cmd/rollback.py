@@ -18,9 +18,9 @@ def rollback():
             return
         
         logger.debug("Rollback to the previous PIM image")
-        rollback_action(config)
+        _rollback(config)
 
-        logger.debug("Monitor booting")
+        logger.info("Monitor booting")
         monitor_util.monitor_pim(config)
     except Exception as e:
         logger.error(f"encountered an error: {e}")
@@ -28,9 +28,10 @@ def rollback():
         logger.info("Rollback PIM partition completed")
 
 
-def rollback_action(config):
+def _rollback(config):
     try:
         if not util.get_ssh_priv_key(config) or not util.get_ssh_pub_key(config):
+            logger.debug("Load SSH keys generated during launch to config")
             config = common.load_ssh_keys(config)
         ssh_client = common.ssh_to_partition(config)
 
@@ -43,7 +44,7 @@ def rollback_action(config):
         else:
             logger.info("Rollback succeeded")
 
-        logger.debug("Reboot to apply the rollback")
+        logger.info("Reboot to apply the rollback")
         _, stdout, stderr = ssh_client.exec_command(
             "sudo reboot", get_pty=True)
         if stdout.channel.recv_exit_status() != 0:

@@ -9,43 +9,50 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 common_parser = argparse.ArgumentParser(add_help=False)
 common_parser.add_argument("--debug", action="store_true", help="Enable debug logging")
 
-parser = argparse.ArgumentParser(description="PIM lifecycle manager", parents=[common_parser])
+parser = argparse.ArgumentParser(description="PIM Partition Lifecycle Manager\n" \
+    "All the commands acts upon configuration provided in config.ini file\n" \
+    "All the commands supports re-run which means if user tries to rerun a particular command involving creating a new resource" \
+    "it picks up from where it left during last run or it picks the already created resource and proceed with the command execution", 
+    parents=[common_parser], formatter_class=argparse.RawTextHelpFormatter)
 
-action_parsers = parser.add_subparsers(dest="action", required=True)
-launch_parser = action_parsers.add_parser(
-    "launch", help="Create a new partition with the given configuration", parents=[common_parser])
+command_parser = parser.add_subparsers(dest="command", required=True)
+launch_parser = command_parser.add_parser(
+    "launch", help="Setup PIM partition", parents=[common_parser], description="Setup PIM partition\n " \
+    "If user specified a partition name and if it does not exist already, it sets up the PIM partition E2E(Creating a new partition, attach network, storage and installation medias and activates it)\n " \
+    "If user specified an existing partition name on which the storage already attached, it only attaches network and installation medias and activates it", formatter_class=argparse.RawTextHelpFormatter)
 
-destroy_parser = action_parsers.add_parser(
-    "destroy", help="Delete the partition and clean up the VIOS", parents=[common_parser])
+destroy_parser = command_parser.add_parser(
+    "destroy", help="Destroy PIM partition and cleanup installation devices", parents=[common_parser], 
+    description="Destroy PIM partition and cleanup installation devices. It ensures only resources created by this script will get cleaned up", formatter_class=argparse.RawTextHelpFormatter)
 
-upgrade_parser = action_parsers.add_parser(
-    "upgrade", help="Update the partition AI image to the latest version", parents=[common_parser])
+upgrade_parser = command_parser.add_parser(
+    "upgrade", help="Upgrade PIM partition's AI image to the latest version", parents=[common_parser], description="Upgrade PIM partition's AI image to the latest version", formatter_class=argparse.RawTextHelpFormatter)
 
-rollback_parser = action_parsers.add_parser(
-    "rollback", help="Rollback the partition AI image to its previous version", parents=[common_parser])
+rollback_parser = command_parser.add_parser(
+    "rollback", help="Rollback PIM partition's AI image to its previous version", parents=[common_parser], description="Rollback PIM partition's AI image to its previous version", formatter_class=argparse.RawTextHelpFormatter)
 
-update_compute_parser = action_parsers.add_parser(
-    "update-compute", help="Updates the cpu and memory configuration for the partition", parents=[common_parser])
+update_compute_parser = command_parser.add_parser(
+    "update-compute", help="Updates the cpu and memory configuration of the PIM partition", parents=[common_parser], description="Updates the cpu and memory configuration of the PIM partition", formatter_class=argparse.RawTextHelpFormatter)
 
-update_config_parser = action_parsers.add_parser(
-    "update-config", help="Updates PIM partition's AI related configuration", parents=[common_parser])
+update_config_parser = command_parser.add_parser(
+    "update-config", help="Updates PIM partition's AI related configuration", parents=[common_parser], description="Updates PIM partition's AI related configuration", formatter_class=argparse.RawTextHelpFormatter)
 
-status_parser = action_parsers.add_parser(
-    "status", help="Status of PIM partition(Overall partition status from HMC, AI application validation if enabled)", parents=[common_parser])
+status_parser = command_parser.add_parser(
+    "status", help="Status of PIM partition", parents=[common_parser], description="Status of PIM partition(Overall partition status from HMC, AI application validation if enabled)", formatter_class=argparse.RawTextHelpFormatter)
 
-action_args = parser.parse_args()
-if action_args.debug:
+command_args = parser.parse_args()
+if command_args.debug:
     common.set_log_level(logging.DEBUG)
 else:
     common.set_log_level(logging.INFO)
 
-from actions.destroy import destroy
-from actions.launch import launch
-from actions.rollback import rollback
-from actions.update_compute import update_compute
-from actions.upgrade import upgrade
-from actions.update_config import update_config
-from actions.status import status
+from launch import launch
+from destroy import destroy
+from upgrade import upgrade
+from rollback import rollback
+from update_compute import update_compute
+from update_config import update_config
+from status import status
 
 launch_parser.set_defaults(func=launch)
 destroy_parser.set_defaults(func=destroy)
@@ -55,5 +62,5 @@ update_compute_parser.set_defaults(func=update_compute)
 update_config_parser.set_defaults(func=update_config)
 status_parser.set_defaults(func=status)
 
-action_args = parser.parse_args()
-action_args.func()
+command_args = parser.parse_args()
+command_args.func()

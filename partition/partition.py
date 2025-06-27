@@ -178,12 +178,6 @@ def check_partition_exists(config, cookies, system_uuid):
 
 
 def create_partition(config, cookies, system_uuid):
-    exists, _, partition_uuid = check_partition_exists(
-        config, cookies, system_uuid)
-    if exists:
-        logger.debug(
-            f"Existing partition found with name '{util.get_partition_name(config)}'")
-        return partition_uuid
     logger.debug(
         f"Creating partition with name '{util.get_partition_name(config)}'")
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/LogicalPartition"
@@ -200,7 +194,6 @@ def create_partition(config, cookies, system_uuid):
 
     soup = BeautifulSoup(response.text, 'xml')
     partition_uuid = soup.find("PartitionUUID")
-    logger.debug("New partition created")
     return partition_uuid.text
 
 

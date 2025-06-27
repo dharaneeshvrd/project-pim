@@ -63,5 +63,33 @@ Additionally, the user's session timeout must be set to a minimum of `120 minute
 
   ```
   export PYTHONPATH=.
-  python3 cmd/pim.py [launch/upgrade/rollback/update-compute/destroy]
+  python3 cmd/pim.py [launch,destroy,upgrade,rollback,update-compute,update-config,status]
   ```
+
+## Available sub commands
+
+  ```
+  bash-5.2$ python3.9 cmd/pim.py -h
+  usage: pim.py [-h] [--debug]
+                {launch,destroy,upgrade,rollback,update-compute,update-config,status}
+                ...
+
+  PIM Partition Lifecycle Manager
+  All the commands acts upon configuration provided in config.ini file
+  All the commands supports re-run which means if user tries to rerun a particular command involving creating a new resource it picks up from where it left during last run or it picks the already created resource and proceed with the command execution
+
+  positional arguments:
+    {launch,destroy,upgrade,rollback,update-compute,update-config,status}
+      launch              Setup PIM partition
+      destroy             Destroy PIM partition and cleanup installation devices
+      upgrade             Upgrade PIM partition's AI image to the latest version
+      rollback            Rollback PIM partition's AI image to its previous version
+      update-compute      Updates the cpu and memory configuration of the PIM partition
+      update-config       Updates PIM partition's AI related configuration
+      status              Status of PIM partition
+
+  optional arguments:
+    -h, --help            show this help message and exit
+    --debug               Enable debug logging
+  ```
+  

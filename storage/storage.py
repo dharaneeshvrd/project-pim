@@ -40,6 +40,11 @@ def populate_payload(vios_payload, hmc_host, partition_uuid, system_uuid, physic
 def check_if_storage_attached(vios, partition_uuid):
     found = False
     phys_disk = ""
+    if partition_uuid == "":
+        # return early if partition already deleted and asks for phys disk attachment
+        # had to do this since not attached disk scsimappings exist with partition name being ""
+        return found, phys_disk
+
     try:
         soup = BeautifulSoup(vios, 'xml')
         scsi_mappings = soup.find_all('VirtualSCSIMapping')
@@ -105,25 +110,10 @@ def attach_storage(vios_payload, config, cookies, partition_uuid, system_uuid, v
 
 
 def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_storage_list):
-    physical_volume_name = ""
-    vios_uuid = ""
-    try:
-        for index, a_vios in enumerate(vios_storage_list):
-            vios_uuid, physical_volume_name, _ = a_vios
-            vios = vios_operation.get_vios_details(
-                config, cookies, sys_uuid, vios_uuid)
-            found, _ = check_if_storage_attached(vios, partition_uuid)
-            if found:
-                logger.debug(
-                    f"Physical volume is already attached to lpar, skipping storage attachment to lpar")
-                return
-    except (vios_operation.VIOSError, StorageError, Exception) as e:
-        logger.error(
-            f"failed to attach '{physical_volume_name}' physical storage in VIOS '{vios_uuid}'")
-        raise e
-
     # Iterating over the vios_storage_list to attach physical volume from VIOS to a partition.
     # If attachment operation fails for current VIOS, next available VIOS in the list will be used as a fallback.
+    vios_storage_uuid = ""
+    physical_volume_name = ""
     for index, vios_storage in enumerate(vios_storage_list):
         try:
             vios_storage_uuid, physical_volume_name, _ = vios_storage
@@ -131,16 +121,9 @@ def attach_physical_storage(config, cookies, sys_uuid, partition_uuid, vios_stor
                 config, cookies, sys_uuid, vios_storage_uuid)
             logger.debug("Attach physical storage to the partition")
 
-            found, _ = check_if_storage_attached(
-                updated_vios_payload, partition_uuid)
-            if found:
-                logger.debug(
-                    f"Physical volume '{physical_volume_name}' is already attached to lpar")
-                return
-
             attach_storage(updated_vios_payload, config, cookies, partition_uuid,
                            sys_uuid, vios_storage_uuid, physical_volume_name)
-            logger.debug(
+            logger.info(
                 f"Attached '{physical_volume_name}' physical volume to the partition from VIOS '{vios_storage_uuid}'")
             break
         except (vios_operation.VIOSError, StorageError, Exception) as e:

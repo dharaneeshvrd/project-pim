@@ -108,6 +108,7 @@ def attach_network(config, cookies, system_uuid, partition_uuid):
         if response.status_code != 200:
             logger.error(f"failed to attach virtual network to the partition, error: {response.text}")
             raise NetworkError(f"failed to attach virtual network to the partition, error: {response.text}")
+        logger.debug(f"Network '{util.get_vnetwork_name(config)}' attached to lpar")
     except Exception as e:
         raise e
     return DEFAULT_NW_SLOT
