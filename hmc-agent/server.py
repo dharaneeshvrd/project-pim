@@ -1,8 +1,12 @@
+import logging
+
 # Bring in MCP Server SDK
 from mcp.server.fastmcp import FastMCP
 from tabulate import tabulate
 
 import hmc
+
+logger = logging.getLogger("mcp_server")
 
 # Create server 
 mcp = FastMCP("ibmhmcserver")
@@ -30,7 +34,7 @@ def list_all_systems() -> str:
     """
     hmc.authenticate_hmc()
     systems = hmc.list_all_systems()
-    res = ' '.join(systems)
+    res = '\n'.join(systems)
     hmc.delete_session()
     return str(f"list of power systems managed by HMC: {res}")
 
@@ -67,7 +71,7 @@ def partition_stats(partition_name) -> str:
         str: PartitionState: <current parititon's status>
     """
     # Get lpar UUID from partition name
-    print("tool: get partition state")
+    hmc.authenticate_hmc()
     stats = hmc.paritition_stats(partition_name)
     hmc.delete_session()
     parititon_stats = {"partition_stats": stats}
@@ -78,10 +82,13 @@ def get_compute_usage(system_name) -> str:
     """
     This tool returns current usage of given system's cpu and memory.
     """
+    hmc.authenticate_hmc()
     sys_uuid = hmc.get_system_uuid(system_name)
+    logger.info(f"system UUID: {sys_uuid}")
     compute_details = hmc.get_compute_usage(sys_uuid)
     hmc.delete_session()
-    return str(f"Compute usage details: \n{compute_details}")
+    compute_usage = {"compute_usage": compute_details}
+    return str(f"Compute usage details: \n{compute_usage}")
 
 # Kick off MCP server
 if __name__ == "__main__":

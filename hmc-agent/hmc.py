@@ -1,7 +1,10 @@
 import json
+import logging
 import os
 import requests
 from bs4 import BeautifulSoup
+
+logger = logging.getLogger("hmc")
 
 CONTENT_TYPE = "application/vnd.ibm.powervm.web+xml; type=LogonRequest"
 ACCEPT = "application/vnd.ibm.powervm.web+xml; type=LogonResponse"
@@ -33,6 +36,7 @@ def authenticate_hmc():
     headers = {"Content-Type": CONTENT_TYPE, "Accept": ACCEPT}
     response = requests.put(url, headers=headers, data=payload, verify=False)
     if response.status_code != 200:
+        logger.error(f"failed to authenticate HMC, error: {response.text}")
         raise Exception(f"failed to authenticate HMC, error: {response.text}")
 
     soup = BeautifulSoup(response.text, 'xml')
@@ -52,8 +56,9 @@ def get_hmc_version():
     headers = {"x-api-key": session_key}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print("failed to get hmc version")
+        logger.error(f"failed to get hmc version: {response.text}")
         return
+
     soup = BeautifulSoup(response.text, 'xml')
     version_info = soup.find("VersionInfo")
     major_ver = version_info.find("Version").text
@@ -67,8 +72,9 @@ def list_all_systems():
     headers = {"x-api-key": session_key}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print("failed to get hmc version")
+        logger.error(f"failed to get hmc version: {response.text}")
         return
+
     list_of_systems = response.json()
     list_of_sys_names = []
     for system in list_of_systems:
@@ -86,16 +92,16 @@ def compose_parititon_data(partitions):
             "id": lpar_id,
             "state": state
         })
-        return vm_list
+
+    return vm_list
 
 def get_logical_partitions():
-    print("inside get_logical_partitions ")
     uri = f"/rest/api/uom/LogicalPartition/quick/All"
     url = f"https://{os.getenv("HMC_IP")}/{uri}"
     headers = {"x-api-key": session_key}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print("failed to get logical partitions")
+        logger.error(f"failed to get logical partitions: {response.text}")
         return []
     partitions = response.json()
     return partitions
@@ -111,7 +117,7 @@ def paritition_stats(lpar_name):
     headers = {"x-api-key": session_key}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print(f"failed to get partition details: {response.text}")
+        logger.error(f"failed to get partition details: {response.text}")
         return ""
 
     partition_stats = {"memory": {}, "cpu": {}}
@@ -138,7 +144,7 @@ def get_system_uuid(sys_name):
     url = f"https://{os.getenv("HMC_IP")}/{uri}"
     headers = {"x-api-key": session_key}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
-    if response.statget_system_uuidus_code != 200:
+    if response.status_code != 200:
         print(f"failed to get system UUID, error: {response.text}")
         return ""
     systems = response.json()
@@ -148,7 +154,6 @@ def get_system_uuid(sys_name):
         if system["SystemName"] == sys_name:
             uuid = system["UUID"]
             break
-
     return uuid
 
 def get_compute_usage(sys_uuid):
@@ -157,7 +162,7 @@ def get_compute_usage(sys_uuid):
     headers = {"x-api-key": session_key}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print(f"failed to get system compute details: {response.text}")
+        logger.error(f"failed to get system compute details: {response.text}")
         return ""
     compute_usage = {"Processor": {}, "Memory": {}}
     soup = BeautifulSoup(response.text, 'xml')
