@@ -66,7 +66,7 @@ def get_hmc_version():
     serv_pack_name = version_info.find("ServicePackName").text
     return major_ver, min_ver, serv_pack_name
 
-def list_all_systems():
+def list_systems():
     uri = f"/rest/api/uom/ManagedSystem/quick/All"
     url =  "https://" + os.getenv("HMC_IP") + uri
     headers = {"x-api-key": session_key}
@@ -74,8 +74,11 @@ def list_all_systems():
     if response.status_code != 200:
         logger.error(f"failed to get hmc version: {response.text}")
         return
-
     list_of_systems = response.json()
+    return list_of_systems
+
+def list_all_systems():
+    list_of_systems = list_systems()
     list_of_sys_names = []
     for system in list_of_systems:
         list_of_sys_names.append(system["SystemName"])
@@ -95,7 +98,15 @@ def compose_parititon_data(partitions):
 
     return vm_list
 
-def get_logical_partitions():
+def get_logical_partitions(system_name):
+    system_uuid = ""
+    list_of_systems = list_systems()
+    for system in list_of_systems:
+        if system["SystemName"] == system_name:
+            system_uuid = system["UUID"]
+    if system_uuid == "":
+        return f"failed to find system with name '{system_name}'"
+    
     uri = f"/rest/api/uom/LogicalPartition/quick/All"
     url = f"https://{os.getenv("HMC_IP")}/{uri}"
     headers = {"x-api-key": session_key}
@@ -104,10 +115,15 @@ def get_logical_partitions():
         logger.error(f"failed to get logical partitions: {response.text}")
         return []
     partitions = response.json()
-    return partitions
+    filtered_partition = []
+    for partition in partitions:
+        if system_uuid in partition["AssociatedManagedSystem"]:
+            filtered_partition.append(partition)
 
-def paritition_stats(lpar_name):
-    partitions = get_logical_partitions()
+    return filtered_partition
+
+def paritition_stats(lpar_name, system_name):
+    partitions = get_logical_partitions(system_name)
     lpar_id = ""
     for partition in partitions:
         if lpar_name == partition["PartitionName"]:
@@ -145,8 +161,7 @@ def get_system_uuid(sys_name):
     headers = {"x-api-key": session_key}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        print(f"failed to get system UUID, error: {response.text}")
-        return ""
+        return f"failed to get system UUID, error: {response.text}"
     systems = response.json()
     uuid = ""
 
