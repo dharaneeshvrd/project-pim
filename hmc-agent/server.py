@@ -41,7 +41,8 @@ def get_logical_partitions() -> str:
         str: "Logical Partition Name: <name>, ID: <id>, State: <state>"
     """
     hmc.authenticate_hmc()
-    partitions = hmc.get_logical_partitions()
+    partitions_json = hmc.get_logical_partitions()
+    partitions = hmc.compose_parititon_data(partitions_json)
 
     if not partitions:
         return "No logical partitions found."
@@ -59,7 +60,7 @@ def get_logical_partitions() -> str:
     return tabulate(result, headers=headers, tablefmt="grid")
     
 @mcp.tool()
-def partition_status(partition_name) -> str:
+def partition_stats(partition_name) -> str:
     """
     This tool returns the status of given parititon
     Returns:
@@ -67,9 +68,10 @@ def partition_status(partition_name) -> str:
     """
     # Get lpar UUID from partition name
     print("tool: get partition state")
-    state = hmc.paritition_status(partition_name)
+    stats = hmc.paritition_stats(partition_name)
     hmc.delete_session()
-    return str(f"Current status of partition: \n{state}")
+    parititon_stats = {"partition_stats": stats}
+    return str(f"Current status of partition: \n{parititon_stats}")
 
 @mcp.tool()
 def get_compute_usage(system_name) -> str:

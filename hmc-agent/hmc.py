@@ -98,15 +98,40 @@ def get_logical_partitions():
         print("failed to get logical partitions")
         return []
     partitions = response.json()
-    return compose_parititon_data(partitions)
+    return partitions
 
-def paritition_status(lpar_name):
+def paritition_stats(lpar_name):
     partitions = get_logical_partitions()
-    lpar_status = {}
+    lpar_id = ""
     for partition in partitions:
         if lpar_name == partition["PartitionName"]:
-            lpar_status["PartitionStatus"] = partition["PartitionState"]
-    return json.dumps(lpar_status)
+            lpar_id = partition["UUID"]
+    uri = f"/rest/api/uom/LogicalPartition/{lpar_id}"
+    url = f"https://{os.getenv("HMC_IP")}/{uri}"
+    headers = {"x-api-key": session_key}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        print(f"failed to get partition details: {response.text}")
+        return ""
+
+    partition_stats = {"memory": {}, "cpu": {}}
+    soup = BeautifulSoup(response.text, 'xml')
+    memory_config = soup.find("PartitionMemoryConfiguration")
+    curr_memory = memory_config.find("CurrentMemory").text
+    max_memory = memory_config.find("CurrentMaximumMemory").text
+    partition_stats["memory"]["current_memory"] = curr_memory
+    partition_stats["memory"]["max_memory"] = max_memory
+
+    proc_config = soup.find("CurrentSharedProcessorConfiguration")
+    allocated_vpu = proc_config.find("AllocatedVirtualProcessors").text
+    curr_cpu = proc_config.find("CurrentProcessingUnits").text
+    partition_stats["cpu"]["allocated_vpu"] = allocated_vpu
+    partition_stats["cpu"]["current_cpu"] = curr_cpu
+
+    status = soup.find("PartitionState").text
+    partition_stats["partition_status"] = status
+    stats_str = json.dumps(partition_stats)
+    return stats_str
 
 def get_system_uuid(sys_name):
     uri = "/rest/api/uom/ManagedSystem/quick/All"
