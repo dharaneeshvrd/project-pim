@@ -1,0 +1,5 @@
+FROM na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/base
+
+COPY fraud-analytics.container /usr/share/containers/systemd
+
+

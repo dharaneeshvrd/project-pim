@@ -1,0 +1,8 @@
+FROM na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/base
+
+COPY llm_config.sh /usr/bin/
+COPY llm_config.service /etc/systemd/system
+RUN systemctl unmask llm_config.service
+RUN systemctl enable llm_config.service
+
+COPY vllm.container /usr/share/containers/systemd

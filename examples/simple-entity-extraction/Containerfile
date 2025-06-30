@@ -1,0 +1,3 @@
+FROM na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/vllm
+
+COPY entity.container /usr/share/containers/systemd
