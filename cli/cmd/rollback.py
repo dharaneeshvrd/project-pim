@@ -18,10 +18,11 @@ def rollback():
             return
         
         logger.debug("Rollback to the previous PIM image")
-        _rollback(config)
+        rollbacked = _rollback(config)
 
-        logger.info("Monitor booting")
-        monitor_util.monitor_pim(config)
+        if rollbacked:
+            logger.info("Monitor booting")
+            monitor_util.monitor_pim(config)
     except Exception as e:
         logger.error(f"encountered an error: {e}")
     finally:
@@ -39,8 +40,12 @@ def _rollback(config):
         _, stdout, stderr = ssh_client.exec_command(
             bootc_rollback_cmd, get_pty=True)
         if stdout.channel.recv_exit_status() != 0:
-            logger.error(
-                f"failed to rollback, error: {stdout.readlines()}, {stderr.readlines()}")
+            out = ' '.join(stdout.readlines())
+            if "No rollback available" in out:
+                logger.info("Nothing to Rollback")
+            else: 
+                logger.error(f"failed to rollback, error: {out}, {stderr.readlines()}")
+            return False
         else:
             logger.info("Rollback succeeded")
 
@@ -50,6 +55,8 @@ def _rollback(config):
         if stdout.channel.recv_exit_status() != 0:
             logger.error(
                 f"failed to reboot, error: {stdout.readlines()}, {stderr.readlines()}")
+            return False
+        return True
     except Exception as e:
         logger.error(f"failed to rollback PIM partition, error: {e}")
         raise Exception(f"failed to rollback PIM partition, error: {e}")
