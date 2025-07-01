@@ -177,11 +177,14 @@ def _launch(config, cookies, sys_uuid, vios_uuids):
             storage.attach_physical_storage(
                 config, cookies, sys_uuid, partition_uuid, vios_storage_list)
 
-        partition_payload = partition.get_partition_details(
-            config, cookies, sys_uuid, partition_uuid)
-        logger.debug("Setting partition bootstring as 'cd/dvd-all'")
-        partition.set_partition_boot_string(
-            config, cookies, sys_uuid, partition_uuid, partition_payload, "cd/dvd-all")
+
+        lpar_state = activation.check_lpar_status(config, cookies, partition_uuid)
+        if lpar_state != "running":
+            logger.debug("Setting partition bootstring as 'cd/dvd-all'")
+            partition_payload = partition.get_partition_details(
+                config, cookies, sys_uuid, partition_uuid)
+            partition.set_partition_boot_string(
+                config, cookies, sys_uuid, partition_uuid, partition_payload, "cd/dvd-all")
 
         logger.info("Activating the partition")
         activation.activate_partititon(config, cookies, partition_uuid)
