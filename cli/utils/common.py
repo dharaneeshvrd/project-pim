@@ -123,7 +123,7 @@ def ssh_to_partition(config):
     ip = util.get_ip_address(config)
     username = util.get_ssh_username(config)
     ssh_key = util.get_ssh_priv_key(config)
-    for i in range(10):
+    for i in range(30):
         scp_port = 22
         client = get_ssh_client()
         try:
@@ -131,11 +131,11 @@ def ssh_to_partition(config):
                            key_filename=ssh_key, timeout=10)
             break
         except Exception as e:
-            if i == 9:
+            if i == 29:
                 logger.error(
-                    f"failed to establish SSH connection to partition after 10 retries, error: {e}")
+                    f"failed to establish SSH connection to partition after 30 retries, error: {e}")
                 raise paramiko.SSHException(
-                    f"failed to establish SSH connection to partition after 10 retries, error: {e}")
+                    f"failed to establish SSH connection to partition after 30 retries, error: {e}")
             logger.debug("Not able to SSH to the partition yet, retrying..")
             time.sleep(10)
     return client
