@@ -1,0 +1,19 @@
+[Unit]
+Description=Run email named entity recognition app
+Requires=vllm.service
+After=vllm.service
+
+[Service]
+Restart=on-failure
+RestartSec=60
+EnvironmentFile=/etc/pim/env.conf
+
+[Container]
+Image=na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/apps/email-ner
+Network=host
+EnvironmentFile=/etc/pim/email_ner.conf
+SecurityLabelType=unconfined_t
+AutoUpdate=registry
+
+[Install]
+WantedBy=multi-user.target default.target
