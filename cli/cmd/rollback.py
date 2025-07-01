@@ -26,7 +26,7 @@ def rollback():
     except Exception as e:
         logger.error(f"encountered an error: {e}")
     finally:
-        logger.info("Rollback PIM partition completed")
+        logger.info("Rollback of PIM partition completed")
 
 
 def _rollback(config):

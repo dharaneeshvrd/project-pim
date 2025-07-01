@@ -157,7 +157,7 @@ def check_job_status(config, cookies, response):
                 continue
     return False
 
-def activate_partititon(config, cookies, partition_uuid):
+def activate_partition(config, cookies, partition_uuid):
     # Check partition state,don't activate if its in 'running' state
     lpar_state = check_lpar_status(config, cookies, partition_uuid)
     if lpar_state == "running":
@@ -188,13 +188,13 @@ def check_lpar_status(config, cookies, partition_uuid):
     headers = {"x-api-key": util.get_session_key(config)}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        logger.error(f"failed to get lpar details for '{partition_uuid}', error: {response.text}")
-        raise PartitionError(f'Failed to get lpar details for {partition_uuid}')
+        logger.error(f"failed to get LPAR details for '{partition_uuid}', error: {response.text}")
+        raise PartitionError(f'Failed to get LPAR details for {partition_uuid}')
     soup = BeautifulSoup(response.text, 'xml')
     state = soup.find("PartitionState")
     if state == None:
-        logger.error(f"partition state of lpar '{partition_uuid}' found to be None")
-        raise PartitionError(f'Failed to get lpar status for {partition_uuid}')
+        logger.error(f"partition state of LPAR '{partition_uuid}' found to be None")
+        raise PartitionError(f'Failed to get LPAR status for {partition_uuid}')
     return state.text
 
 def shutdown_partition(config, cookies, partition_uuid):

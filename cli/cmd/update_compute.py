@@ -22,7 +22,7 @@ def update_compute():
     finally:
         if cookies:
             command_util.cleanup(config, cookies)
-        logger.info("Updating PIM partition's compute completed")
+        logger.info("PIM partition's compute update completed")
 
 
 def _update_compute(config, cookies, sys_uuid):
@@ -41,7 +41,7 @@ def _update_compute(config, cookies, sys_uuid):
         logger.info(
             f"Modified the partition: '{util.get_partition_name(config)}' with updated compute")
         logger.info("Activate the partition after updating compute")
-        activation.activate_partititon(config, cookies, partition_uuid)
+        activation.activate_partition(config, cookies, partition_uuid)
         logger.info("Partition activated after updating compute")
         logger.info(
             f"Update compute for partition: '{util.get_partition_name(config)}' is complete")

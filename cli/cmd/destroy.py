@@ -23,7 +23,7 @@ def destroy():
     finally:
         if cookies:
             command_util.cleanup(config, cookies)
-        logger.info("Destroying PIM partition completed")
+        logger.info("PIM partition destruction completed")
 
 def _destroy(config, cookies, sys_uuid, vios_uuid_list):
     try:

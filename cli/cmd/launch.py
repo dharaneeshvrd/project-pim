@@ -34,7 +34,7 @@ def launch():
     finally:
         if cookies:
             command_util.cleanup(config, cookies)
-        logger.info("Launching PIM partition completed")
+        logger.info("PIM partition successfully launched")
 
 def _launch(config, cookies, sys_uuid, vios_uuids):
     try:
@@ -187,7 +187,7 @@ def _launch(config, cookies, sys_uuid, vios_uuids):
                 config, cookies, sys_uuid, partition_uuid, partition_payload, "cd/dvd-all")
 
         logger.info("Activating the partition")
-        activation.activate_partititon(config, cookies, partition_uuid)
+        activation.activate_partition(config, cookies, partition_uuid)
         logger.info("Partition activated")
 
         logger.info("Monitoring boot process, this will take a while")

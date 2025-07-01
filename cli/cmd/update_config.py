@@ -29,7 +29,7 @@ def update_config():
     finally:
         if cookies:
             command_util.cleanup(config, cookies)
-        logger.info("Updating PIM partition's config completed")
+        logger.info("PIM partition's config update completed")
 
 def _update_config(config, cookies, sys_uuid, vios_uuid_list):
     try:
@@ -77,7 +77,7 @@ def _update_config(config, cookies, sys_uuid, vios_uuid_list):
         logger.info("New cloud init config attached to the partition.")
 
         logger.info("Activating the partition")
-        activation.activate_partititon(config, cookies, partition_uuid)
+        activation.activate_partition(config, cookies, partition_uuid)
         logger.info("Partition activated")
 
         logger.info("Monitoring boot process, this will take a while")

@@ -27,7 +27,7 @@ def upgrade():
     except Exception as e:
         logger.error(f"encountered an error: {e}")
     finally:
-        logger.info("Upgrading PIM partition completed")
+        logger.info("PIM partition upgrade completed")
 
 
 def _upgrade(config):

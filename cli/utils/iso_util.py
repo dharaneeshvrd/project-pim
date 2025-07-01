@@ -74,7 +74,7 @@ def download_bootstrap_iso(iso_dir, config):
         # Check if bootstrap iso is already downloaded locally(on IBMi)
         if os.path.isfile(iso_file_path):
             logger.debug(
-                f"Bootstrap iso '{iso_file_path}' found, checking integrity of the file")
+                f"Bootstrap ISO '{iso_file_path}' found, checking integrity of the file")
             # Check if iso checksum file exists
             if not os.path.exists(checksum_file_path):
                 # Download checksum file for bootstrap iso
