@@ -39,6 +39,13 @@ def _update_config(config, cookies, sys_uuid, vios_uuid_list):
             logger.info(f"Partition named '{util.get_partition_name(config)}' not found, nothing to update")
             return
 
+        if not util.get_ssh_priv_key(config) or not util.get_ssh_pub_key(config):
+            logger.debug("Load SSH keys generated during launch to config")
+            config = common.load_ssh_keys(config)
+
+        config["ssh"]["pub-key"] = common.readfile(
+            util.get_ssh_pub_key(config))
+        
         logger.debug("Partition exists, generating cloud init config")
 
         # Get VLAN ID and VSWITCH ID
