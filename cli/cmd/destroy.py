@@ -1,12 +1,11 @@
-import partition.activation as activation
-import partition.partition as partition
-import utils.command_util as command_util
-import utils.common as common
-import vios.vios as vios_operation
-
+import cli.partition.activation as activation
+import cli.partition.partition as partition
+import cli.utils.command_util as command_util
+import cli.utils.common as common
+import cli.utils.string_util as util
+import cli.vios.vios as vios_operation
 
 logger = common.get_logger("pim-destroy")
-
 
 def destroy():
     cookies = None

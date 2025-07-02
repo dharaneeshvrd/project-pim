@@ -1,11 +1,11 @@
 import json
 
-import app.ai_app as app
-import partition.activation as activation
-import partition.partition as partition
-import utils.command_util as command_util
-import utils.common as common
-import utils.string_util as util
+import cli.app.ai_app as app
+import cli.partition.activation as activation
+import cli.partition.partition as partition
+import cli.utils.command_util as command_util
+import cli.utils.common as common
+import cli.utils.string_util as util
 
 logger = common.get_logger("pim-status")
 

@@ -1,9 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
 
-import storage
-import utils.string_util as util
-
+import cli.utils.string_util as util
+import cli.storage.storage as storage
 
 def get_vg_payload(physical_vol_name, volume_group):
     return f'''

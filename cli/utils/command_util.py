@@ -2,13 +2,13 @@ import requests
 
 from bs4 import BeautifulSoup
 
-import auth.auth as auth
-import utils.common as common
-import utils.validator as validator
-import utils.string_util as util
-import utils.iso_util as iso_util
-import vios.vios as vios_operation
-import storage.storage as storage
+import cli.auth.auth as auth
+import cli.utils.common as common
+import cli.utils.validator as validator
+import cli.utils.string_util as util
+import cli.utils.iso_util as iso_util
+import cli.vios.vios as vios_operation
+import cli.storage.storage as storage
 
 logger = common.get_logger("command-util")
 

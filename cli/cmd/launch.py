@@ -1,22 +1,22 @@
 import paramiko
 
-from app.ai_app_exception import AIAppError
-from auth.auth_exception import AuthError
-from network.network_exception import NetworkError
-import network.virtual_network as virtual_network
-from partition.partition_exception import PartitionError
-import partition.activation as activation
-import partition.partition as partition
-from storage.storage_exception import StorageError
-import storage.storage as storage
-import storage.vopt_storage as vopt
-import utils.command_util as command_util
-import utils.common as common
-import utils.iso_util as iso_util
-import utils.monitor_util as monitor_util
-import utils.string_util as util
-from vios.vios_exception import VIOSError
-import vios.vios as vios_operation
+from cli.app.ai_app_exception import AIAppError
+from cli.auth.auth_exception import AuthError
+from cli.network.network_exception import NetworkError
+import cli.network.virtual_network as virtual_network
+from cli.partition.partition_exception import PartitionError
+import cli.partition.activation as activation
+import cli.partition.partition as partition
+from cli.storage.storage_exception import StorageError
+import cli.storage.storage as storage
+import cli.storage.vopt_storage as vopt
+import cli.utils.command_util as command_util
+import cli.utils.common as common
+import cli.utils.iso_util as iso_util
+import cli.utils.monitor_util as monitor_util
+import cli.utils.string_util as util
+from cli.vios.vios_exception import VIOSError
+import cli.vios.vios as vios_operation
 
 logger = common.get_logger("pim-launch")
 

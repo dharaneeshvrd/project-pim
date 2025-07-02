@@ -8,14 +8,21 @@ import time
 
 from configobj import ConfigObj
 from urllib.parse import urlparse
-import utils.string_util as util
+import cli.utils.string_util as util
 
 LOG_LEVEL = logging.INFO
-PARTITION_FLAVOR_DIR = f"{os.getcwd()}/partition-flavor"
-keys_path = os.getcwd() + "/keys"
-iso_dir = os.getcwd() + "/iso"
-cloud_init_config_dir =  os.getcwd() + "/cloud-init-iso/config"
-cloud_init_update_config_dir =  os.getcwd() + "/cloud-init-iso/update-config"
+
+def getclidir():
+    cwd = os.getcwd()
+    cwd = f"{cwd}/cli"
+    return cwd
+
+clidir = getclidir()
+PARTITION_FLAVOR_DIR = f"{clidir}/partition-flavor"
+keys_path = clidir + "/keys"
+iso_dir = clidir + "/iso"
+cloud_init_config_dir =  clidir + "/cloud-init-iso/config"
+cloud_init_update_config_dir =  clidir + "/cloud-init-iso/update-config"
 
 def set_log_level(level):
     global LOG_LEVEL
@@ -37,6 +44,7 @@ def get_logger(name):
 
     return logger
 
+logger = get_logger("utility")
 
 def create_dir(path):
     try:
@@ -207,4 +215,3 @@ def load_ssh_keys(config):
         generate_ssh_keys(config)
     config = load_ssh_config(config)
     return config
-

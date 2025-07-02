@@ -2,10 +2,10 @@ import json
 import re
 import requests
 
-from network.virtual_network import get_network_uuid
+from cli.network.virtual_network import get_network_uuid
 
-from .common import *
-from .string_util import *
+from cli.utils.common import *
+from cli.utils.string_util import *
 
 logger = get_logger("validator")
 
@@ -48,8 +48,8 @@ def validate_mandatory_params(config):
         (get_host_password, "system.hmc.password"),
 
         # AI parameter validations
-        (get_bootstrap_iso_download_url, "ai.bootstrap-iso-url"),
-        (get_workload_image, "ai.workload-image"),
+        (get_bootstrap_iso_download_url, "bootstrap-iso.url"),
+        (get_workload_image, "ai.image"),
         
         # Partition parameter validations
         (get_partition_name, "partition.name"),
@@ -228,7 +228,7 @@ def validate_url(url):
 def validate_bootstrap_url(config):
     result = validate_url(get_bootstrap_iso_download_url(config))
     if not bool(result):
-        logger.error(f"validation failed: 'ai.bootstrap-iso-url' value '{get_bootstrap_iso_download_url(config)}' must be a url")
+        logger.error(f"validation failed: 'bootstrap-iso.url' value '{get_bootstrap_iso_download_url(config)}' must be a url")
     return bool(result)
 
 # Validate ssh key section
@@ -283,7 +283,7 @@ def validate_auth_json(config):
     return validate_json(get_auth_json(config), "ai.auth-json")
 
 def validate_pim_config_json(config):
-    return validate_json(get_pim_config_json(config), "ai.pim-config-json")
+    return validate_json(get_pim_config_json(config), "ai.config-json")
 
 def validate_ai_app_validator(config):
     result = True

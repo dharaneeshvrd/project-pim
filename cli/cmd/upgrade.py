@@ -1,7 +1,7 @@
-import utils.common as common
-import utils.monitor_util as monitor_util
-import utils.string_util as util
-import utils.validator as validator
+import cli.utils.common as common
+import cli.utils.monitor_util as monitor_util
+import cli.utils.string_util as util
+import cli.utils.validator as validator
 
 logger = common.get_logger("pim-upgrade")
 bootc_auth_json = "/etc/ostree/auth.json"

@@ -9,8 +9,17 @@ Run `./build.sh` in a P10 Linux machine to build https://github.com/vllm-project
 ### Build
 ```
 $ ./build.sh # Clones latest release into current dir and builds a container image called `localhost/vllm`
+$ 
+$ ./build.sh -h
+./build.sh <stream>
+stream - mention from which stream you want to build your vLLM image. Options: release, main
+release - you can pass release version after stream like this and vLLM will get built on the specified released version
+i.e. ./build.sh release 0.8.5.post1
+main - it will build the vLLM application from main branch
+i.e. ./build.sh main
 $
-$ podman tag localhost/vllm <your_registry>/vllm
 $
-$ podman push <your_registry>/vllm
+$ podman tag localhost/vllm <your_registry>/apps/vllm
+$
+$ podman push <your_registry>/apps/vllm
 ```

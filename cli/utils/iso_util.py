@@ -6,13 +6,13 @@ import subprocess
 from bs4 import BeautifulSoup
 from jinja2 import Environment, FileSystemLoader
 
-import partition.activation as activation
-import partition.partition as partition
-import utils.common as common
-import utils.command_util as command_util
-import vios.vios as vios_operation
+import cli.partition.activation as activation
+import cli.partition.partition as partition
+import cli.utils.common as common
+import cli.utils.command_util as command_util
+import cli.vios.vios as vios_operation
 
-from .string_util import *
+from cli.utils.string_util import *
 
 logger = common.get_logger("iso")
 
@@ -26,7 +26,7 @@ def build_and_download_iso(config, slot_num, iso_dir, config_dir):
 def generate_cloud_init_iso_config(config, slot_num, config_dir):
     # Populate config object with slot_num
     config["partition"]["network"]["slot_num"] = slot_num
-    file_loader = FileSystemLoader('cloud-init-iso/templates')
+    file_loader = FileSystemLoader(f'{common.getclidir()}/cloud-init-iso/templates')
     env = Environment(loader=file_loader)
 
     network_config_template = env.get_template('99_custom_network.cfg')
@@ -34,7 +34,7 @@ def generate_cloud_init_iso_config(config, slot_num, config_dir):
 
     common.create_dir(config_dir)
 
-    pim_config_json = config["ai"]["pim-config-json"] if config["ai"]["pim-config-json"] != "" else "{}"
+    pim_config_json = config["ai"]["config-json"] if config["ai"]["config-json"] != "" else "{}"
     pim_config_json = json.loads(pim_config_json)
 
     # 'workloadImage' is being used inside the bootstrap iso to write the bootc image into disk, in case of modification of this field name, needs same modification in bootstrap.iso too.

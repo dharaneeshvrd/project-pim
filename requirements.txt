@@ -1,19 +1,21 @@
-bcrypt==3.2.0
-beautifulsoup4==4.13.3
+# Versions pointing to the pkg versions available in Linux
+bcrypt==4.3.0
+beautifulsoup4==4.13.4
 bs4==0.0.2
-certifi==2025.1.31
-cffi==1.14.5
-charset-normalizer==3.4.1
+certifi==2025.6.15
+cffi==1.17.1
+charset-normalizer==3.4.2
 configobj==5.0.9
-cryptography==3.4.7
+cryptography==45.0.4
 idna==3.10
 jinja2==3.1.6
-lxml==4.6.3
+lxml==6.0.0
 markupsafe==3.0.2
-paramiko==2.12.0  # LGPL-2.1-or-later - https://github.com/paramiko/paramiko
-PyNaCl==1.4.0
-requests==2.32.3
+paramiko==3.5.1
+pycparser==2.22
+pynacl==1.5.0
+requests==2.32.4
 six==1.17.0
-soupsieve==2.6
-typing-extensions==4.13.2
-urllib3==2.3.0
+soupsieve==2.7
+typing-extensions==4.14.0
+urllib3==2.5.0

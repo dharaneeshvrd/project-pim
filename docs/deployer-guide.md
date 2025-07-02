@@ -5,24 +5,23 @@ PIM deployer is a user who deploys custom built PIM bootable container image com
 ## Setup Deployment environment
 
 ### Prerequisites
-  **Infrastructure**
 - P10 or higher power system host managed by HMC with VIOS to create partition and provision AI stack
 - VIOS with an available disk size of at least 120GB (if physical disk is chosen to attach to LPAR) and media repository size of at least 2GB to host bootstrap iso and cloud-init iso
-- IBMi partition to run PIM solution. Run this [installation script](../install.sh) for setting up IBMi parititon.
+  or
+- An existing partition with an external storage managed by SAN attached
 
-NOTE: Refer [versions guide](versions.md) to know the minimum supported versions of critical components of PIM
+### Installation
+To ease installation of dependencies, installer scripts are provided in PIM.
 
-**Software**
-- Python 3.9 or higher
-To ease installation of dependencies, an installer script [installer.sh](../install.sh) is provided in PIM.  
-Run this script to install required dependencies to run PIM solution.
-- Cloud-init iso to configure network, SSH keys, PIM configurations like Workload image, AI model name, authentication info(json). PIM generates this ISO based on the inputs specified in config.ini
+On IBMi run [install_ibmi.sh](../install_ibmi.sh)
+
+On Linux run [install_linux.sh](../install_linux.sh) 
 
 ### PIM Configurations
-* All PIM configurations are available in config.ini. How to configure key parameters is captured in [configuration-guide](configuration-guide.md)
+All PIM configurations are available in config.ini. How to configure key parameters is captured in [configuration-guide](configuration-guide.md)
 
 ### Run PIM solution
-* python utility **pim.py** is used to perform various lifecyle operations like launch, update-config, update-compute, upgrade, rollback, status and destroy.
+python utility **pim.py** is used to perform various lifecyle operations like launch, update-config, update-compute, upgrade, rollback, status and destroy.
 
 ![alt text](pim_cli.png)
 
@@ -31,57 +30,57 @@ NOTE: to run PIM in debug mode, pass `--debug` mode to above command
 ### PIM Lifecycle management
 PIM manages below listed lifecycles of partition provisioned with AI stack.  
 
-**Launch**
+#### Launch
 - This action provisions new partition, attaches network, storage, loads boostrap and cloud-init iso to VIOS media repositories and boots partition with AI stack.
 - If deployer has a partition created with storage(SAN) attached, this flow continues to provision AI stack similar to fresh installation case.
 
 ```
 export PYTHONPATH=.
-python3 cli/cmd/pim.py launch
+python3 cli/pim.py launch
 ```
 
-**Upgrade**
+#### Upgrade
 - This action upgrades the PIM AI workload image to the latest version available in the repository. If no latest image is available, it ignores upgrade.
 Its important for the user to note that image credentials should be updated in config.ini if the credentials used since the launch of the partition have expired.
 
 ```
 export PYTHONPATH=.
-python3 cli/cmd/pim.py upgrade
+python3 cli/pim.py upgrade
 ```
 
-**Rollback**
+#### Rollback
 - This action rolls back the current PIM AI workload image to previous version of the image. 
 
 ```
 export PYTHONPATH=.
-python3 cli/cmd/pim.py rollback
+python3 cli/pim.py rollback
 ```
 
-**Update-config**
+#### Update-config
 - This action updates PIM configuration(pim-config.json) like updating/changing the AI model, model related parameters(for eg: **--model** or **--max_model_len** in the case of vLLM) on an LPAR with AI stack already provisioned.
 Edit below attributes to update PIM configurations
 ![alt text](update_conf.png)
 
 ```
 export PYTHONPATH=.
-python3 cli/cmd/pim.py update-config
+python3 cli/pim.py update-config
 ```
 
-**Update-compute**
+#### Update-compute
 - This action updates existing PIM partition's compute like CPU, memory. CPU mode can be switched from dedicated to shared mode.
 Update the cpu/memory configurations either in T-shirt sized config files(eg: [large](../cli/partition-flavor/large.ini)) or custom-config section of [config.ini](../config.ini)
 
 ```
 export PYTHONPATH=.
-python3 cli/cmd/pim.py update-compute
+python3 cli/pim.py update-compute
 ```
 
-**Status**
+#### Status
 - This action dipicts the current booted version, rollback image version of the AI workload image and their corresponding checksum values.
 
 ```
 export PYTHONPATH=.
-python3 cli/cmd/pim.py status
+python3 cli/pim.py status
 
 ● Booted image: na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/email-ner:latest
     Digest: sha256:693616ee36589c1223e2795858cfbee3f77ec3cb5d1fc4233952cb4572d67a6d
@@ -91,11 +90,10 @@ python3 cli/cmd/pim.py status
      Version: 9.6 (2025-06-11 08:00:38.349929331 UTC)
 ```
 
-
-**Destroy**
+#### Destroy
 - This action cleans up the VIOS, storage mappings and destroys partition if the lpar is provisioned by PIM solution.
 
 ```
 export PYTHONPATH=.
-python3 cli/cmd/pim.py destroy
+python3 cli/pim.py destroy
 ```

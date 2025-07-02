@@ -1,10 +1,10 @@
 import requests
 from bs4 import BeautifulSoup
 
-import utils.common as common
-import utils.string_util as util
+import cli.utils.common as common
+import cli.utils.string_util as util
 
-from .network_exception import NetworkError
+from cli.network.network_exception import NetworkError
 
 logger = common.get_logger("virtual-network")
 

@@ -3,10 +3,10 @@ import time
 
 from bs4 import BeautifulSoup
 
-import utils.common as common
-import utils.string_util as util
+import cli.utils.common as common
+import cli.utils.string_util as util
 
-from .partition_exception import PartitionError
+from cli.partition.partition_exception import PartitionError
 
 logger = common.get_logger("activation")
 

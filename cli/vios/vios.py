@@ -1,19 +1,16 @@
-import os
 import requests
 import sys
 
 from bs4 import BeautifulSoup
 
-import storage.storage as storage
-import utils.common as common
-import utils.command_util as command_util
-import utils.string_util as util
+import cli.storage.storage as storage
+import cli.utils.common as common
+import cli.utils.command_util as command_util
+import cli.utils.string_util as util
 
-from .vios_exception import VIOSError
+from cli.vios.vios_exception import VIOSError
 
 logger = common.get_logger("vios")
-iso_folder = os.getcwd() + "/iso"
-
 
 def get_vios_details(config, cookies, system_uuid, vios_uuid):
     uri = f"/rest/api/uom/ManagedSystem/{system_uuid}/VirtualIOServer/{vios_uuid}"
@@ -84,7 +81,7 @@ def get_vios_with_mediarepo_tag(active_vios_servers):
                 vios_uuid_list.append(vios_uuid)
             else:
                 logger.error(
-                    "sufficient memory not available in '{vios_uuid}' VIOS for media repositories.")
+                    f"sufficient memory not available in '{vios_uuid}' VIOS for media repositories.")
     return vios_uuid_list
 
 

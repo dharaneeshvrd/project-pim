@@ -1,10 +1,10 @@
 import requests
 from bs4 import BeautifulSoup
 
-import utils.common as common
-import utils.string_util as util
+import cli.utils.common as common
+import cli.utils.string_util as util
 
-from .storage_exception import StorageError
+from cli.storage.storage_exception import StorageError
 
 logger = common.get_logger("vopt_storage")
 

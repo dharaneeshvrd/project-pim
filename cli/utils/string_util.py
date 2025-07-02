@@ -134,13 +134,13 @@ def get_required_disk_size(config):
     return config["partition"]["storage"]["size"]
 
 def get_bootstrap_iso_download_url(config):
-    return config["ai"]["bootstrap-iso-url"]
+    return config["bootstrap-iso"]["url"]
 
 def get_workload_image(config):
-    return config["ai"]["workload-image"]
+    return config["ai"]["image"]
 
 def get_pim_config_json(config):
-    return config["ai"]["pim-config-json"]
+    return config["ai"]["config-json"]
 
 def get_auth_json(config):
     return config["ai"]["auth-json"]

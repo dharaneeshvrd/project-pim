@@ -2,7 +2,7 @@ import argparse
 import logging
 import urllib3
 
-import utils.common as common
+import cli.utils.common as common
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -46,13 +46,13 @@ if command_args.debug:
 else:
     common.set_log_level(logging.INFO)
 
-from launch import launch
-from destroy import destroy
-from upgrade import upgrade
-from rollback import rollback
-from update_compute import update_compute
-from update_config import update_config
-from status import status
+from cli.cmd.launch import launch
+from cli.cmd.destroy import destroy
+from cli.cmd.upgrade import upgrade
+from cli.cmd.rollback import rollback
+from cli.cmd.update_compute import update_compute
+from cli.cmd.update_config import update_config
+from cli.cmd.status import status
 
 launch_parser.set_defaults(func=launch)
 destroy_parser.set_defaults(func=destroy)

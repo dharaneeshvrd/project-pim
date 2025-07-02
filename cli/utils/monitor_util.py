@@ -1,10 +1,10 @@
 import time
 
-from app.ai_app_exception import AIAppError
-import app.ai_app as app
-import utils.common as common
+from cli.app.ai_app_exception import AIAppError
+import cli.app.ai_app as app
+import cli.utils.common as common
 
-from .string_util import *
+from cli.utils.string_util import *
 
 logger = common.get_logger("monitor")
 

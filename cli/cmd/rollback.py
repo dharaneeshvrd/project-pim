@@ -1,7 +1,7 @@
-import utils.common as common
-import utils.validator as validator
-import utils.monitor_util as monitor_util
-import utils.string_util as util
+import cli.utils.common as common
+import cli.utils.validator as validator
+import cli.utils.monitor_util as monitor_util
+import cli.utils.string_util as util
 
 logger = common.get_logger("pim-rollback")
 

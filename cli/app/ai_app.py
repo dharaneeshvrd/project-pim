@@ -1,7 +1,7 @@
 import json
 import requests
 
-import utils.string_util as util
+import cli.utils.string_util as util
 
 
 def check_app(config):

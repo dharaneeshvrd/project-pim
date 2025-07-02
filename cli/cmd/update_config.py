@@ -1,15 +1,15 @@
 import shutil
 
-import network.virtual_network as virtual_network
-import partition.activation as activation
-import partition.partition as partition
-import utils.monitor_util as monitor_util
-import storage.vopt_storage as vopt
-import utils.command_util as command_util
-import utils.common as common
-import utils.iso_util as iso_util
-import utils.string_util as util
-import vios.vios as vios
+import cli.network.virtual_network as virtual_network
+import cli.partition.activation as activation
+import cli.partition.partition as partition
+import cli.utils.monitor_util as monitor_util
+import cli.storage.vopt_storage as vopt
+import cli.utils.command_util as command_util
+import cli.utils.common as common
+import cli.utils.iso_util as iso_util
+import cli.utils.string_util as util
+import cli.vios.vios as vios
 
 
 logger = common.get_logger("pim-update-config")
