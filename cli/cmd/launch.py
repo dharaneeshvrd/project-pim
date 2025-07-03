@@ -1,6 +1,6 @@
 import paramiko
 
-from app.ai_app_exception import AiAppError
+from app.ai_app_exception import AIAppError
 from auth.auth_exception import AuthError
 from network.network_exception import NetworkError
 import network.virtual_network as virtual_network
@@ -193,6 +193,6 @@ def _launch(config, cookies, sys_uuid, vios_uuids):
         logger.info("Monitoring boot process, this will take a while")
         monitor_util.monitor_bootstrap_boot(config)
         monitor_util.monitor_pim(config)
-    except (AiAppError, AuthError, NetworkError, PartitionError, StorageError, VIOSError, paramiko.SSHException, Exception) as e:
+    except (AIAppError, AuthError, NetworkError, PartitionError, StorageError, VIOSError, paramiko.SSHException, Exception) as e:
         raise e
 
