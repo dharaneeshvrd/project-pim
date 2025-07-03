@@ -240,7 +240,7 @@ def edit_lpar_compute(config, cookies, system_uuid, partition_uuid):
     except Exception as e:
         raise e
     logger.debug(
-        f"lpar compute for partition: {partition_uuid} is updated successfully")
+        f"Compute for partition: {partition_uuid} is updated successfully")
     return
 
 

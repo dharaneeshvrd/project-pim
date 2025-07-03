@@ -11,7 +11,7 @@ import utils.string_util as util
 
 from .vios_exception import VIOSError
 
-logger = common.get_logger("VIOS")
+logger = common.get_logger("vios")
 iso_folder = os.getcwd() + "/iso"
 
 

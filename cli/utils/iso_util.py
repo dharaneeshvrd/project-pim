@@ -14,7 +14,7 @@ import vios.vios as vios_operation
 
 from .string_util import *
 
-logger = common.get_logger("ISO")
+logger = common.get_logger("iso")
 
 
 def build_and_download_iso(config, slot_num, iso_dir, config_dir):

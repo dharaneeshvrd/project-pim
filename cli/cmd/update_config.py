@@ -24,12 +24,12 @@ def update_config():
             config)
         if is_config_valid:
             _update_config(config, cookies, sys_uuid, vios_uuid_list)
+            logger.info("PIM partition successfully updated config")
     except Exception as e:
         logger.error(f"encountered an error: {e}")
     finally:
         if cookies:
             command_util.cleanup(config, cookies)
-        logger.info("PIM partition's config update completed")
 
 def _update_config(config, cookies, sys_uuid, vios_uuid_list):
     try:

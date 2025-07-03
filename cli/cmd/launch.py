@@ -29,12 +29,12 @@ def launch():
         is_config_valid, cookies, sys_uuid, vios_uuid_list = command_util.initialize_command(config)
         if is_config_valid:
             _launch(config, cookies, sys_uuid, vios_uuid_list)
+            logger.info("PIM partition successfully launched")
     except Exception as e:
         logger.error(f"encountered an error: {e}")
     finally:
         if cookies:
             command_util.cleanup(config, cookies)
-        logger.info("PIM partition successfully launched")
 
 def _launch(config, cookies, sys_uuid, vios_uuids):
     try:
@@ -195,4 +195,3 @@ def _launch(config, cookies, sys_uuid, vios_uuids):
         monitor_util.monitor_pim(config)
     except (AIAppError, AuthError, NetworkError, PartitionError, StorageError, VIOSError, paramiko.SSHException, Exception) as e:
         raise e
-
