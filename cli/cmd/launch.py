@@ -1,6 +1,6 @@
 import paramiko
 
-from app.ai_app_exception import AiAppError
+from app.ai_app_exception import AIAppError
 from auth.auth_exception import AuthError
 from network.network_exception import NetworkError
 import network.virtual_network as virtual_network
@@ -29,12 +29,12 @@ def launch():
         is_config_valid, cookies, sys_uuid, vios_uuid_list = command_util.initialize_command(config)
         if is_config_valid:
             _launch(config, cookies, sys_uuid, vios_uuid_list)
+            logger.info("PIM partition successfully launched")
     except Exception as e:
         logger.error(f"encountered an error: {e}")
     finally:
         if cookies:
             command_util.cleanup(config, cookies)
-        logger.info("Launching PIM partition completed")
 
 def _launch(config, cookies, sys_uuid, vios_uuids):
     try:
@@ -187,12 +187,11 @@ def _launch(config, cookies, sys_uuid, vios_uuids):
                 config, cookies, sys_uuid, partition_uuid, partition_payload, "cd/dvd-all")
 
         logger.info("Activating the partition")
-        activation.activate_partititon(config, cookies, partition_uuid)
+        activation.activate_partition(config, cookies, partition_uuid)
         logger.info("Partition activated")
 
         logger.info("Monitoring boot process, this will take a while")
         monitor_util.monitor_bootstrap_boot(config)
         monitor_util.monitor_pim(config)
-    except (AiAppError, AuthError, NetworkError, PartitionError, StorageError, VIOSError, paramiko.SSHException, Exception) as e:
+    except (AIAppError, AuthError, NetworkError, PartitionError, StorageError, VIOSError, paramiko.SSHException, Exception) as e:
         raise e
-

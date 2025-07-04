@@ -2,7 +2,6 @@ import partition.activation as activation
 import partition.partition as partition
 import utils.command_util as command_util
 import utils.common as common
-import utils.string_util as util
 import vios.vios as vios_operation
 
 
@@ -18,12 +17,12 @@ def destroy():
         is_config_valid, cookies, sys_uuid, vios_uuid_list = command_util.initialize_command(config)
         if is_config_valid:
             _destroy(config, cookies, sys_uuid, vios_uuid_list)
+            logger.info("PIM partition successfully destroyed")
     except (Exception) as e:
         logger.error(f"encountered an error: {e}")
     finally:
         if cookies:
             command_util.cleanup(config, cookies)
-        logger.info("Destroying PIM partition completed")
 
 def _destroy(config, cookies, sys_uuid, vios_uuid_list):
     try:

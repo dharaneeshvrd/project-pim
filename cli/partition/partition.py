@@ -96,7 +96,7 @@ def get_lpar_update_payload(config, curr_lpar_payload):
             str(convert_gb_to_mb(util.get_desired_memory(config))))
 
         lpar_cpu_config = curr_lpar.find("PartitionProcessorConfiguration")
-        paritition_name = curr_lpar.find("PartitionName")
+        partition_name = curr_lpar.find("PartitionName")
         if util.has_dedicated_proc(config) == "true":
             logger.debug("update-compute: dedicated proc mode")
             desired_proc = lpar_cpu_config.find("DesiredProcessors")
@@ -122,7 +122,7 @@ def get_lpar_update_payload(config, curr_lpar_payload):
             logger.debug("get new shared processor config")
             new_proc_config = BeautifulSoup(
                 get_processor_config(config), 'xml')
-            paritition_name.insert_after(new_proc_config)
+            partition_name.insert_after(new_proc_config)
         lpar_payload = curr_lpar
     except Exception as e:
         logger.error(
@@ -149,8 +149,6 @@ def get_all_partitions(config, cookies, system_uuid):
 
 
 # Checks if partition exists, returns exists and if partition is created by PIM
-
-
 def check_partition_exists(config, cookies, system_uuid):
     uuid = ""
     created_by_pim = False
@@ -242,7 +240,7 @@ def edit_lpar_compute(config, cookies, system_uuid, partition_uuid):
     except Exception as e:
         raise e
     logger.debug(
-        f"lpar compute for parition: {partition_uuid} is updated successfully")
+        f"Compute for partition: {partition_uuid} is updated successfully")
     return
 
 

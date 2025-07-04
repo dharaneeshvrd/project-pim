@@ -23,10 +23,9 @@ def rollback():
         if rollbacked:
             logger.info("Monitor booting")
             monitor_util.monitor_pim(config)
+            logger.info("PIM partition successfully rollbacked")
     except Exception as e:
         logger.error(f"encountered an error: {e}")
-    finally:
-        logger.info("Rollback PIM partition completed")
 
 
 def _rollback(config):

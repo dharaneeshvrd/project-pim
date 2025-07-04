@@ -56,7 +56,7 @@ def get_vlan_details(config, cookies, system_uuid):
     headers = {"x-api-key": util.get_session_key(config), "Content-Type": "application/vnd.ibm.powervm.uom+xml, type=VirtualNetwork"}
     response = requests.get(url, headers=headers, cookies=cookies, verify=False)
     if response.status_code != 200:
-        logger.error(f"failed to get VLAN details, erorr: {response.text}")
+        logger.error(f"failed to get VLAN details, error: {response.text}")
         raise NetworkError(f"failed to get VLAN details, error: {response.text}")
     
     soup = BeautifulSoup(response.text, 'xml')
@@ -96,7 +96,7 @@ def attach_network(config, cookies, system_uuid, partition_uuid):
         # Check if network adapter is already attached to lpar. If not, do attach
         attached, slot_num = check_network_adapter(config, cookies, partition_uuid, vlan_id, vswitch_id)
         if attached:
-            logger.debug(f"Network '{util.get_vnetwork_name(config)}' is already attached to lpar ")
+            logger.debug(f"Network '{util.get_vnetwork_name(config)}' is already attached to lpar")
             return slot_num
 
         payload = populate_payload(vlan_id, vswitch_id, util.get_vswitch_name(config))

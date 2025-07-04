@@ -11,7 +11,7 @@ import utils.string_util as util
 
 from .vios_exception import VIOSError
 
-logger = common.get_logger("VIOS")
+logger = common.get_logger("vios")
 iso_folder = os.getcwd() + "/iso"
 
 
@@ -200,7 +200,7 @@ def cleanup_vios(config, cookies, sys_uuid, partition_uuid, vios_uuid_list):
                         command_util.remove_scsi_mappings(
                             config, cookies, sys_uuid, partition_uuid, vios_uuid, vios, phys_disk)
     except Exception as e:
-        logger.error(f"failed to clean up vios, error: {e}")
+        logger.error(f"failed to clean up VIOS, error: {e}")
 
 
 def find_vios_with_vopt_mounted(config, cookies, sys_uuid, partition_uuid, vios_uuid_list, vopt_name):

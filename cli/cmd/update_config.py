@@ -24,12 +24,12 @@ def update_config():
             config)
         if is_config_valid:
             _update_config(config, cookies, sys_uuid, vios_uuid_list)
+            logger.info("PIM partition's config successfully updated")
     except Exception as e:
         logger.error(f"encountered an error: {e}")
     finally:
         if cookies:
             command_util.cleanup(config, cookies)
-        logger.info("Updating PIM partition's config completed")
 
 def _update_config(config, cookies, sys_uuid, vios_uuid_list):
     try:
@@ -71,13 +71,13 @@ def _update_config(config, cookies, sys_uuid, vios_uuid_list):
         vios_cloudinit_media_uuid = iso_util.upload_iso_to_media_repository(config, cookies, common.cloud_init_update_config_dir, cloud_init_iso, sys_uuid, vios_uuid_list)
         logger.debug("Cloud init uploaded")
         
-        logger.info("Attaching the cloud init to the partiiton")
+        logger.info("Attaching the cloud init to the partition")
         vios_payload = vios.get_vios_details(config, cookies, sys_uuid, vios_cloudinit_media_uuid)
         vopt.attach_vopt(vios_payload, config, cookies, partition_uuid, sys_uuid, vios_cloudinit_media_uuid, cloud_init_iso)
-        logger.info("New cloud init config attached to the partiiton")
+        logger.info("New cloud init config attached to the partition.")
 
         logger.info("Activating the partition")
-        activation.activate_partititon(config, cookies, partition_uuid)
+        activation.activate_partition(config, cookies, partition_uuid)
         logger.info("Partition activated")
 
         logger.info("Monitoring boot process, this will take a while")

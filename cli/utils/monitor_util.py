@@ -1,6 +1,6 @@
 import time
 
-from app.ai_app_exception import AiAppError
+from app.ai_app_exception import AIAppError
 import app.ai_app as app
 import utils.common as common
 
@@ -71,7 +71,7 @@ def monitor_pim(config):
             return
     logger.error(
         f"failed to bring up AI application from PIM image, error: {msg}")
-    raise AiAppError(
+    raise AIAppError(
         f"failed to bring up AI application from PIM image, error: {msg}")
 
 

@@ -208,4 +208,3 @@ def load_ssh_keys(config):
     config = load_ssh_config(config)
     return config
 
-logger = get_logger("utility")

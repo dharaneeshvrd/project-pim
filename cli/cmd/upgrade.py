@@ -24,10 +24,9 @@ def upgrade():
 
         logger.debug("Monitor booting")
         monitor_util.monitor_pim(config)
+        logger.info("PIM partition successfully upgraded")
     except Exception as e:
         logger.error(f"encountered an error: {e}")
-    finally:
-        logger.info("Upgrading PIM partition completed")
 
 
 def _upgrade(config):
