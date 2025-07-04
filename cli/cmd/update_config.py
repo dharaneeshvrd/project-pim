@@ -24,7 +24,7 @@ def update_config():
             config)
         if is_config_valid:
             _update_config(config, cookies, sys_uuid, vios_uuid_list)
-            logger.info("PIM partition successfully updated config")
+            logger.info("PIM partition's config successfully updated")
     except Exception as e:
         logger.error(f"encountered an error: {e}")
     finally:

@@ -17,7 +17,7 @@ def update_compute():
             config)
         if is_config_valid:
             _update_compute(config, cookies, sys_uuid)
-            logger.info("PIM partition successfully updated compute")
+            logger.info("PIM partition's compute successfully updated")
     except Exception as e:
         logger.error(f"encountered an error: {e}")
     finally:
