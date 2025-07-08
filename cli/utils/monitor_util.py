@@ -34,6 +34,10 @@ def monitor_pim_boot(config):
                             "Found 'base_config.sh run successfully' message")
                         ssh_client.close()
                         return
+                if "base_config.service: Failed with result 'exit-code'" in out:
+                    ssh_client.close()
+                    logger.error(f"failed to start AI application. error: {out}")
+                    raise Exception(f"failed to start AI application. error: {out}")
         else:
             ssh_client.close()
             logger.error(
@@ -103,6 +107,10 @@ def monitor_bootstrap_boot(config):
                     else:
                         logger.error(
                             "Failed to detect bootc based PIM AI image install completion signature. Please check console logs for more information\n")
+                if "getcontainer.service: Failed with result 'exit-code'" in out:
+                    ssh_client.close()
+                    logger.error(f"failed to detect bootc based PIM AI image install completion signature. error: {out}")
+                    raise Exception(f"failed to detect bootc based PIM AI image install completion signature. error: {out}")
         else:
             logger.debug(
                 "Could not find 'getcontainer.service', will look for 'base_config.service' in PIM boot since it could be a re-run and bootstrap might have already finished")
