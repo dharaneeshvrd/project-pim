@@ -8,6 +8,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 common_parser = argparse.ArgumentParser(add_help=False)
 common_parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+common_parser.add_argument("--config", type=str, default="config.ini", help="Path to the configuration file")
 
 parser = argparse.ArgumentParser(description="PIM Partition Lifecycle Manager\n" \
     "All the commands acts upon configuration provided in config.ini file\n" \
@@ -63,4 +64,4 @@ update_config_parser.set_defaults(func=update_config)
 status_parser.set_defaults(func=status)
 
 command_args = parser.parse_args()
-command_args.func()
+command_args.func(command_args.config)

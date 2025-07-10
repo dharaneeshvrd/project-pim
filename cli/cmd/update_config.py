@@ -14,11 +14,11 @@ import cli.vios.vios as vios
 
 logger = common.get_logger("pim-update-config")
 
-def update_config():
+def update_config(config_file_path):
     cookies = None
     try:
         logger.info("Updating PIM partition's config")
-        config = common.initialize_config()
+        config = common.initialize_config(config_file_path)
         # Invoking initialize_command to perform common actions like validation, authentication etc.
         is_config_valid, cookies, sys_uuid, vios_uuid_list = command_util.initialize_command(
             config)

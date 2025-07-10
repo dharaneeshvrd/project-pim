@@ -28,6 +28,7 @@ def set_log_level(level):
     global LOG_LEVEL
     LOG_LEVEL = level
 
+
 def get_logger(name):
     logger = logging.getLogger(name)
     logger.setLevel(LOG_LEVEL)
@@ -158,17 +159,16 @@ def create_dir(path):
         raise
 
 
-def initialize_config():
-    config_file = "config.ini"
+def initialize_config(config_file_path):
     try:
-        config = ConfigObj(config_file)
+        config = ConfigObj(config_file_path)
         if util.has_custom_flavor(config):
             config["partition-flavor"] = config["custom-flavor"]
         else:
             flavor_name = util.get_partition_flavor(config)
             config["partition-flavor"] = load_partition_flavor(flavor_name)
     except Exception as e:
-        logger.error(f"failed to parse config.ini, error: {e}")
+        logger.error(f"failed to parse {config_file_path}, error: {e}")
         raise e
     return config
 

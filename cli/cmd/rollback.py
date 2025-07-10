@@ -6,10 +6,10 @@ import cli.utils.string_util as util
 logger = common.get_logger("pim-rollback")
 
 
-def rollback():
+def rollback(config_file_path):
     try:
-        config = common.initialize_config()
         logger.info("Rollback PIM partition")
+        config = common.initialize_config(config_file_path)
 
         logger.debug("Validate configuration")
         is_config_valid = validator.validate_rollback_config(config)
