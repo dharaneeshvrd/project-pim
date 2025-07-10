@@ -15,7 +15,7 @@ Args you can pass it to your vLLM inference engine
 Env vars that you want to set while running vLLM inference engine
 
 **Sample config:**
-```
+```ini
 config-json = """
   {
         "llmImage": "na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/apps/vllm",
@@ -31,8 +31,8 @@ Follow the steps provided [here](../../base-image/README.md) to build the base i
 
 **Step 2: Build vLLM image**
 Ensure to replace the `FROM` image with the base image you have built before building this image.
-```
-$ podman build -t <your_registry>/vllm
-$
-$ podman push <your_registry>/vllm
+```shell
+podman build -t <your_registry>/vllm
+
+podman push <your_registry>/vllm
 ```

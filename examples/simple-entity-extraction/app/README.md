@@ -3,8 +3,8 @@
 Runs a simple entity extraction application on streamlit UI framework by leveraging vLLM's OpenAI API
 
 ### Build
-```
-$ podman build . -t <your_registry>/apps/entity-extraction
-$
-$ podman push <your_registry>/apps/entity-extraction
+```shell
+podman build . -t <your_registry>/apps/entity-extraction
+
+podman push <your_registry>/apps/entity-extraction
 ```

@@ -7,10 +7,10 @@ Tries to predict given credit card transaction could be fraud or not.
 Please read about the architecture [here](https://github.ibm.com/project-pim/pim-fraud-analytics?tab=readme-ov-file#pim-fraud-analytics)
 
 ### Build
-```
-$ podman build -t <your_registry>/custom-fraud-analytics
-$
-$ podman push <your_registry>/custom-fraud-analytics
+```shell
+podman build -t <your_registry>/custom-fraud-analytics
+
+podman push <your_registry>/custom-fraud-analytics
 ```
 
 ### Usage

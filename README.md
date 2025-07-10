@@ -45,9 +45,9 @@ To get started, you can follow below steps to build and deploy a simple entity e
 - **Step 2: Fill config.ini**
     - Read through this [guide](docs/configuration-guide.md) and fill appropriate values and use final image built on step-4 in `ai.image` field.
 - **Step 3: Run Launch**
-    ```
-    python cli/pim.py launch
-    ```
+```shell
+python cli/pim.py launch
+```
 - **Step 4: Access application**
     - Once above launch command successfully created the partition, you would be able to access the UI for entity extraction application on port `8501` on the IP you have provided during launch in config.ini.
 
