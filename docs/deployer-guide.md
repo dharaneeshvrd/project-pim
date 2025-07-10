@@ -13,10 +13,15 @@ PIM deployer is a user who deploys custom built PIM bootable container image com
 ### Installation
 To ease installation of dependencies, installer scripts are provided in PIM.
 
-On IBMi run [install_ibmi.sh](../install_ibmi.sh)
+On IBMi run
+```shell
+source <(curl -sL https://raw.githubusercontent.com/IBM/project-pim/main/install_ibmi.sh)
+```
 
-On Linux run [install_linux.sh](../install_linux.sh) 
-
+On Linux run
+```shell
+source <(curl -sL https://raw.githubusercontent.com/IBM/project-pim/main/install_linux.sh)
+```
 ### PIM Configurations
 All PIM configurations are available in config.ini. How to configure key parameters is captured in [configuration-guide](configuration-guide.md)
 
@@ -34,7 +39,7 @@ PIM manages below listed lifecycles of partition provisioned with AI stack.
 - This action provisions new partition, attaches network, storage, loads boostrap and cloud-init iso to VIOS media repositories and boots partition with AI stack.
 - If deployer has a partition created with storage(SAN) attached, this flow continues to provision AI stack similar to fresh installation case.
 
-```
+```shell
 export PYTHONPATH=.
 python3 cli/pim.py launch
 ```
@@ -43,7 +48,7 @@ python3 cli/pim.py launch
 - This action upgrades the PIM AI workload image to the latest version available in the repository. If no latest image is available, it ignores upgrade.
 Its important for the user to note that image credentials should be updated in config.ini if the credentials used since the launch of the partition have expired.
 
-```
+```shell
 export PYTHONPATH=.
 python3 cli/pim.py upgrade
 ```
@@ -51,7 +56,7 @@ python3 cli/pim.py upgrade
 #### Rollback
 - This action rolls back the current PIM AI workload image to previous version of the image. 
 
-```
+```shell
 export PYTHONPATH=.
 python3 cli/pim.py rollback
 ```
@@ -61,7 +66,7 @@ python3 cli/pim.py rollback
 Edit below attributes to update PIM configurations
 ![alt text](update_conf.png)
 
-```
+```shell
 export PYTHONPATH=.
 python3 cli/pim.py update-config
 ```
@@ -70,7 +75,7 @@ python3 cli/pim.py update-config
 - This action updates existing PIM partition's compute like CPU, memory. CPU mode can be switched from dedicated to shared mode.
 Update the cpu/memory configurations either in T-shirt sized config files(eg: [large](../cli/partition-flavor/large.ini)) or custom-config section of [config.ini](../config.ini)
 
-```
+```shell
 export PYTHONPATH=.
 python3 cli/pim.py update-compute
 ```
@@ -78,7 +83,7 @@ python3 cli/pim.py update-compute
 #### Status
 - This action dipicts the current booted version, rollback image version of the AI workload image and their corresponding checksum values.
 
-```
+```shell
 export PYTHONPATH=.
 python3 cli/pim.py status
 
@@ -93,7 +98,7 @@ python3 cli/pim.py status
 #### Destroy
 - This action cleans up the VIOS, storage mappings and destroys partition if the lpar is provisioned by PIM solution.
 
-```
+```shell
 export PYTHONPATH=.
 python3 cli/pim.py destroy
 ```

@@ -18,19 +18,19 @@ Below section of configurations helps providing details of your AI application i
 - url: URL of the AI app to check for completion. Key in the same IP address assigned as part of networking configuration in the URL
 - headers: REST request header for "Content-Type". Use suitable Content-Type as demanded by the AI application
 - payload: payload for the REST request for your AI app. It must include the model and messages. Sample payload using granite model is shown below.
-```
+```ini
 # provide payload to use in json format inside triple quotes
-    payload = """
-    {
-		  "model": "ibm-granite/granite-3.2-2b-instruct",
-		  "messages": [
-			  {
-				  "role": "user",
-				  "content": "What is the capital of France?"
-			  }
-		  ]
-	  }
-    """
+payload = """
+{
+		"model": "ibm-granite/granite-3.2-2b-instruct",
+		"messages": [
+			{
+				"role": "user",
+				"content": "What is the capital of France?"
+			}
+		]
+	}
+"""
 ```
 
 ## Partition

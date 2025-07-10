@@ -5,8 +5,9 @@ dnf groupinstall -y "Development Tools"
 pip install uv
 
 # Clone source code from github repo
-git clone git@github.ibm.com:project-pim/pim.git
-cd pim
+curl "https://codeload.github.com/IBM/project-pim/zip/refs/heads/main" --output pim.zip
+unzip pim.zip
+cd project-pim-main
 export PYTHONPATH=.
 
 uv venv
