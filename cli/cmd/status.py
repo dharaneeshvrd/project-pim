@@ -9,11 +9,11 @@ import cli.utils.string_util as util
 
 logger = common.get_logger("pim-status")
 
-def status():
+def status(config_file_path):
     cookies = None
     try:
         logger.info("PIM partition's status")
-        config = common.initialize_config()
+        config = common.initialize_config(config_file_path)
         # Invoking initialize_command to perform common actions like validation, authentication etc.
         is_config_valid, cookies, sys_uuid, _ = command_util.initialize_command(
             config)

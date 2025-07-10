@@ -7,10 +7,10 @@ logger = common.get_logger("pim-upgrade")
 bootc_auth_json = "/etc/ostree/auth.json"
 
 
-def upgrade():
+def upgrade(config_file_path):
     try:
-        config = common.initialize_config()
         logger.info("Upgrading PIM partition")
+        config = common.initialize_config(config_file_path)
 
         logger.debug("Validating configuration")
         is_config_valid = validator.validate_upgrade_config(config)

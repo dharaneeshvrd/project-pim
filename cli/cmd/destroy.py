@@ -7,11 +7,12 @@ import cli.vios.vios as vios_operation
 
 logger = common.get_logger("pim-destroy")
 
-def destroy():
+
+def destroy(config_file_path):
     cookies = None
     try:
         logger.info("Destroying PIM partition")
-        config = common.initialize_config()
+        config = common.initialize_config(config_file_path)
         # Invoking initialize_command to perform common actions like validation, authentication etc.
         is_config_valid, cookies, sys_uuid, vios_uuid_list = command_util.initialize_command(config)
         if is_config_valid:
