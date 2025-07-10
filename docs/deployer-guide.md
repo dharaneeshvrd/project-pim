@@ -13,10 +13,15 @@ PIM deployer is a user who deploys custom built PIM bootable container image com
 ### Installation
 To ease installation of dependencies, installer scripts are provided in PIM.
 
-On IBMi run [install_ibmi.sh](../install_ibmi.sh)
+On IBMi run
+```
+source <(curl -sL https://raw.githubusercontent.com/IBM/project-pim/main/install_ibmi.sh)
+```
 
-On Linux run [install_linux.sh](../install_linux.sh) 
-
+On Linux run
+```
+source <(curl -sL https://raw.githubusercontent.com/IBM/project-pim/main/install_linux.sh)
+```
 ### PIM Configurations
 All PIM configurations are available in config.ini. How to configure key parameters is captured in [configuration-guide](configuration-guide.md)
 
