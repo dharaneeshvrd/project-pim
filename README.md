@@ -21,6 +21,7 @@ PIM has 2 personas namely builder and deployer.
 
 ## Getting started
 To get started, you can follow below steps to build and deploy a simple entity extraction application which uses vLLM to do entity extraction via LLM inferencing.
+### Builder steps
 - **Step 1: Build application**
     - ***vLLM:***
         - Open source [vLLM](https://github.com/vllm-project/vllm) application can be used.
@@ -38,14 +39,17 @@ To get started, you can follow below steps to build and deploy a simple entity e
         - Follow steps given [here](examples/vllm/README.md) to build the vLLM AI image, ensure to use the image created in `step-3` as base image(FROM).
     - ***Entity Extraction App:***
         - Scripts and README to build AI image is given [here](examples/simple-entity-extraction/README.md), ensure to use the vLLM AI image created in last step as base image(FROM) here.
-- **Step 5: Setup PIM**
+### Deployer steps
+- **Step 1: Setup PIM**
     - You can follow steps to setup PIM on your IBMi/Linux machine given [here](docs/deployer-guide.md#installation)
-- **Step 6: Fill config.ini**
+- **Step 2: Fill config.ini**
     - Read through this [guide](docs/configuration-guide.md) and fill appropriate values and use final image built on step-4 in `ai.image` field.
-- **Step 7: Run Launch**
+- **Step 3: Run Launch**
     ```
     python cli/pim.py launch
     ```
+- **Step 4: Access application**
+    - Once above launch command successfully created the partition, you would be able to access the UI for entity extraction application on port `8501` on the IP you have provided during launch in config.ini.
 
 ## Supported Versions
 Below are the minimum supported versions of critical components of PIM
