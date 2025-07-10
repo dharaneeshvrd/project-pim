@@ -1,4 +1,4 @@
-# Power Inference Microservice(PIM)
+# PIM Deployer guide
 
 PIM deployer is a user who deploys custom built PIM bootable container image composed of AI workloads like LLM inference engine or ML(Machine Learning) inference on Power environment with minimal effort.
 
