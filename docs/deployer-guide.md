@@ -11,7 +11,7 @@ PIM deployer is a user who deploys custom built PIM bootable container image com
 - An existing partition with an external storage managed by SAN attached
 
 ### Installation
-To ease installation of dependencies, installer scripts are provided in PIM.
+To ease installation of dependencies, installer scripts are provided with PIM.
 
 On IBMi run
 ```shell
