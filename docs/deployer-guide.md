@@ -26,17 +26,19 @@ source <(curl -sL https://raw.githubusercontent.com/IBM/project-pim/main/install
 All PIM configurations are available in config.ini. How to configure key parameters is captured in [configuration-guide](configuration-guide.md)
 
 ### Run PIM solution
-python utility **pim.py** is used to perform various lifecyle operations like launch, update-config, update-compute, upgrade, rollback, status and destroy.
+python utility **pim.py** is used to perform various lifecycle operations like launch, update-config, update-compute, upgrade, rollback, status and destroy.
 
 ![alt text](pim_cli.png)
 
-NOTE: to run PIM in debug mode, pass `--debug` mode to above command
+NOTE: 
+- To run PIM in debug mode, pass `--debug` mode to above command
+- To pass configuration file placed in custom path, pass `--config <path of configuration file>`
 
 ### PIM Lifecycle management
 PIM manages below listed lifecycles of partition provisioned with AI stack.  
 
 #### Launch
-- This action provisions new partition, attaches network, storage, loads boostrap and cloud-init iso to VIOS media repositories and boots partition with AI stack.
+- This action provisions new partition, attaches network, storage, loads bootstrap and cloud-init iso to VIOS media repositories and boots partition with AI stack.
 - If deployer has a partition created with storage(SAN) attached, this flow continues to provision AI stack similar to fresh installation case.
 
 ```shell
