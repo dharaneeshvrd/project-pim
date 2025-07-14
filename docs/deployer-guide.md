@@ -32,8 +32,7 @@ python utility **pim.py** is used to perform various lifecycle operations like l
 
 NOTE: 
 - To run PIM in debug mode, pass `--debug` mode to above command
-- To pass configuration file placed in custom path, pass `--config <path of configuration file>`
-
+- To pass custom config file, set value in `--config <path of config file>`, with this if you want to do multiple AI use case deployments via PIM, different config.ini can be used.
 ### PIM Lifecycle management
 PIM manages below listed lifecycles of partition provisioned with AI stack.  
 
