@@ -8,7 +8,7 @@ PIM configs has major sections like system, ai and partition. each of these sect
 - password: HMC password
 
 ## AI
-- image: Bootable AI container image pushed on an image registry, AI paritition will get loaded with this image.
+- image: Bootable AI container image pushed on an image registry, AI partition will get loaded with this image.
 - config-json: Configuration to your applications running inside the AI partition. Ex: In case of vLLM based bootable container image, vLLM image and config to vLLM application can be specified. Make sure to use triple quotes to wrap the json value
 - auth-json: Image credentials with registry information to pull the bootable AI container image. Make sure to use triple quotes to wrap the json value
 

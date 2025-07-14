@@ -13,7 +13,7 @@ Steps to build PIM image is captured [here](../base-image/README.md).
 ## AI image
 AI image holds steps to run the AI application when it is deployed on a partition via PIM, you need to pass this AI image only to the PIM deployer utility. It usually follows below [application structure](app_structure.png) to get it deployed via PIM. 
 
-- app - AI application specific buisiness logic and contains build scripts to build the container image of the AI application.
+- app - AI application specific business logic and contains build scripts to build the container image of the AI application.
 - entity.container - A systemd service file to pull the AI workload image(entity extraction) from a registry during runtime and runs the AI application(entity extraction) as container. Make sure all container related inputs are added in `Container` block.
 - Containerfile - Base image should be a PIM base image. Contains copy steps to copy the entity.container and configuration scripts to run them when the system starts.
 
