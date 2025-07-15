@@ -1,23 +1,23 @@
 # PIM Configuration
-PIM configs has major sections like system, ai and partition. each of these sections are covered in detail below.
+PIM configs have major sections like system, ai and partition. Each of these sections is covered in detail below.
 
 ## System
 - name: Name of the P10/P11 host, can be found from HMC console
 - host-address: IP address of HMC host
-- username: Username of HMC user. If user is non-root user, make sure the user has sufficient roles to perform HMC operations as captured in [user-roles.md](user-roles.md)
+- username: Username of HMC user. If the user is a non-root user, make sure the user has sufficient roles to perform HMC operations as captured in [user-roles.md](user-roles.md)
 - password: HMC password
 
 ## AI
-- image: Bootable AI container image pushed on an image registry, AI partition will get loaded with this image.
-- config-json: Configuration to your applications running inside the AI partition. Ex: In case of vLLM based bootable container image, vLLM image and config to vLLM application can be specified. Make sure to use triple quotes to wrap the json value
+- image: Bootable AI container image pushed on an image registry, the AI partition will get loaded with this image.
+- config-json: Configuration for your applications running inside the AI partition. Ex: In case of vLLM based bootable container image, vLLM image and config to vLLM application can be specified. Make sure to use triple quotes to wrap the json value
 - auth-json: Image credentials with registry information to pull the bootable AI container image. Make sure to use triple quotes to wrap the json value
 
 ### Validation
-Below section of configurations helps providing details of your AI application if you intend to verify at then end of PIM deployment via launch flow.
-- request: 'yes' or 'no' to make request to validate the AI app deployed as part of PIM lpar
-- url: URL of the AI app to check for completion. Key in the same IP address assigned as part of networking configuration in the URL
-- headers: REST request header for "Content-Type". Use suitable Content-Type as demanded by the AI application
-- payload: payload for the REST request for your AI app. It must include the model and messages. Sample payload using granite model is shown below.
+The below section of configurations helps provide details of your AI application if you intend to verify at the end of PIM deployment via the launch flow.
+- request: 'yes' or 'no' to request to validate the AI app deployed as part of PIM lpar
+- url: URL of the AI app to check for completion. Key in the same IP address assigned as part of the networking configuration in the URL
+- headers: REST request header for "Content-Type". Use a suitable Content-Type as demanded by the AI application
+- payload: payload for the REST request for your AI app. It must include the model and messages. A sample payload using the granite model is shown below.
 ```ini
 # provide payload to use in json format inside triple quotes
 payload = """
@@ -34,9 +34,9 @@ payload = """
 ```
 
 ## Partition
-This section covers PIM partition related configurations
-- name: name of the partition. Make sure partition name has only alphanumeric characters and underscore.
-- flavor: this refers to partition's instance type. Currently PIM supports small, medium, large and [custom](#custom-flavor) types. small, medium and large flavors have fixed cpu cores and memory sizes. 
+This section covers PIM partition-related configurations
+- name: name of the partition. Make sure the partition name has only alphanumeric characters and an underscore.
+- Flavor: this refers to the partition's instance type. Currently, PIM supports small, medium, large and [custom](# custom-Flavor) types. small, medium and large Flavors have fixed CPU cores and memory sizes. 
 
 | Flavor   | Memory  | CPU     |
 | ---------|---------|---------|
@@ -49,7 +49,7 @@ NOTE: For more details on PIM compute flavors, refer configuration files of resp
 ### Network
 #### Connection
 This section covers networking related configurations
-- virtual-switch-name: name of the virtual switch connected to Power host
+- virtual-switch-name: name of the virtual switch connected to the Power host
 - virtual-network-name: name of virtual network connected to Power host
 #### IP
 This section covers IP address, DNS and gateway
@@ -58,17 +58,17 @@ This section covers IP address, DNS and gateway
 - nameserver: DNS server IP address
 
 ## Advanced configs
-These are optional configurations, configure them if fine grained control over AI Partition is needed
+These are optional configurations; configure them if fine-grained control over AI Partition is needed
 
-#### Custom flavor
-Use this section to use a custom flavor to provide different CPU and memory sizes other than pre-defined flavors
+#### Custom Flavor
+Use this section to use a custom flavor to provide different CPU and memory sizes other than the pre-defined flavors
 
 #### SSH
-SSH configurations to access PIM partition
-- username: name of the ssh user, keep it as 'pim'
-- pub-key-file: Public SSH key file if the keypair is generated by deployer
-- priv-key-file: Private SSH key file if the keypair is generated by deployer
+SSH configurations to access the PIM partition
+- username: name of the SSH user, keep it as 'pim'
+- pub-key-file: Public SSH key file if the keypair is generated by the deployer
+- priv-key-file: Private SSH key file if the keypair is generated by the deployer
 - **If pub-key-file and priv-key-file are kept empty, PIM generates SSH keypair and stores it in folder <PIM_workspace>/keys folder**
 
 #### Bootstrap ISO
-URL of the bootstrap ISO. No need to override this, It will be built and provided by IBM.
+URL of the bootstrap ISO. No need to override this, it will be built and provided by IBM.
