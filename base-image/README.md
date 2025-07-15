@@ -5,7 +5,7 @@
 FROM registry.redhat.io/rhel9/rhel-bootc:9.6-1747275992
 ```
 Use bootc base image from officially built rhel container image [here](https://catalog.redhat.com/software/containers/rhel9/rhel-bootc/6605573d4dbfe41c3d839c69?architecture=ppc64le&image=68255270360faaf4e6db2240&container-tabs=gti&gti-tabs=red-hat-login) 
-You need Redhat account to get the credentials to pull the image
+You need Red Hat account to get the credentials to pull the image
 
 ```Dockerfile
 RUN dnf -y install cloud-init && \
@@ -22,7 +22,7 @@ COPY base_config.service /etc/systemd/system
 RUN systemctl unmask base_config.service
 RUN systemctl enable base_config.service
 ```
-Systemd service to setup pimconfig like copying cloud init config and pim config files to respective directory
+systemd service to setup pimconfig like copying cloud init config and pim config files to respective directory
 
 ## Build
 
