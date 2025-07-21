@@ -47,7 +47,7 @@ def generate_cloud_init_iso_config(config, slot_num, config_dir):
         config_dir + "/99_custom_network.cfg", "w")
     network_config_file.write(network_config_output)
 
-    auth_json = config["ai"]["auth-json"]
+    auth_json = "{}" if config["ai"]["auth-json"] == "" else config["ai"]["auth-json"]
     auth_config_file = open(config_dir + "/auth.json", "w")
     auth_config_file.write(auth_json)
     logger.debug("Generated config files for the cloud-init ISO")
