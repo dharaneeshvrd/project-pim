@@ -9,6 +9,7 @@ import cli.partition.activation as activation
 import cli.partition.partition as partition
 from cli.storage.storage_exception import StorageError
 import cli.storage.storage as storage
+import storage.virtual_storage as vstorage
 import cli.storage.vopt_storage as vopt
 import cli.utils.command_util as command_util
 import cli.utils.common as common
@@ -124,59 +125,7 @@ def _launch(config, cookies, sys_uuid, vios_uuids):
         logger.info("Installation ISOs attached to the partition")
 
         logger.info("Setting up storage")
-        # Re-run scenario: Check if physical disk is already attached
-        storage_attached = False
-        for a_vios_uuid, a_vios in active_vios_servers.items():
-            logger.debug(f"Checking for existing physical disk attachment in VIOS '{a_vios_uuid}'")
-            physical_disk_found, _ = storage.check_if_storage_attached(
-                a_vios, partition_uuid)
-            if physical_disk_found:
-                logger.info(
-                    f"Physical disk is already attached to lpar '{partition_uuid}'")
-                storage_attached = True
-            if not storage_attached:
-                vfc_disk_found, _ = storage.check_if_vfc_disk_attached(
-                    a_vios, partition_uuid)
-                if vfc_disk_found:
-                    logger.info(
-                        f"SAN storage(VFC) disk is already attached to lpar '{partition_uuid}'")
-                    storage_attached = True
-
-        # Enable below code block when virtual disk support is added
-        '''
-        use_vdisk = util.use_virtual_disk(config)
-        if use_vdisk:
-            vios_storage_uuid = vios_storage_list[0][0]
-            updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
-            use_existing_vd = util.use_existing_vd(config)
-            if use_existing_vd:
-                vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid)
-            else:
-                # Create volume group, virtual disk and attach storage
-                use_existing_vg = util.use_existing_vg(config)
-                if not use_existing_vg:
-                    # Create volume group
-                    vg_id = vstorage.create_volumegroup(config, cookies, vios_storage_uuid)
-                else:
-                    vg_id = get_volume_group(config, cookies, vios_storage_uuid, util.get_volume_group(config))
-                    vstorage.create_virtualdisk(config, cookies, vios_storage_uuid, vg_id)
-                    time.sleep(60)
-                    updated_vios_payload = get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
-                    vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, partition_uuid, sys_uuid, vios_storage_uuid)
-                    diskname = util.get_virtual_disk_name(config)
-        '''
-
-        if not storage_attached:
-            vios_storage_list = vios_operation.get_vios_with_physical_storage(
-                config, active_vios_servers)
-            if len(vios_storage_list) == 0:
-                logger.error(
-                    "failed to find physical volume for the partition")
-                raise StorageError(
-                    "failed to find physical volume for the partition")
-            storage.attach_physical_storage(
-                config, cookies, sys_uuid, partition_uuid, vios_storage_list)
-
+        setup_storage(config, cookies, active_vios_servers, sys_uuid, partition_uuid)
 
         lpar_state = activation.check_lpar_status(config, cookies, partition_uuid)
         if lpar_state != "running":
@@ -195,3 +144,70 @@ def _launch(config, cookies, sys_uuid, vios_uuids):
         monitor_util.monitor_pim(config)
     except (AIAppError, AuthError, NetworkError, PartitionError, StorageError, VIOSError, paramiko.SSHException, Exception) as e:
         raise e
+
+def setup_storage(config, cookies, active_vios, sys_uuid, lpar_id):
+    try:
+        # Re-run scenario: Check if physical disk/virtualdisk/SAN storage(VFC) is already attached to partition
+        storage_attached = False
+        for a_vios_uuid, a_vios in active_vios.items():
+            logger.debug(f"Checking for existing physical disk attachment in VIOS '{a_vios_uuid}'")
+            physical_disk_found, _ = storage.check_if_storage_attached(
+                a_vios, lpar_id)
+            if physical_disk_found:
+                logger.info(
+                    f"Physical disk is already attached to lpar '{lpar_id}'")
+                storage_attached = True
+            if not storage_attached:
+                vdisk_found, vdisk_name = vstorage.check_if_vdisk_attached(a_vios, lpar_id)
+                if vdisk_found:
+                    logger.info(f"Virtual disk '{vdisk_name}' is already attached to lpar '{lpar_id}'")
+                    storage_attached = True
+            if not storage_attached:
+                vfc_disk_found, _ = storage.check_if_vfc_disk_attached(
+                    a_vios, lpar_id)
+                if vfc_disk_found:
+                    logger.info(
+                        f"SAN storage(VFC) disk is already attached to lpar '{lpar_id}'")
+                    storage_attached = True
+
+        vdisk_attached = False
+        if util.use_logical_volume(config) and not storage_attached:
+            handle_virtual_disk(config, cookies, active_vios, sys_uuid, lpar_id)
+            vdisk_attached = True
+
+        if not storage_attached and not vdisk_attached:
+            vios_storage_list = vios_operation.get_vios_with_physical_storage(
+                config, active_vios)
+            if len(vios_storage_list) == 0:
+                logger.error(
+                    "failed to find physical volume for the partition")
+                raise StorageError(
+                    "failed to find physical volume for the partition")
+            storage.attach_physical_storage(
+                config, cookies, sys_uuid, lpar_id, vios_storage_list)
+    except (StorageError, VIOSError, Exception) as e:
+        raise e
+
+def handle_virtual_disk(config, cookies, active_vios, sys_uuid, lpar_id):
+    try:
+        vios_storage_list = vios_operation.get_vios_with_physical_storage(
+            config, active_vios)
+        if len(vios_storage_list) == 0:
+            logger.error("failed to find physical volume for the partition")
+            raise StorageError("failed to find physical volume for the partition")
+        vios_storage_uuid = vios_storage_list[0][0]
+        updated_vios_payload = vios_operation.get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
+
+        # Check if virtual storage already exists under the given volumegroup
+        vg_id = vstorage.get_volume_group_id(config, cookies, vios_storage_uuid, util.get_volume_group_name(config))
+        found, _, _ = vstorage.check_if_vdisk_exists(config, cookies, vios_storage_uuid, vg_id, util.get_virtual_disk_name(config))
+        # Create virtualdisk only if it doesn't exist under volumegroup
+        if not found:
+            vstorage.create_virtualdisk(config, cookies, vios_storage_uuid, vg_id)
+            updated_vios_payload = vios_operation.get_vios_details(config, cookies, sys_uuid, vios_storage_uuid)
+
+        vstorage.attach_virtualdisk(updated_vios_payload, config, cookies, lpar_id, sys_uuid, vios_storage_uuid)
+    except (StorageError, VIOSError, Exception) as e:
+        raise e
+    logger.info(f"virtualdisk is attached to partition '{lpar_id}' successfully")
+    return
