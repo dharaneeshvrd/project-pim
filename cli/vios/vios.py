@@ -170,7 +170,7 @@ def cleanup_storage(config, cookies, vios, vios_uuid, sys_uuid, partition_uuid):
             config, cookies, sys_uuid, partition_uuid, vios_uuid, vios, phys_disk)
         storage_cleaned = True
     # Check if attached disk is virtual disk
-    if not phys_disk_found and not storage_cleaned:
+    if not phys_disk_found and not storage_cleaned and util.use_logical_volume(config):
         cleanup_logical_volume(config, cookies, vios, vios_uuid, sys_uuid, partition_uuid)
         storage_cleaned = True
     return storage_cleaned
