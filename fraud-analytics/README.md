@@ -4,27 +4,28 @@ This workload runs on two LPARs (IBM i and Linux)
 
 
 ### Linux
-The Linux LPAR is where the REST API is running (in RHEL). This LPAR does inference with 7 transactions (current + 6 previous) to determine if the current transaction is fraud.
+The Linux LPAR is where the REST API is running. This LPAR does inference with 7 transactions (current + 6 previous) to determine if the current transaction is fraud.
 
 ### IBM i
 The IBM i LPAR hosts the database with the credit card transactions. The schema has the following database elements:
 
+- **Table:** Table contains the credit card transaction data 
 - **UDF:** grabs the previous 6 transaction for a given user and card. This UDF will be called in the trigger
 - **Trigger:** Upon insert, the trigger creates a JSON document with the current transaction, as well as the previous 6 transactions for that user/card (this is done by calling the UDF). The JSON document is then sent to the REST API on the linux lpar to determine if the current transaction is fraud. The result is sent back to IBM i, which inserts the transaction into the database with the `is_fraud` value set.
 
 ## Setup Steps
 Clone this repository on your system
 ### Linux
-The REST API endpoint `linux_inference_endpoint.py` can be run inside a podman container.
-- Build the image: `podman build -t fraud_analytics .`
-  - The required files to build the image are in the `image-build` directory
-  - The following wheels need to be downloaded and placed in the `image-build` directory before building the image: https://ibm.ent.box.com/folder/316080260891?s=w0yl8bcf4ijvw6mdzpxyvsesv1f7uwu6
+The REST API endpoint `linux_inference_endpoint.py` can be run inside a podman container. It exposes a `/predict` endpoint which accepts current plus previous transactions and predicts current transaction is fraud or not.
+- Build the image: `podman build -t fraud_analytics .`. Building tensorflow from scratch requires minimum of 192GB of memory with 120GB of disk.
 - Run the container: `podman run -p 5000:5000 localhost/fraud_analytics`
    
 ### IBM i
-- Create the schema and table using `create_table.sql`
-- Create the UDF that grabs the previous 6 transactions for a given user and card using `get_transactions.sql`
-- Create the before insert trigger using `insert_trigger.sql`
+- Create the schema and table using [create_table.sql](sql/create_table.sql)
+- Load the data into table using [insert_data.sql](sql/insert_data.sql)
+- Create the UDF that grabs the previous 6 transactions for a given user and card using [get_transactions.sql](sql/get_transactions.sql)
+- Create the before insert trigger using [insert_trigger.sql](sql/insert_trigger.sql), ensure to replace the fraud_analytics REST endpoint to trigger the inference request. 
+  - i.e. `http://<Linux partition 's ip where fraud analytics container runs>:5000/predict`
 
 Use the following example to test if the pipeline is working
 ```
@@ -36,6 +37,3 @@ SELECT * FROM PIM.INDEXED_TR WHERE IS_ERRORS = 'Example';
 ```
 
 If the insert is successful, you should see the row added to the database with the `IS_FRAUD` value set to Yes
-
-
-## Running the Workload Using JMeter

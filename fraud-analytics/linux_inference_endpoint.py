@@ -1,38 +1,18 @@
-import tensorflow as tf
-from tensorflow import keras
+from flask import Flask, request, jsonify
+import joblib
+import logging
+import math
 import numpy as np
 import pandas as pd
-import math
-import os
-import joblib
-import pydot
-import warnings
-import ibm_db
-import ibm_db_dbi
-import json
-import requests
-import operator
-import mapepire_python
-from mapepire_python.data_types import DaemonServer
-from mapepire_python.client.sql_job import SQLJob
-from flask import Flask, request, jsonify
-from sklearn_pandas import DataFrameMapper
-from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.preprocessing import FunctionTransformer
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.preprocessing import LabelBinarizer
-from sklearn.impute import SimpleImputer
-warnings.simplefilter(action='ignore', category=FutureWarning)
-warnings.simplefilter(action='ignore', category=DeprecationWarning)
+import tensorflow as tf
+import time
 
 app = Flask(__name__)
 
 seq_length = 7 # Six past transactions followed by current transaction
 batch_size = 1
 
-save_dir = ''
-model = tf.keras.models.load_model('./extra/feb11_model.h5')
+model = tf.keras.models.load_model("/opt/models/model.h5")
 
 
 def timeEncoder(X):
@@ -74,12 +54,11 @@ def predict_user_card_combination(tdf, mapper, model, user, card):
         result = float(predictions[seq_length - 1][0][0])
         batch_predictions.append(result)
 
-    print("Number of predictions for 7 transaction sequences: ", len(batch_predictions))
+    logging.info("Number of predictions for 7 transaction sequences: ", len(batch_predictions))
     return batch_predictions
 
 def process_db2_to_pandas(listDicts):
     tdf = pd.DataFrame(listDicts)
-    print(tdf)
     tdf['merchant_name'] = tdf['merchant_name'].astype(str)
     tdf["merchant_city"].replace('ONLINE', ' ONLINE', regex=True, inplace=True)
     tdf["merchant_state"].fillna(np.nan, inplace=True)
@@ -125,7 +104,7 @@ def add_row_to_dataframe(dataframe, user, card, year, month, day, time, amount, 
     dataframe = pd.concat([dataframe, pd.DataFrame([new_row])], ignore_index=True)
     return dataframe
 
-mapper = joblib.load(open('./extra/fitted_mapper.pkl', 'rb'))
+mapper = joblib.load(open("/opt/models/fitted_mapper.pkl", 'rb'))
 
 # Define the Flask endpoint
 @app.route('/predict', methods=['POST'])
@@ -134,14 +113,16 @@ def predict_fraud():
     data = request.get_json()
     current_transaction = data.get('current_transaction')
     previous_transactions = data.get('previous_transactions')
-    print(previous_transactions)
+    
+    logging.info(f"current transaction: {current_transaction}")
+    logging.info(f"previous transaction: {previous_transactions}")
 
     user_id = int(current_transaction.get('user_id'))
     card = int(current_transaction.get('card'))
     year = int(current_transaction.get('year'))
     month = int(current_transaction.get('month'))
     day = int(current_transaction.get('day'))
-    time = current_transaction.get('time')
+    time_t = current_transaction.get('time')
     amount = current_transaction.get('amount')
     use_chip = current_transaction.get('use_chip')
     merchant_name = current_transaction.get('merchant_name')
@@ -149,25 +130,31 @@ def predict_fraud():
     merchant_state = current_transaction.get('merchant_state')
     zip_code = float(current_transaction.get('zip_code'))
     mcc = int(current_transaction.get('mcc'))
-
+    
     # Create dataframe with the 7 transactions
     tdf = process_db2_to_pandas(previous_transactions)
-    tdf = add_row_to_dataframe(tdf, user_id, card, year, month, day, time,
+    tdf = add_row_to_dataframe(tdf, user_id, card, year, month, day, time_t,
                                amount, use_chip, merchant_name, merchant_city,
                                merchant_state, zip_code, mcc)
-
+    
     # Prediction function call
+    start_time = time.time()
     prediction_result = predict_user_card_combination(tdf, mapper, model, user_id, card)
-    print(f"Predictions for User {user_id} and Card {card}: {prediction_result}")
+    end_time = time.time()
+    logging.info(f"Predictions for User {user_id} and Card {card}: {prediction_result}")
+    logging.info("Inference Time:", end_time - start_time)
 
     # Determine if the current transaction is fraud
     if float(prediction_result[0]) > 0.5:
         is_fraud = 'Yes'
     else:
         is_fraud = 'No'
-    print(is_fraud)
-
+    
     return jsonify({'fraud_prediction': is_fraud})
+    
+@app.route('/ok', methods=['GET'])
+def check_fraud_prediction_app():
+    return jsonify({'fraud_prediction': 'ok'})    
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000, host="0.0.0.0", threaded=True)
