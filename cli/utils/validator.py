@@ -2,12 +2,13 @@ import json
 import re
 import requests
 
+from bs4 import BeautifulSoup
 from cli.network.virtual_network import get_network_uuid
-
 from cli.utils.common import *
 from cli.utils.string_util import *
 
 logger = get_logger("validator")
+supported_versions = ["FW1110.00", "FW1050.50"]
 
 def validate_config(config):
     is_mandatory_param_valid = validate_mandatory_params(config)
@@ -312,3 +313,22 @@ def get_flavor_name(config):
      if has_custom_flavor(config):
         return "custom-flavor"
      return get_partition_flavor(config)
+
+
+def validate_host_config(config, cookies, system_uuid):
+    uri = f"/rest/api/uom/ManagedSystem/{system_uuid}"
+    url =  "https://" + util.get_host_address(config) + uri
+    headers = {"x-api-key": util.get_session_key(config)}
+    response = requests.get(url, headers=headers, cookies=cookies, verify=False)
+    if response.status_code != 200:
+        logger.error(f"failed to get system firmware version: {response.text}")
+        return
+
+    soup = BeautifulSoup(response.text, 'xml')
+    fw_version = soup.find("SystemFirmware").text
+
+    for supported_version in supported_versions:
+        if supported_version in fw_version:
+            return True
+    logger.error(f"Unsupported firmware version: '{fw_version}', supported versions: '{supported_versions}'")
+    return False
