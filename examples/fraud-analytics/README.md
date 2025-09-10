@@ -10,9 +10,9 @@ Please read about the architecture [here](https://github.ibm.com/project-pim/pim
 Ensure to replace the `FROM` image in [Containerfile](Containerfile) with the base image you have built before building this image.
 
 ```shell
-podman build -t <your_registry>/custom-fraud-analytics
+podman build -t <your registry>/pim:fraud-analytics
 
-podman push <your_registry>/custom-fraud-analytics
+podman push <your registry>/pim:fraud-analytics
 ```
 
 ### Usage

@@ -7,7 +7,7 @@ RestartSec=60
 EnvironmentFile=/etc/pim/env.conf
 
 [Container]
-Image=na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/fraud-analytics
+Image=quay.io/<account id>/pim:fraud-analytics
 Network=host
 SecurityLabelType=unconfined_t
 AutoUpdate=registry

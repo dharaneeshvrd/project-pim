@@ -1,4 +1,4 @@
-FROM na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/base
+FROM quay.io/<account id>/pim:base
 
 COPY fraud-analytics.container /usr/share/containers/systemd
 

@@ -25,7 +25,7 @@ HMC credential details like ip address, username and password used by HMC server
 ```ini
 config-json = """
   {
-    "llmImage": "na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/apps/vllm",
+    "llmImage": "quay.io/<account id>/pim:vllm-app",
     "llmArgs": "--model ibm-granite/granite-3.2-8b-instruct --max-model-len=26208 --enable-auto-tool-choice --tool-call-parser granite",
     "llmEnv": "OMP_NUM_THREADS=16",
     "hmcConfig": "HMC_IP=9.100.9.90, HMC_USERNAME=hmcuser, HMC_PASSWORD=lab123",
@@ -39,11 +39,11 @@ Pre-requisite: Since PIM HMC agent image bootstraps HMC server and HMC agent, bu
 - Enter into hmc-agent example application directory containing [Containerfile](./Containerfile)
 - Build the PIM HMC agent container image using podman
 ```
-podman build -f Containerfile -t <your_registry>/pim_hmc_agent
+podman build -f Containerfile -t <your registry>/pim:hmc-agent
 ```
 - Push the PIM HMC agent container image to container registry
 ```
-podman push <your_registry>/pim_hmc_agent
+podman push <your registry>/pim:hmc-agent
 ```
 
-**NOTE: While deploying HMC agent application, use the <your_registry>/pim_hmc_agent image built above as the image parameter in [config](../../config.ini)**
+**NOTE: While deploying HMC agent application, use the `<your registry>/pim:hmc-agent` image built above as the image parameter in [config](../../config.ini)**

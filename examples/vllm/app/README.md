@@ -18,6 +18,6 @@ i.e. ./build.sh release 0.8.5.post1
 main - it will build the vLLM application from main branch
 i.e. ./build.sh main
 
-podman tag localhost/vllm <your_registry>/apps/vllm
-podman push <your_registry>/apps/vllm
+podman tag localhost/vllm <your registry>/pim:vllm-app
+podman push <your registry>/pim:vllm-app
 ```

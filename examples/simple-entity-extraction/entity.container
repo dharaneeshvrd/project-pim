@@ -9,7 +9,7 @@ RestartSec=60
 EnvironmentFile=/etc/pim/env.conf
 
 [Container]
-Image=na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/entity-extraction
+Image=quay.io/<account id>/pim:entity-extraction
 Network=host
 SecurityLabelType=unconfined_t
 AutoUpdate=registry

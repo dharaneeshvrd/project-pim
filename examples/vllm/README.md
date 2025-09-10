@@ -20,7 +20,7 @@ A JSON object that specifies the source from which you want to download the mode
 ```ini
 config-json = """
   {
-        "llmImage": "na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/apps/vllm",
+        "llmImage": "quay.io/<account id>/pim:vllm-app",
         "llmArgs": "--model ibm-granite/granite-3.2-8b-instruct --max-model-len=26208 --enable-auto-tool-choice --tool-call-parser granite",
         "llmEnv": "OMP_NUM_THREADS=16",
         "modelSource": { "url": "http://<Host/ip>/models--ibm-granite--granite-3.2-8b-instruct.tar.gz" }
@@ -36,9 +36,9 @@ Follow the steps provided [here](../../base-image/README.md) to build the base i
 Ensure to replace the `FROM` image in [Containerfile](Containerfile) with the base image you have built before building this image.
 
 ```shell
-podman build -t <your_registry>/vllm
+podman build -t <your registry>/pim:vllm
 
-podman push <your_registry>/vllm
+podman push <your registry>/pim:vllm
 ```
 
 

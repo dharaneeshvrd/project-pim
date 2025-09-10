@@ -2,18 +2,21 @@
 
 ## Containerfile
 ```Dockerfile
-FROM registry.redhat.io/rhel9/rhel-bootc:9.6-1747275992
+FROM quay.io/fedora/fedora-bootc@sha256:255a49c3e1011670b8b039276de3fe8bef5e7c1de5f06f6fb9d1dd8a6084d600
 ```
-There are three distros of bootc image available to use. CentOS, Fedora and RHEL
-- If you have Red Hat account and wanted to use official RHEL image, use official RHEL bootc image available in Red Hat's container catalog [here](https://catalog.redhat.com/software/containers/rhel9/rhel-bootc/6605573d4dbfe41c3d839c69?architecture=ppc64le&image=68255270360faaf4e6db2240&container-tabs=gti&gti-tabs=red-hat-login). 
+Base image used is `quay.io/fedora/fedora-bootc:43-ppc64le`, image digest is used since the image is getting updated frequently, don't want to change the behaviour in future.
+There are three distros of bootc image available to use. Fedora, CentOS and RHEL
+### Fedora/CentOS
+- Fedora and CentOS bootc images are available in Open Source, you can consume from their quay registry.
+    - [CentOS](https://quay.io/repository/centos-bootc/centos-bootc) - i.e. `quay.io/centos-bootc/centos-bootc:stream10`
+    - [Fedora](https://quay.io/repository/fedora/fedora-bootc) - i.e. `quay.io/fedora/fedora-bootc:43`
+### RHEL
+- If you have Red Hat account and wanted to use official RHEL image, use official RHEL bootc image available in Red Hat's container catalog [here](https://catalog.redhat.com/en/software/containers/rhel10/rhel-bootc/6707d29f27f63a06f7873ee2?architecture=ppc64le&image=). 
 
     **Note:**
     - You need Red Hat account to get the credentials to pull the image. 
     - Need to build the image on RHEL machine where subsciption activated.
 
-- CentOS and Fedora bootc images are available in Open Source, you can consume from their quay registry. If you want to use the CentOS/Fedora, ensure to replace the `FROM` image in [Containerfile](Containerfile)
-    - [CentOS](https://quay.io/repository/centos-bootc/centos-bootc) - i.e. `quay.io/centos-bootc/centos-bootc:stream10`
-    - [Fedora](https://quay.io/repository/fedora/fedora-bootc) - i.e. `quay.io/fedora/fedora-bootc:43`
 
 
 ```Dockerfile
@@ -40,6 +43,6 @@ Run the build in a RHEL machine with proper subscription activated. `podman buil
 ```shell
 podman build -t localhost/pim-base .
 
-podman tag localhost/pim-base na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/base
-podman push na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/base
+podman tag localhost/pim-base quay.io/<account id>/pim:base
+podman push quay.io/<account id>/pim:base
 ```
