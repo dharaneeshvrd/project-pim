@@ -10,11 +10,11 @@ HMC agent is an MCP client which interacts with MCP server to get a response to 
 1. Enter into hmc-agent app directory containing [Containerfile](./Containerfile)
 2. Build HMC agent container image using podman
 ```
-podman build . -t <your_registry>/hmc_agent
+podman build . -t <your registry>/pim:hmc-agent
 ```
 3. Push the HMC agent container image to container registry
 ```
-podman push <your_registry>/hmc_agent
+podman push <your registry>/pim:hmc-agent
 ```
 
 **NOTE: Both HMC server and HMC agent uses same container image but run with different commands at runtime**

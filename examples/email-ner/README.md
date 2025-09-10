@@ -5,6 +5,6 @@ Email Named Entity Recognition is an expample to extract entities in an email. I
 ### Build
 Ensure to replace the `FROM` image in [Containerfile](Containerfile) with the vLLM image you have built before building this image.
 ```shell
-podman build -t <your_registry>/email-ner
-podman push <your_registry>/email-ner
+podman build -t <your registry>/pim:email-ner
+podman push <your registry>/pim:email-ner
 ```

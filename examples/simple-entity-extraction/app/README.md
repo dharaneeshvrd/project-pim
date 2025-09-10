@@ -4,7 +4,7 @@ Runs a simple entity extraction application on streamlit UI framework by leverag
 
 ### Build
 ```shell
-podman build . -t <your_registry>/apps/entity-extraction
+podman build . -t <your registry>/pim:entity-extraction-app
 
-podman push <your_registry>/apps/entity-extraction
+podman push <your registry>/pim:entity-extraction-app
 ```

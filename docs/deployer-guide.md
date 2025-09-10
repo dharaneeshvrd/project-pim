@@ -88,12 +88,14 @@ python3 cli/pim.py update-compute
 export PYTHONPATH=.
 python3 cli/pim.py status
 
-● Booted image: na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/email-ner:latest
-    Digest: sha256:693616ee36589c1223e2795858cfbee3f77ec3cb5d1fc4233952cb4572d67a6d
-    Version: 9.6 (2025-06-19 06:10:07.347947545 UTC)
- Rollback image: na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/email-ner:latest
-     Digest: sha256:f9dddcf7220334401cf6f3447a6ff39db24bd392a1e7c3073f2e07578ecfbf61
-     Version: 9.6 (2025-06-11 08:00:38.349929331 UTC)
+● Booted image: quay.io/<account id>/pim:vllm
+
+        Digest: sha256:21d2d46af19e4aaa6917571bd4e187d65e239e2a5c90d872c67a0c37e26ad4af (ppc64le)
+
+       Version: 43.20250824.0 (2025-09-09T11:08:47Z)
+ Rollback image: quay.io/<account id>/pim:vllm
+     Digest: sha256:f9dddcf7220334401cf6f3447a6ff39db24bd392a1e7c3073f2e07578ecfbf61 (ppc64le)
+     Version: 43.20250824.0 (2025-09-09T10:40:35Z)
 ```
 
 #### Destroy

@@ -10,6 +10,6 @@ Run `./build.sh` in a Power Linux machine to build https://github.ibm.com/redsta
 ```shell
 ./build.sh # Clones spyre repo and builds a container image called `localhost/email-ner`
 
-podman tag localhost/email-ner <your_registry>/email-ner
-podman push <your_registry>/email-ner
+podman tag localhost/email-ner <your registry>/pim:email-ner-app
+podman push <your registry>/pim:email-ner-app
 ```

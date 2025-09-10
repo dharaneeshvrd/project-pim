@@ -1,4 +1,4 @@
-FROM na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/vllm
+FROM quay.io/<account id>/pim:vllm
 
 COPY email-ner-config.sh /usr/bin
 COPY email-ner-config.service /etc/systemd/system

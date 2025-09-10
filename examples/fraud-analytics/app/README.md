@@ -15,7 +15,7 @@ cd pim-fraud-analytics/image-build
 Download required [wheels](https://ibm.box.com/s/w0yl8bcf4ijvw6mdzpxyvsesv1f7uwu6) into current directory
 
 ```shell
-podman build -t <your_registry>/fraud-analytics .
+podman build -t <your registry>/pim:fraud-analytics-app .
 
-podman push <your_registry>/fraud-analytics
+podman push <your registry>/pim:fraud-analytics-app
 ```

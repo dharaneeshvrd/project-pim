@@ -9,7 +9,7 @@ RestartSec=60
 EnvironmentFile=/etc/pim/env.conf
 
 [Container]
-Image=na.artifactory.swg-devops.com/sys-pcloud-docker-local/devops/pim/apps/email-ner
+Image=quay.io/<account id/pim:email-ner-app
 Network=host
 EnvironmentFile=/etc/pim/email_ner.conf
 SecurityLabelType=unconfined_t
