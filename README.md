@@ -1,5 +1,12 @@
 # Power Inference Microservices (PIM)
-The PIM project enables the spinning up of an AI environment with very little user intervention, adjacent to other workloads running on IBM Power. These workloads might be running on any of the supported operating systems on IBM Power: IBMi, AIX, or Linux, as long as they are managed by a Hardware Management Console (HMC). The PIM solution leverages Bootable Containers (bootc), a modern tool for deploying and configuring immutable Linux systems.
+
+⚠️ **Experimental Software** ⚠️ 
+
+This project is currently in an experimental phase, and as such, the code is unstable and subject to change. We advise against using it in production environments. Additionally, there is no formal support provided for any issues encountered with this repository. If you encounter problems, please open a GitHub issue.
+
+**Description:**
+
+The PIM project enables the spinning up of an AI environment with very little user intervention, adjacent to other workloads running on IBM Power. These workloads might be running on any of the supported operating systems on IBM Power: IBMi, or Linux, as long as they are managed by a Hardware Management Console (HMC). The PIM solution leverages Bootable Containers (bootc), a modern tool for deploying and configuring immutable Linux systems.
 PIM provides an end-to-end solution for AI stack installation by creating a Logical Partition (LPAR) with a specified AI stack image. This involves network and storage attachment, and the LPAR is then booted with the configured image.
 
 ![alt text](docs/architecture.png)
@@ -10,7 +17,6 @@ PIM provides an end-to-end solution for AI stack installation by creating a Logi
 - Makes admin's management simple by easing day 2 operations like monitoring, upgrading and managing.
 - Provides end-to-end software lifecycle management operations like [launch](docs/deployer-guide.md#launch), [destroy](docs/deployer-guide.md#destroy), [update-config](docs/deployer-guide.md#update-config), [update-compute](docs/deployer-guide.md#update-config), [rollback](docs/deployer-guide.md#rollback) and [status](docs/deployer-guide.md#status).
 - Provides AI inferencing capability on CPU currently. The intent is to provide inferencing-based accelerators available on the platform as and when they become available.
-- PIM currently supports IBMi and Linux operating system environments. Support for deploying from AIX will be added at a later date.
 
 ## PIM Personas
 PIM has 2 personas, namely the builder and the deployer.
