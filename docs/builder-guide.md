@@ -1,6 +1,6 @@
 # PIM Builder guide
 
-PIM builder builds AI solution on IBMi/AIX/Linux environments using PIM. This guide helps to build a PIM image for AI workloads of their choice.
+This guide helps to build a PIM image for AI workloads of their choice in Linux environment.
 A few Inferencing AI workloads like entity extraction, fraud detection are provided for PIM provisioning as reference [here](../examples/). LLM is not mandatory for applications based on machine learning models.
 
 ## Base image
