@@ -62,6 +62,6 @@ To successfully deploy PIM, various components of the IBM Power software stack w
 | Component                                    |           P10           |             P11           |
 | -------------------------------------------- | ----------------------- | ------------------------- |
 | Hardware Management Console(HMC)             | 1061                    | 1110                      |
-| Partition Firmware(PFW)                      | 1050                    | 1110                      |
+| Partition Firmware(PFW)                      | 1050.50, 1060.50        | 1110.00                   |
 | Virtual IO Server(VIOS)                      | 4.1.1.0                 | 4.1.1.00                  |
 | IBMi                                         | 7.5                     | 7.6                       |
